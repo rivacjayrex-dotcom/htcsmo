@@ -134,6 +134,11 @@ Route::get('/dashboard', function () {
         Route::post('/admin/requests/{id}/release', [RequestController::class, 'releaseRequest'])->name('admin.requests.release');
     });
 
+    Route::middleware(['auth', 'role:smo,president,provost,vp_admin,dept_head'])->group(function () {
+        Route::get('/admin/users/manage', [ProfileController::class, 'manageUsers'])->name('admin.users.manage');
+        Route::patch('/admin/users/{user}', [ProfileController::class, 'updateManagedUser'])->name('admin.users.update');
+    });
+
     Route::get('/notifications', [RequestController::class, 'notifications'])->name('notifications');
 
     // Change the submission route to point to the new Requisition Controller
@@ -167,5 +172,3 @@ Route::get('/dashboard', function () {
 
     //Archive Page route
     Route::get('/admin/archive', [App\Http\Controllers\ArchiveController::class, 'index'])->name('admin.archive');
-
-    Route::get('/admin/users/manage', [ProfileController::class, 'manageUsers'])->name('admin.users.manage');

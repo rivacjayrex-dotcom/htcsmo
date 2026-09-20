@@ -482,6 +482,11 @@
                     <a href="{{ route('admin.approvals') }}" class="nav-link-custom {{ request()->routeIs('admin.approvals') ? 'active' : '' }}">
                         <i data-lucide="user-check"></i> Pending Approvals
                     </a>
+                    @if(in_array(Auth::user()->role, ['dept_head', 'vp_admin', 'provost', 'president']))
+                        <a href="{{ route('admin.users.manage') }}" class="nav-link-custom {{ request()->routeIs('admin.users.manage') ? 'active' : '' }}">
+                            <i data-lucide="users"></i> Manage Personnel
+                        </a>
+                    @endif
                 @endif
 
                 @if(Auth::user()->role == 'smo')

@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class ProfileController extends Controller
@@ -76,30 +77,43 @@ class ProfileController extends Controller
 
     public function approveUser(Request $request, $id)
     {
+        $validated = $request->validate([
+            'role' => ['required', Rule::in($this->allAssignableRoles())],
+        ]);
+
         $user = User::findOrFail($id);
 
         // 1. Assign the role chosen by the SMO
         // 2. Set is_approved to true
         $user->update([
-            'role' => $request->role,
+            'role' => $validated['role'],
             'is_approved' => true,
         ]);
 
         Notification::create([
             'user_id' => $user->id,
             'title' => 'Account Activated',
-            'message' => "Your account has been verified as {$request->role}. You now have full system access.",
+            'message' => "Your account has been verified as {$validated['role']}. You now have full system access.",
             'icon' => 'shield-check',
             'type' => 'success',
         ]);
 
-        return back()->with('success', "Access granted. {$user->name} is now registered as ".strtoupper($request->role));
+        return back()->with('success', "Access granted. {$user->name} is now registered as ".strtoupper($validated['role']));
     }
 
     public function manageUsers(Request $request)
     {
-        // Fetch all approved personnel
-        $query = User::where('is_approved', true);
+        $manager = $request->user();
+        $this->ensureCanManageUsers($manager);
+
+        $query = User::query();
+
+        if ($manager->role === 'dept_head') {
+            abort_if(blank($manager->department), 403, 'A department assignment is required to manage personnel.');
+
+            $query->where('department', $manager->department)
+                ->where('role', 'employee');
+        }
 
         // Optional search filter by name or ID
         if ($request->filled('search')) {
@@ -111,17 +125,114 @@ class ProfileController extends Controller
             });
         }
 
-        $allUsers = $query->orderBy('name', 'asc')->get();
+        $users = $query->orderBy('department')->orderBy('name')->get();
+        $departments = Department::orderBy('dept_name')->get();
+        $manageableUserIds = $users
+            ->filter(fn (User $user) => $this->canManageTarget($manager, $user))
+            ->pluck('id')
+            ->all();
 
-        // 1. Executive & Key Signatories (President, Provost, VPs, SMO)
-        $executives = $allUsers->whereIn('role', ['president', 'provost', 'vp_admin', 'vp_finance', 'smo']);
+        return view('admin.manage-users', [
+            'users' => $users,
+            'departments' => $departments,
+            'manageableUserIds' => $manageableUserIds,
+            'manageableRoles' => $this->assignableRolesFor($manager),
+            'canChangeDepartment' => $manager->role !== 'dept_head',
+            'scopeLabel' => $manager->role === 'dept_head'
+                ? $manager->department.' Department'
+                : 'Institution-wide',
+        ]);
+    }
 
-        // 2. Department Heads & Deans
-        $deptHeads = $allUsers->where('role', 'dept_head');
+    public function updateManagedUser(Request $request, User $user): RedirectResponse
+    {
+        $manager = $request->user();
+        $this->ensureCanManageUsers($manager);
 
-        // 3. Faculty & Staff grouped by Department
-        $employeesByDept = $allUsers->where('role', 'employee')->groupBy('department');
+        abort_unless($this->canManageTarget($manager, $user), 403, 'You cannot manage this user account.');
 
-        return view('admin.manage-users', compact('allUsers', 'executives', 'deptHeads', 'employeesByDept'));
+        $validated = $request->validate([
+            'role' => ['required', Rule::in($this->assignableRolesFor($manager))],
+            'department' => ['nullable', 'required_if:role,dept_head', Rule::exists('departments', 'dept_code')],
+            'is_approved' => ['required', 'boolean'],
+        ]);
+
+        if ($manager->role === 'dept_head') {
+            $validated['role'] = 'employee';
+            $validated['department'] = $manager->department;
+        }
+
+        $department = filled($validated['department'] ?? null)
+            ? Department::where('dept_code', $validated['department'])->first()
+            : null;
+
+        $user->update([
+            'role' => $validated['role'],
+            'department' => $department?->dept_code,
+            'department_id' => $department?->id,
+            'is_approved' => (bool) $validated['is_approved'],
+        ]);
+
+        Notification::create([
+            'user_id' => $user->id,
+            'title' => 'Personnel Record Updated',
+            'message' => "Your account assignment was updated by {$manager->name}.",
+            'icon' => 'user-cog',
+            'type' => 'info',
+        ]);
+
+        return back()->with('success', "{$user->name}'s personnel record was updated.");
+    }
+
+    private function ensureCanManageUsers(User $manager): void
+    {
+        abort_unless(
+            in_array($manager->role, ['smo', 'president', 'provost', 'vp_admin', 'dept_head'], true),
+            403,
+        );
+    }
+
+    private function canManageTarget(User $manager, User $target): bool
+    {
+        if ($manager->is($target)) {
+            return false;
+        }
+
+        if ($manager->role === 'smo') {
+            return true;
+        }
+
+        if ($manager->role === 'dept_head') {
+            return $target->role === 'employee'
+                && filled($manager->department)
+                && $target->department === $manager->department;
+        }
+
+        return in_array($manager->role, ['president', 'provost', 'vp_admin'], true)
+            && in_array($target->role, ['employee', 'dept_head'], true);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function assignableRolesFor(User $manager): array
+    {
+        if ($manager->role === 'smo') {
+            return $this->allAssignableRoles();
+        }
+
+        if ($manager->role === 'dept_head') {
+            return ['employee'];
+        }
+
+        return ['employee', 'dept_head'];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function allAssignableRoles(): array
+    {
+        return ['employee', 'dept_head', 'vp_finance', 'vp_admin', 'provost', 'president', 'smo'];
     }
 }
