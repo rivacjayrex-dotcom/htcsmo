@@ -27,7 +27,7 @@ class UserFactory extends Factory
         return [
             'name' => fake()->name(),
             'username' => strtolower(fake()->unique()->bothify('user_####????')),
-            'school_id' => fake()->unique()->numerify('##-####-##'),
+            'school_id' => fake()->unique()->numerify('####-####'),
             'department' => fake()->randomElement(['CETE', 'CTE', 'CBMA', 'CCJE', 'CAS']),
             'role' => 'employee',
             'is_approved' => true,

@@ -20,12 +20,41 @@ class RegistrationTest extends TestCase
     {
         $response = $this->post('/register', [
             'name' => 'Test User',
-            'email' => 'test@example.com',
-            'password' => 'password',
-            'password_confirmation' => 'password',
+            'username' => 'test_user',
+            'school_id' => '2026-0001',
+            'department' => 'CETE',
+            'email' => 'test.user@online.htcgsc.edu.ph',
+            'password' => 'Password123',
+            'password_confirmation' => 'Password123',
         ]);
 
-        $this->assertAuthenticated();
-        $response->assertRedirect(route('dashboard', absolute: false));
+        $response
+            ->assertSessionHasNoErrors()
+            ->assertRedirect(route('login', absolute: false));
+
+        $this->assertGuest();
+        $this->assertDatabaseHas('users', [
+            'school_id' => '2026-0001',
+            'is_approved' => false,
+        ]);
+    }
+
+    public function test_registration_rejects_the_old_school_id_format(): void
+    {
+        $response = $this
+            ->from('/register')
+            ->post('/register', [
+                'name' => 'Test User',
+                'username' => 'test_user',
+                'school_id' => '26-0001-01',
+                'department' => 'CETE',
+                'email' => 'test.user@online.htcgsc.edu.ph',
+                'password' => 'Password123',
+                'password_confirmation' => 'Password123',
+            ]);
+
+        $response
+            ->assertSessionHasErrors('school_id')
+            ->assertRedirect('/register');
     }
 }

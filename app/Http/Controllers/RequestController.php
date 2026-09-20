@@ -13,6 +13,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\DB;
+use App\Mail\RequisitionAlertMail;
+use App\Models\EmailLog;
+use Illuminate\Support\Facades\Mail;
 
 class RequestController extends Controller
 {
@@ -201,6 +204,29 @@ class RequestController extends Controller
                 'warning'
             );
 
+            // Outbound Email Trigger
+            $accent = match($request->status) {
+                'approved'      => '#185b3b',
+                'clarification' => '#fd7e14',
+                default         => '#dc3545'
+            };
+
+            $headline = match($request->status) {
+                'approved'      => "Requisition Approved by {$position}",
+                'clarification' => "⚠️ Office Appearance Required: {$position}",
+                default         => "Requisition Disapproved by {$position}"
+            };
+
+            $this->sendEmailNotification(
+                $sr->user->email,
+                $sr->user,
+                $sr,
+                $headline,
+                $headline,
+                $request->remarks ?? "Status updated to " . str_replace('_', ' ', $sr->status),
+                $accent
+            );
+
             // Notify SMO In-Charge
             $smoUsers = User::where('role', 'smo')->get();
             foreach ($smoUsers as $smo) {
@@ -351,6 +377,16 @@ class RequestController extends Controller
                 'success'
             );
 
+            $this->sendEmailNotification(
+                $sr->user->email,
+                $sr->user,
+                $sr,
+                "Supplies Fulfilled and Ready for Pickup",
+                "Your Supplies Are Ready!",
+                "All requested items under {$sr->tracking_code} have been verified, deducted from inventory, and prepared by the SMO.",
+                '#185b3b'
+            );
+
             return redirect()->route('admin.approvals')->with('success', "Requisition #{$sr->id} successfully confirmed and released!");
         });
     }
@@ -422,5 +458,37 @@ class RequestController extends Controller
         }
 
         return response()->json(null);
+    }
+
+    /**
+     * Send Outbound Email and Record in email_logs Table (Thesis Notification Engine)
+     */
+    private function sendEmailNotification($recipientEmail, $user, $requisition, $subject, $headline, $message, $accentColor = '#185b3b')
+    {
+        try {
+            // 1. Send the SMTP email
+            Mail::to($recipientEmail)->send(
+                new RequisitionAlertMail($requisition, $subject, $headline, $message, $accentColor)
+            );
+
+            // 2. Log successful transmission to database
+            EmailLog::create([
+                'user_id'         => $user?->id,
+                'recipient_email' => $recipientEmail,
+                'subject'         => $subject,
+                'status'          => 'sent',
+                'sent_at'         => now(),
+            ]);
+        } catch (\Exception $e) {
+            // Log failure without crashing the user request
+            EmailLog::create([
+                'user_id'         => $user?->id,
+                'recipient_email' => $recipientEmail,
+                'subject'         => $subject,
+                'status'          => 'failed',
+                'error_message'   => $e->getMessage(),
+                'sent_at'         => now(),
+            ]);
+        }
     }
 }

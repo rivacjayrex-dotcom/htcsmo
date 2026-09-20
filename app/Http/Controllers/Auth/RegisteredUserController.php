@@ -3,14 +3,14 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
 use App\Models\Notification;
+use App\Models\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
 
 class RegisteredUserController extends Controller
@@ -26,14 +26,14 @@ class RegisteredUserController extends Controller
     /**
      * Handle an incoming registration request.
      */
-public function store(Request $request): RedirectResponse
+    public function store(Request $request): RedirectResponse
     {
         // 1. Sanitize & Normalize Inputs
         $request->merge([
-            'name'       => preg_replace('/\s+/', ' ', trim(strip_tags($request->name))),
-            'username'   => trim(strtolower(strip_tags($request->username))),
-            'school_id'  => trim(strip_tags($request->school_id)),
-            'email'      => trim(strtolower(strip_tags($request->email))),
+            'name' => preg_replace('/\s+/', ' ', trim(strip_tags($request->name))),
+            'username' => trim(strtolower(strip_tags($request->username))),
+            'school_id' => trim(strip_tags($request->school_id)),
+            'email' => trim(strtolower(strip_tags($request->email))),
             'department' => trim(strip_tags($request->department)),
         ]);
 
@@ -58,11 +58,11 @@ public function store(Request $request): RedirectResponse
                 'unique:users,username',
             ],
 
-            // Strict School ID Format: 00-0000-00 (e.g., 21-1234-56)
+            // Strict School ID Format: 0000-0000 (e.g., 2026-0001)
             'school_id' => [
                 'required',
                 'string',
-                'regex:/^\d{2}-\d{4}-\d{2}$/',
+                'regex:/^\d{4}-\d{4}$/',
                 'unique:users,school_id',
             ],
 
@@ -93,27 +93,27 @@ public function store(Request $request): RedirectResponse
             ],
         ], [
             // Custom friendly institutional error messages
-            'name.regex'          => 'Full name can only contain letters, spaces, and hyphens.',
+            'name.regex' => 'Full name can only contain letters, spaces, and hyphens.',
             'username.alpha_dash' => 'Username can only contain letters, numbers, dashes, and underscores.',
-            'username.unique'     => 'This username is already taken.',
-            'school_id.regex'     => 'School ID must follow the exact format: 00-0000-00 (e.g. 21-1234-56).',
-            'school_id.unique'    => 'This School ID is already registered.',
-            'department.in'       => 'Please select a valid HTC academic department.',
-            'email.regex'         => 'You must use your official HTC email ending in @online.htcgsc.edu.ph.',
-            'email.unique'        => 'This institutional email is already in use.',
-            'password.min'        => 'Password must be at least 8 characters.',
-            'password.confirmed'  => 'Password confirmation does not match.',
+            'username.unique' => 'This username is already taken.',
+            'school_id.regex' => 'School ID must follow the exact format: 0000-0000 (e.g. 2026-0001).',
+            'school_id.unique' => 'This School ID is already registered.',
+            'department.in' => 'Please select a valid HTC academic department.',
+            'email.regex' => 'You must use your official HTC email ending in @online.htcgsc.edu.ph.',
+            'email.unique' => 'This institutional email is already in use.',
+            'password.min' => 'Password must be at least 8 characters.',
+            'password.confirmed' => 'Password confirmation does not match.',
         ]);
 
         // 3. Create User in Database
         $user = User::create([
-            'name'        => $validated['name'],
-            'username'    => $validated['username'],
-            'school_id'   => $validated['school_id'],
-            'department'  => $validated['department'],
-            'email'       => $validated['email'],
-            'password'    => Hash::make($validated['password']),
-            'role'        => 'employee',
+            'name' => $validated['name'],
+            'username' => $validated['username'],
+            'school_id' => $validated['school_id'],
+            'department' => $validated['department'],
+            'email' => $validated['email'],
+            'password' => Hash::make($validated['password']),
+            'role' => 'employee',
             'is_approved' => false,
         ]);
 
@@ -122,10 +122,10 @@ public function store(Request $request): RedirectResponse
         if ($smo) {
             Notification::create([
                 'user_id' => $smo->id,
-                'title'   => 'New User Access Request',
+                'title' => 'New User Access Request',
                 'message' => "{$user->name} ({$user->school_id}) from {$user->department} has registered and awaits verification.",
-                'icon'    => 'user-plus',
-                'type'    => 'warning',
+                'icon' => 'user-plus',
+                'type' => 'warning',
             ]);
         }
 

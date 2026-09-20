@@ -71,8 +71,11 @@
                                     name="school_id"
                                     value="{{ old('school_id') }}"
                                     class="form-control form-control-sm bg-light border-0 shadow-none @error('school_id') is-invalid @enderror"
-                                    placeholder="00-0000-00"
-                                    maxlength="10"
+                                    placeholder="0000-0000"
+                                    maxlength="9"
+                                    inputmode="numeric"
+                                    pattern="\d{4}-\d{4}"
+                                    title="Use the format 0000-0000"
                                     autocomplete="off"
                                     required>
                                 @error('school_id') <span class="text-danger d-block mt-1" style="font-size: 10px;">{{ $message }}</span> @enderror
@@ -165,32 +168,22 @@
             lucide.createIcons();
         });
 
-        // Automatic Masking for School ID: 00-0000-00
+        // Automatic masking for School ID: 0000-0000
         const schoolIdInput = document.getElementById('school_id');
 
         if (schoolIdInput) {
-            schoolIdInput.addEventListener('input', function (e) {
+            schoolIdInput.addEventListener('input', function () {
                 // Strip any non-digit characters
                 let numbers = this.value.replace(/\D/g, '');
 
-                // Limit to max 8 digits (2 + 4 + 2)
+                // Limit to eight digits (4 + 4)
                 if (numbers.length > 8) {
                     numbers = numbers.substring(0, 8);
                 }
 
-                // Format with hyphens automatically
-                let formatted = '';
-                if (numbers.length > 0) {
-                    formatted = numbers.substring(0, 2);
-                }
-                if (numbers.length >= 3) {
-                    formatted += '-' + numbers.substring(2, 6);
-                }
-                if (numbers.length >= 7) {
-                    formatted += '-' + numbers.substring(6, 8);
-                }
-
-                this.value = formatted;
+                this.value = numbers.length > 4
+                    ? numbers.substring(0, 4) + '-' + numbers.substring(4)
+                    : numbers;
             });
 
             // Allow backspace to delete cleanly without getting stuck on a hyphen
