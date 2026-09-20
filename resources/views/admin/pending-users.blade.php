@@ -28,7 +28,7 @@
                                 </div>
                             </div>
 
-                            <!-- Role Assignment Section -->
+                            <!-- Role Assignment Sectionnnnnn -->
                             <div class="col-md-7 p-4 bg-white">
                                 <form action="{{ route('admin.users.approve', $u->id) }}" method="POST">
                                     @csrf
