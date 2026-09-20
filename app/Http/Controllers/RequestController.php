@@ -185,7 +185,7 @@ class RequestController extends Controller
             $this->sendAlert(
                 $sr->user_id,
                 "Requisition Disapproved",
-                "Your request #{$sr->id} was rejected by {$position}. Reason: {$request->remarks}",
+                "Your request {$sr->tracking_code} was rejected by {$position}. Reason: {$request->remarks}",
                 'x-circle',
                 'danger'
             );
@@ -195,45 +195,22 @@ class RequestController extends Controller
             $sr->status = 'for_clarification';
             $actionText = 'Flagged for Office Clarification by ' . $position;
 
-            // Notify Requestor
+            // Notify Requestor on Screen
             $this->sendAlert(
                 $sr->user_id,
                 "⚠️ Office Appearance Requested",
-                "Your request #{$sr->id} requires clarification. Please proceed to the office of {$position} together with SMO. Note: {$request->remarks}",
+                "Your request {$sr->tracking_code} requires clarification. Please proceed to the office of {$position} together with SMO. Note: {$request->remarks}",
                 'help-circle',
                 'warning'
             );
 
-            // Outbound Email Trigger
-            $accent = match($request->status) {
-                'approved'      => '#185b3b',
-                'clarification' => '#fd7e14',
-                default         => '#dc3545'
-            };
-
-            $headline = match($request->status) {
-                'approved'      => "Requisition Approved by {$position}",
-                'clarification' => "⚠️ Office Appearance Required: {$position}",
-                default         => "Requisition Disapproved by {$position}"
-            };
-
-            $this->sendEmailNotification(
-                $sr->user->email,
-                $sr->user,
-                $sr,
-                $headline,
-                $headline,
-                $request->remarks ?? "Status updated to " . str_replace('_', ' ', $sr->status),
-                $accent
-            );
-
-            // Notify SMO In-Charge
+            // Notify SMO In-Charge on Screen
             $smoUsers = User::where('role', 'smo')->get();
             foreach ($smoUsers as $smo) {
                 $this->sendAlert(
                     $smo->id,
-                    "⚠️ Inquiry on Req #{$sr->id}",
-                    "{$position} requested a meeting regarding Req #{$sr->id} ({$sr->user->name}). Please coordinate with their office.",
+                    "⚠️ Inquiry on Req {$sr->tracking_code}",
+                    "{$position} requested a meeting regarding {$sr->tracking_code} ({$sr->user->name}). Please coordinate with their office.",
                     'users',
                     'warning'
                 );
@@ -252,13 +229,10 @@ class RequestController extends Controller
             }
             $actionText = 'Approved by ' . $position;
 
-            $itemName = $sr->items()->first()?->item_name ?? 'Items';
-            $statusLabel = str_replace('_', ' ', $sr->status);
-
             $this->sendAlert(
                 $sr->user_id,
-                "Requisition Progress",
-                "Your request #{$sr->id} has been endorsed by {$position}.",
+                "Requisition Endorsed",
+                "Your request {$sr->tracking_code} has been endorsed by {$position}.",
                 'check-circle',
                 'success'
             );
@@ -266,7 +240,7 @@ class RequestController extends Controller
 
         $sr->save();
 
-        // Log the decision
+        // 4. Log the Decision
         $log = ApprovalLog::create([
             'requisition_id' => $sr->id,
             'action'         => $actionText,
@@ -274,7 +248,7 @@ class RequestController extends Controller
             'remarks'        => $request->remarks,
         ]);
 
-        // Cryptographic Digital Signature Generation (RA 8792 E-Commerce Act Compliance)
+        // 5. Cryptographic Digital Signature Generation (RA 8792 E-Commerce Act Compliance)
         if ($request->status === 'approved') {
             $rawPayload = "REQ-{$sr->id}|USER-" . Auth::id() . "|ROLE-{$role}|TIME-" . now()->timestamp . "|SECRET-" . config('app.key');
             $signatureToken = hash('sha256', $rawPayload);
@@ -289,6 +263,35 @@ class RequestController extends Controller
                 'signed_at'       => now(),
             ]);
         }
+
+        // 6. TRIGGER OUTBOUND EMAIL NOTIFICATION FOR ALL 3 DECISIONS
+        $accent = match($request->status) {
+            'approved'      => '#185b3b', // HTC Green
+            'clarification' => '#fd7e14', // Warning Amber
+            default         => '#dc3545'  // Danger Red
+        };
+
+        $headline = match($request->status) {
+            'approved'      => "Requisition Endorsed by {$position}",
+            'clarification' => "⚠️ Office Appearance Required: {$position}",
+            default         => "Requisition Disapproved by {$position}"
+        };
+
+        $emailMsg = match($request->status) {
+            'approved'      => "Your requisition has been reviewed and endorsed by {$position}. It will now proceed to the next stage.",
+            'clarification' => "The {$position} has requested a consultation regarding this request. Please report to their office together with the SMO In-Charge. Notes: " . ($request->remarks ?? 'None'),
+            default         => "Your requisition was disapproved by {$position}. Reason: " . ($request->remarks ?? 'Not specified')
+        };
+
+        $this->sendEmailNotification(
+            $sr->user->email,
+            $sr->user,
+            $sr,
+            $headline,
+            $headline,
+            $emailMsg,
+            $accent
+        );
 
         return redirect()->route('admin.approvals')->with('success', "Requisition #{$sr->id} status updated.");
     }
