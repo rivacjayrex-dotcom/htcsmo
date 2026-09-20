@@ -1,286 +1,297 @@
-<x-app-layout>
-    <x-slot name="header">Institutional Report Generation Engine</x-slot>
+@php
+    $reportOptions = [
+        'requisitions' => ['Requisition Transactions', 'Every request, item, status, and amount', 'file-text'],
+        'inventory' => ['Inventory Valuation', 'Stock levels, pricing, value, and health', 'boxes'],
+        'dept_spending' => ['Department Spending', 'Cost and request totals by department', 'building-2'],
+        'users' => ['Users & Personnel', 'Accounts by department, role, and status', 'users'],
+        'item_consumption' => ['Item Consumption', 'Distributed quantities and item costs', 'package-check'],
+        'approval_audit' => ['Approval Audit', 'Signatory actions and approval history', 'stamp'],
+        'inventory_movements' => ['Inventory Movements', 'Restocks, releases, and adjustments', 'arrow-left-right'],
+        'user_activity' => ['User Activity', 'Authentication and security activity log', 'shield-check'],
+    ];
 
-    <div class="container-fluid py-2">
-        <div class="mb-4">
-            <h4 class="fw-black text-dark mb-1">Institutional Report Builder</h4>
-            <p class="text-muted small mb-0">Customize, filter, preview, and generate customized procurement and inventory documentation.</p>
+    $departments = ['CETE', 'CTE', 'CBMA', 'CCJE', 'CAS'];
+    $roles = [
+        'employee' => 'Employee',
+        'dept_head' => 'Department Head',
+        'vp_finance' => 'VP for Finance',
+        'vp_admin' => 'VP for Administration',
+        'provost' => 'Provost',
+        'president' => 'President',
+        'smo' => 'SMO In-Charge',
+    ];
+@endphp
+
+<section class="mt-5 pt-4 border-top" id="report-builder">
+    <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
+        <div>
+            <h4 class="fw-black text-dark mb-1">Comprehensive Report Center</h4>
+            <p class="text-muted small mb-0">Filter institutional records, preview the results, and export them for Excel or printing.</p>
+        </div>
+        <a href="{{ route('admin.reports.index') }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3 no-print">
+            Reset Report
+        </a>
+    </div>
+
+    <form action="{{ route('admin.reports.index') }}" method="GET" id="reportForm" class="no-print">
+        <div class="row g-3 mb-4">
+            @foreach($reportOptions as $value => [$label, $description, $icon])
+                <div class="col-xl-3 col-md-6">
+                    <label class="card report-type-card shadow-sm rounded-4 p-3 w-100 h-100 cursor-pointer {{ $reportType === $value ? 'border-success border-2 bg-success-subtle' : 'border-0 bg-white' }}">
+                        <div class="d-flex align-items-start gap-3">
+                            <input type="radio" name="report_type" value="{{ $value }}" class="form-check-input mt-1" @checked($reportType === $value) onchange="this.form.submit()">
+                            <i data-lucide="{{ $icon }}" class="text-success flex-shrink-0" style="width: 20px;"></i>
+                            <div>
+                                <div class="fw-bold text-dark small">{{ $label }}</div>
+                                <small class="text-muted d-block mt-1" style="line-height: 1.25;">{{ $description }}</small>
+                            </div>
+                        </div>
+                    </label>
+                </div>
+            @endforeach
         </div>
 
-        <form action="{{ route('admin.reports.index') }}" method="GET" id="reportForm">
-            <!-- 1. REPORT TYPE SELECTOR (CARDS) -->
-            <div class="row g-3 mb-4">
-                <div class="col-md-4">
-                    <label class="card border-0 shadow-sm rounded-4 p-3 w-100 cursor-pointer {{ request('report_type', 'requisitions') === 'requisitions' ? 'border-success border-2 bg-success-subtle' : 'bg-white' }}">
-                        <div class="d-flex align-items-center">
-                            <input type="radio" name="report_type" value="requisitions" class="form-check-input me-3" {{ request('report_type', 'requisitions') === 'requisitions' ? 'checked' : '' }} onchange="this.form.submit()">
-                            <div>
-                                <div class="fw-bold text-dark">Requisition Transactions</div>
-                                <small class="text-muted">Itemized requests, approvals, and order records</small>
-                            </div>
-                        </div>
-                    </label>
-                </div>
-
-                <div class="col-md-4">
-                    <label class="card border-0 shadow-sm rounded-4 p-3 w-100 cursor-pointer {{ request('report_type') === 'inventory' ? 'border-success border-2 bg-success-subtle' : 'bg-white' }}">
-                        <div class="d-flex align-items-center">
-                            <input type="radio" name="report_type" value="inventory" class="form-check-input me-3" {{ request('report_type') === 'inventory' ? 'checked' : '' }} onchange="this.form.submit()">
-                            <div>
-                                <div class="fw-bold text-dark">Inventory & Asset Valuation</div>
-                                <small class="text-muted">Stock quantities, unit values, and restock levels</small>
-                            </div>
-                        </div>
-                    </label>
-                </div>
-
-                <div class="col-md-4">
-                    <label class="card border-0 shadow-sm rounded-4 p-3 w-100 cursor-pointer {{ request('report_type') === 'dept_spending' ? 'border-success border-2 bg-success-subtle' : 'bg-white' }}">
-                        <div class="d-flex align-items-center">
-                            <input type="radio" name="report_type" value="dept_spending" class="form-check-input me-3" {{ request('report_type') === 'dept_spending' ? 'checked' : '' }} onchange="this.form.submit()">
-                            <div>
-                                <div class="fw-bold text-dark">Departmental Expenditure</div>
-                                <small class="text-muted">Cost distribution across academic colleges</small>
-                            </div>
-                        </div>
-                    </label>
-                </div>
+        <div class="card border-0 shadow-sm rounded-4 mb-4 bg-white">
+            <div class="card-header bg-white border-bottom p-4">
+                <h6 class="fw-bold mb-0 d-flex align-items-center">
+                    <i data-lucide="sliders-horizontal" class="me-2 text-success" style="width: 18px;"></i>
+                    Report Filters
+                </h6>
             </div>
 
-            <!-- 2. FILTER & CUSTOMIZATION CONFIGURATOR -->
-            <div class="card border-0 shadow-sm rounded-4 mb-4 bg-white">
-                <div class="card-header bg-white border-bottom p-4">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h6 class="fw-bold mb-0 text-dark d-flex align-items-center">
-                            <i data-lucide="sliders" class="me-2 text-success" style="width: 18px;"></i>
-                            Configure Filter Parameters
-                        </h6>
-                        <a href="{{ route('admin.reports.index') }}" class="btn btn-sm btn-link text-danger text-decoration-none fw-bold" style="font-size: 11px;">Reset All Filters</a>
+            <div class="card-body p-4">
+                <div class="row g-3 mb-4">
+                    <div class="col-lg-4">
+                        <label for="period" class="form-label mini-label">Reporting Period</label>
+                        <select id="period" name="period" class="form-select border-0 bg-light rounded-3 shadow-none">
+                            <option value="current_semester" @selected(request('period', 'current_semester') === 'current_semester')>Current Semester</option>
+                            <option value="this_month" @selected(request('period') === 'this_month')>This Month</option>
+                            <option value="this_year" @selected(request('period') === 'this_year')>This Calendar Year</option>
+                            <option value="all" @selected(request('period') === 'all')>All Available Records</option>
+                            <option value="custom" @selected(request('period') === 'custom')>Custom Date Range</option>
+                        </select>
+                    </div>
+
+                    <div class="col-lg-4 custom-date-field">
+                        <label for="date_from" class="form-label mini-label">From</label>
+                        <input id="date_from" type="date" name="date_from" value="{{ request('date_from') }}" class="form-control border-0 bg-light rounded-3 shadow-none">
+                    </div>
+
+                    <div class="col-lg-4 custom-date-field">
+                        <label for="date_to" class="form-label mini-label">To</label>
+                        <input id="date_to" type="date" name="date_to" value="{{ request('date_to') }}" class="form-control border-0 bg-light rounded-3 shadow-none">
                     </div>
                 </div>
 
-                <div class="card-body p-4">
-                    <!-- REQUISITION SPECIFIC FILTERS -->
-                    @if(request('report_type', 'requisitions') === 'requisitions')
-                    <div class="row g-3 mb-4">
-                        <div class="col-md-3">
-                            <label class="form-label mini-label">Department</label>
-                            <select name="dept" class="form-select border-0 bg-light rounded-3 shadow-none">
+                @if(in_array($reportType, ['requisitions', 'dept_spending', 'users', 'item_consumption', 'approval_audit', 'user_activity']))
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label for="dept" class="form-label mini-label">Department</label>
+                            <select id="dept" name="dept" class="form-select border-0 bg-light rounded-3 shadow-none">
                                 <option value="">All Departments</option>
-                                <option value="CETE" {{ request('dept') == 'CETE' ? 'selected' : '' }}>CETE</option>
-                                <option value="CTE" {{ request('dept') == 'CTE' ? 'selected' : '' }}>CTE</option>
-                                <option value="CBMA" {{ request('dept') == 'CBMA' ? 'selected' : '' }}>CBMA</option>
-                                <option value="CCJE" {{ request('dept') == 'CCJE' ? 'selected' : '' }}>CCJE</option>
-                                <option value="CAS" {{ request('dept') == 'CAS' ? 'selected' : '' }}>CAS</option>
-                            </select>
-                        </div>
-
-                        <div class="col-md-3">
-                            <label class="form-label mini-label">Requisition Tier</label>
-                            <select name="tier" class="form-select border-0 bg-light rounded-3 shadow-none">
-                                <option value="">All Tiers</option>
-                                <option value="minor" {{ request('tier') == 'minor' ? 'selected' : '' }}>Minor (≤ ₱1,000)</option>
-                                <option value="major" {{ request('tier') == 'major' ? 'selected' : '' }}>Major (> ₱1,000)</option>
-                            </select>
-                        </div>
-
-                        <div class="col-md-3">
-                            <label class="form-label mini-label">Transaction Status</label>
-                            <select name="status" class="form-select border-0 bg-light rounded-3 shadow-none">
-                                <option value="">All Statuses</option>
-                                <option value="released" {{ request('status') == 'released' ? 'selected' : '' }}>Released / Completed</option>
-                                <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Pending Approvals</option>
-                                <option value="for_clarification" {{ request('status') == 'for_clarification' ? 'selected' : '' }}>Office Clarification</option>
-                                <option value="rejected" {{ request('status') == 'rejected' ? 'selected' : '' }}>Disapproved / Rejected</option>
-                            </select>
-                        </div>
-
-                        <div class="col-md-3">
-                            <label class="form-label mini-label">Date Range</label>
-                            <div class="input-group input-group-sm">
-                                <input type="date" name="date_from" value="{{ request('date_from') }}" class="form-control border-0 bg-light">
-                                <input type="date" name="date_to" value="{{ request('date_to') }}" class="form-control border-0 bg-light">
-                            </div>
-                        </div>
-                    </div>
-                    @endif
-
-                    <!-- INVENTORY SPECIFIC FILTERS -->
-                    @if(request('report_type') === 'inventory')
-                    <div class="row g-3 mb-4">
-                        <div class="col-md-6">
-                            <label class="form-label mini-label">Category Filter</label>
-                            <select name="category" class="form-select border-0 bg-light rounded-3 shadow-none">
-                                <option value="">All 8 Categories</option>
-                                @foreach([
-                                    'Cleaning Supplies', 'Construction Supplies', 'Drugs and Medicines',
-                                    'HDMI', 'Maintenance Supplies', 'Medical Supplies',
-                                    'Non-Medical Supplies', 'Office Supplies'
-                                ] as $cat)
-                                    <option value="{{ $cat }}" {{ request('category') == $cat ? 'selected' : '' }}>{{ $cat }}</option>
+                                @foreach($departments as $department)
+                                    <option value="{{ $department }}" @selected(request('dept') === $department)>{{ $department }}</option>
                                 @endforeach
                             </select>
                         </div>
 
-                        <div class="col-md-6">
-                            <label class="form-label mini-label">Stock Health Filter</label>
-                            <select name="stock_filter" class="form-select border-0 bg-light rounded-3 shadow-none">
-                                <option value="">All Stock Levels</option>
-                                <option value="low" {{ request('stock_filter') == 'low' ? 'selected' : '' }}>Below Restock Threshold (Low Stock)</option>
-                                <option value="out" {{ request('stock_filter') == 'out' ? 'selected' : '' }}>Zero Stock (Out of Stock)</option>
+                        @if(in_array($reportType, ['users', 'approval_audit', 'user_activity']))
+                            <div class="col-md-4">
+                                <label for="role" class="form-label mini-label">Role</label>
+                                <select id="role" name="role" class="form-select border-0 bg-light rounded-3 shadow-none">
+                                    <option value="">All Roles</option>
+                                    @foreach($roles as $value => $label)
+                                        <option value="{{ $value }}" @selected(request('role') === $value)>{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        @endif
+
+                        @if($reportType === 'users')
+                            <div class="col-md-4">
+                                <label for="account_status" class="form-label mini-label">Account Status</label>
+                                <select id="account_status" name="account_status" class="form-select border-0 bg-light rounded-3 shadow-none">
+                                    <option value="">All Accounts</option>
+                                    <option value="approved" @selected(request('account_status') === 'approved')>Approved</option>
+                                    <option value="pending" @selected(request('account_status') === 'pending')>Pending Approval</option>
+                                </select>
+                            </div>
+                        @endif
+                    </div>
+                @endif
+
+                @if($reportType === 'requisitions')
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-4">
+                            <label for="tier" class="form-label mini-label">Requisition Tier</label>
+                            <select id="tier" name="tier" class="form-select border-0 bg-light rounded-3 shadow-none">
+                                <option value="">All Tiers</option>
+                                <option value="minor" @selected(request('tier') === 'minor')>Minor</option>
+                                <option value="major" @selected(request('tier') === 'major')>Major</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="status" class="form-label mini-label">Request Status</label>
+                            <select id="status" name="status" class="form-select border-0 bg-light rounded-3 shadow-none">
+                                <option value="">All Statuses</option>
+                                @foreach(['pending', 'pending_dept', 'approved_dept', 'approved_vp', 'approved_provost', 'approved_president', 'for_clarification', 'released', 'rejected'] as $status)
+                                    <option value="{{ $status }}" @selected(request('status') === $status)>{{ ucwords(str_replace('_', ' ', $status)) }}</option>
+                                @endforeach
                             </select>
                         </div>
                     </div>
-                    @endif
+                @endif
 
-                    <!-- EXPENDITURE FILTERS -->
-                    @if(request('report_type') === 'dept_spending')
-                    <div class="row g-3 mb-4">
+                @if(in_array($reportType, ['inventory', 'inventory_movements']))
+                    <div class="row g-3">
                         <div class="col-md-6">
-                            <label class="form-label mini-label">Fiscal Date Range</label>
-                            <div class="input-group">
-                                <input type="date" name="date_from" value="{{ request('date_from') }}" class="form-control border-0 bg-light">
-                                <input type="date" name="date_to" value="{{ request('date_to') }}" class="form-control border-0 bg-light">
-                            </div>
+                            <label for="category" class="form-label mini-label">Supply Category</label>
+                            <select id="category" name="category" class="form-select border-0 bg-light rounded-3 shadow-none">
+                                <option value="">All Categories</option>
+                                @foreach(['Cleaning Supplies', 'Construction Supplies', 'Drugs and Medicines', 'HDMI', 'Maintenance Supplies', 'Medical Supplies', 'Non-Medical Supplies', 'Office Supplies'] as $category)
+                                    <option value="{{ $category }}" @selected(request('category') === $category)>{{ $category }}</option>
+                                @endforeach
+                            </select>
                         </div>
+
+                        @if($reportType === 'inventory')
+                            <div class="col-md-6">
+                                <label for="stock_filter" class="form-label mini-label">Stock Health</label>
+                                <select id="stock_filter" name="stock_filter" class="form-select border-0 bg-light rounded-3 shadow-none">
+                                    <option value="">All Stock Levels</option>
+                                    <option value="low" @selected(request('stock_filter') === 'low')>Low Stock</option>
+                                    <option value="out" @selected(request('stock_filter') === 'out')>Out of Stock</option>
+                                </select>
+                            </div>
+                        @else
+                            <div class="col-md-6">
+                                <label for="transaction_type" class="form-label mini-label">Transaction Type</label>
+                                <select id="transaction_type" name="transaction_type" class="form-select border-0 bg-light rounded-3 shadow-none">
+                                    <option value="">All Transactions</option>
+                                    <option value="release_deduction" @selected(request('transaction_type') === 'release_deduction')>Release Deduction</option>
+                                    <option value="restock_delivery" @selected(request('transaction_type') === 'restock_delivery')>Restock Delivery</option>
+                                    <option value="manual_adjustment" @selected(request('transaction_type') === 'manual_adjustment')>Manual Adjustment</option>
+                                </select>
+                            </div>
+                        @endif
                     </div>
-                    @endif
-
-                    <!-- 3. SELECTABLE PDF DATA COLUMNS (CHECKBOXES) -->
-                    <div class="pt-3 border-top">
-                        <div class="nav-section-label mb-2 text-primary">Select Columns to Include in Generated Document</div>
-                        <div class="d-flex flex-wrap gap-3">
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="checkbox" name="columns[]" value="specs" id="col_specs" checked>
-                                <label class="form-check-label small" for="col_specs">Technical Specifications</label>
-                            </div>
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="checkbox" name="columns[]" value="costs" id="col_costs" checked>
-                                <label class="form-check-label small" for="col_costs">Unit Pricing & Totals</label>
-                            </div>
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="checkbox" name="columns[]" value="remarks" id="col_remarks" checked>
-                                <label class="form-check-label small" for="col_remarks">Official Purpose / Remarks</label>
-                            </div>
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="checkbox" name="columns[]" value="audit" id="col_audit" checked>
-                                <label class="form-check-label small" for="col_audit">Signatory Audit Timeline</label>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card-footer bg-light border-0 p-4 d-flex justify-content-between align-items-center">
-                    <button type="submit" class="btn btn-outline-dark px-4 rounded-pill fw-bold">
-                        <i data-lucide="filter" class="me-1" style="width: 14px;"></i> Apply Filter & Preview Screen
-                    </button>
-
-                    <button type="submit" name="download_pdf" value="1" class="btn btn-htc px-5 rounded-pill fw-bold shadow-sm d-flex align-items-center">
-                        <i data-lucide="file-down" class="me-2" style="width: 18px;"></i> Generate Official Document (PDF)
-                    </button>
-                </div>
-            </div>
-        </form>
-
-        <!-- 4. LIVE SCREEN PREVIEW -->
-        <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
-            <div class="card-header bg-white border-bottom p-4 d-flex justify-content-between align-items-center">
-                <div>
-                    <h6 class="fw-bold mb-0">Document Live Data Preview</h6>
-                    <small class="text-muted">{{ $records->count() }} records matched current filter criteria</small>
-                </div>
-                <div class="text-end">
-                    <small class="text-muted text-uppercase fw-bold" style="font-size: 9px;">Calculated Aggregate Total</small>
-                    <h5 class="fw-black text-success mb-0">₱{{ number_format($totalValue, 2) }}</h5>
-                </div>
+                @endif
             </div>
 
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0" style="font-size: 0.88rem;">
-                    @if($reportType === 'requisitions')
-                        <thead class="bg-light small text-muted uppercase">
-                            <tr>
-                                <th class="ps-4 py-3">Req #</th>
-                                <th>Requestor</th>
-                                <th>Dept</th>
-                                <th>Tier</th>
-                                <th>Primary Item(s)</th>
-                                <th class="text-center">Status</th>
-                                <th class="text-end pe-4">Total Amount</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($records as $r)
-                            <tr>
-                                <td class="ps-4 fw-mono text-muted font-monospace small">{{ $r->tracking_code }}</td>
-                                <td class="fw-bold text-dark">{{ $r->user->name }}</td>
-                                <td><span class="badge bg-light text-dark border">{{ $r->user->department }}</span></td>
-                                <td><span class="badge {{ $r->request_type === 'major' ? 'bg-primary' : 'bg-secondary' }}">{{ strtoupper($r->request_type) }}</span></td>
-                                <td>
-                                    <div>{{ $r->items->first()->item_name ?? 'N/A' }}</div>
-                                    @if($r->items->count() > 1)
-                                        <small class="text-muted">+{{ $r->items->count() - 1 }} other item(s)</small>
-                                    @endif
-                                </td>
-                                <td class="text-center">
-                                    <span class="badge bg-light text-dark border px-2 py-1">{{ str_replace('_', ' ', $r->status) }}</span>
-                                </td>
-                                <td class="text-end pe-4 fw-bold">₱{{ number_format($r->grand_total, 2) }}</td>
-                            </tr>
-                            @empty
-                            <tr><td colspan="7" class="text-center py-5 text-muted">No records match the configured parameters.</td></tr>
-                            @endforelse
-                        </tbody>
-                    @elseif($reportType === 'inventory')
-                        <thead class="bg-light small text-muted uppercase">
-                            <tr>
-                                <th class="ps-4 py-3">Item Name</th>
-                                <th>Category</th>
-                                <th>Stock Level</th>
-                                <th>Unit Price</th>
-                                <th class="text-end pe-4">Asset Value</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($records as $item)
-                            <tr>
-                                <td class="ps-4">
-                                    <div class="fw-bold text-dark">{{ $item->item_name }}</div>
-                                    <small class="text-muted">{{ $item->brand }}</small>
-                                </td>
-                                <td><span class="badge bg-light text-dark border">{{ $item->category }}</span></td>
-                                <td>{{ $item->quantity }} {{ $item->unit }}</td>
-                                <td>₱{{ number_format($item->unit_price, 2) }}</td>
-                                <td class="text-end pe-4 fw-bold">₱{{ number_format($item->quantity * $item->unit_price, 2) }}</td>
-                            </tr>
-                            @empty
-                            <tr><td colspan="5" class="text-center py-5 text-muted">No inventory records found.</td></tr>
-                            @endforelse
-                        </tbody>
-                    @elseif($reportType === 'dept_spending')
-                        <thead class="bg-light small text-muted uppercase">
-                            <tr>
-                                <th class="ps-4 py-3">Academic Department</th>
-                                <th class="text-center">Total Completed Requisitions</th>
-                                <th class="text-end">Average Spend / Order</th>
-                                <th class="text-end pe-4">Total Expenditure</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($records as $dept)
-                            <tr>
-                                <td class="ps-4 fw-bold text-dark">{{ $dept->department }}</td>
-                                <td class="text-center">{{ $dept->total_requests }}</td>
-                                <td class="text-end">₱{{ number_format($dept->avg_cost, 2) }}</td>
-                                <td class="text-end pe-4 fw-bold text-success">₱{{ number_format($dept->total_spent, 2) }}</td>
-                            </tr>
-                            @empty
-                            <tr><td colspan="4" class="text-center py-5 text-muted">No departmental expenditure records found.</td></tr>
-                            @endforelse
-                        </tbody>
-                    @endif
-                </table>
+            <div class="card-footer bg-light border-0 p-4 d-flex flex-wrap justify-content-between gap-3">
+                <button type="submit" class="btn btn-outline-dark px-4 rounded-pill fw-bold">
+                    <i data-lucide="filter" class="me-1" style="width: 14px;"></i> Apply Filters
+                </button>
+
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="submit" name="export" value="csv" class="btn btn-outline-success rounded-pill fw-bold px-4">
+                        <i data-lucide="sheet" class="me-1" style="width: 16px;"></i> Export for Excel
+                    </button>
+                    <button type="submit" name="download_pdf" value="1" class="btn btn-htc rounded-pill fw-bold px-4">
+                        <i data-lucide="file-down" class="me-1" style="width: 16px;"></i> Download PDF
+                    </button>
+                </div>
             </div>
         </div>
+    </form>
+
+    <div id="report-preview" class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
+        <div class="card-header bg-white border-bottom p-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div>
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <h5 class="fw-black mb-0">{{ $title }}</h5>
+                    <span class="badge bg-success-subtle text-success rounded-pill">{{ $periodLabel }}</span>
+                </div>
+                <small class="text-muted">{{ number_format($rows->count()) }} matching records</small>
+            </div>
+
+            <div class="d-flex align-items-center gap-4">
+                <div class="text-end">
+                    <small class="text-muted text-uppercase fw-bold" style="font-size: 9px;">{{ $summaryLabel }}</small>
+                    <h5 class="fw-black text-success mb-0">
+                        @if($summaryType === 'money')
+                            ₱{{ number_format($summaryValue, 2) }}
+                        @else
+                            {{ number_format($summaryValue) }}
+                        @endif
+                    </h5>
+                </div>
+                <button type="button" class="btn btn-outline-dark btn-sm rounded-pill px-3 no-print" onclick="window.print()">
+                    <i data-lucide="printer" class="me-1" style="width: 14px;"></i> Print
+                </button>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 report-table" style="font-size: 0.82rem;">
+                <thead class="bg-light small text-muted text-uppercase">
+                    <tr>
+                        @foreach($columns as $column)
+                            <th class="py-3 {{ $column['type'] === 'money' || $column['type'] === 'number' ? 'text-end' : '' }}">
+                                {{ $column['label'] }}
+                            </th>
+                        @endforeach
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($rows as $row)
+                        <tr>
+                            @foreach($columns as $column)
+                                <td class="{{ $column['type'] === 'money' || $column['type'] === 'number' ? 'text-end' : '' }}">
+                                    @if($column['type'] === 'money')
+                                        ₱{{ number_format((float) ($row[$column['key']] ?? 0), 2) }}
+                                    @elseif($column['type'] === 'number')
+                                        {{ number_format((float) ($row[$column['key']] ?? 0)) }}
+                                    @else
+                                        {{ $row[$column['key']] ?? '—' }}
+                                    @endif
+                                </td>
+                            @endforeach
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="{{ count($columns) }}" class="text-center py-5 text-muted">
+                                No records match the selected report filters.
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
     </div>
-</x-app-layout>
+</section>
+
+<style>
+    @media print {
+        body * { visibility: hidden !important; }
+        #report-preview, #report-preview * { visibility: visible !important; }
+        #report-preview {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            box-shadow: none !important;
+            border-radius: 0 !important;
+        }
+        #report-preview .table-responsive { overflow: visible !important; }
+        #report-preview .report-table { font-size: 9px !important; }
+        .no-print { display: none !important; }
+    }
+</style>
+
+<script>
+    (() => {
+        const period = document.getElementById('period');
+        const customDateFields = document.querySelectorAll('.custom-date-field');
+
+        const toggleCustomDates = () => {
+            const isCustom = period?.value === 'custom';
+            customDateFields.forEach((field) => {
+                field.style.display = isCustom ? '' : 'none';
+                field.querySelector('input').disabled = !isCustom;
+            });
+        };
+
+        period?.addEventListener('change', toggleCustomDates);
+        toggleCustomDates();
+    })();
+</script>

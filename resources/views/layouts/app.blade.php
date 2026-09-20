@@ -472,14 +472,8 @@
                 @if(Auth::user()->role == 'smo')
                     <div class="nav-section-label">Institutional Reports</div>
 
-                    <!-- Link to the Dashboard with Charts -->
-                    <a href="{{ route('admin.reports.analytics') }}" class="nav-link-custom {{ request()->routeIs('admin.reports.analytics') ? 'active' : '' }}">
-                        <i data-lucide="pie-chart"></i> Operations Analytics
-                    </a>
-
-                    <!-- Link to the Filterable Report Builder (The one the Dean wants) -->
-                    <a href="{{ route('admin.reports.index') }}" class="nav-link-custom {{ request()->routeIs('admin.reports.index') ? 'active' : '' }}">
-                        <i data-lucide="printer"></i> Report Builder
+                    <a href="{{ route('admin.reports.index') }}" class="nav-link-custom {{ request()->routeIs('admin.reports.*') ? 'active' : '' }}">
+                        <i data-lucide="bar-chart-3"></i> Reports & Analytics
                     </a>
                 @endif
 

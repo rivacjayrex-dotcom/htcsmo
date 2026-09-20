@@ -157,14 +157,12 @@ Route::get('/dashboard', function () {
     //Statistics and Reports Page
     // SMO REPORTING & ANALYTICS
     Route::middleware(['auth', 'role:smo'])->group(function () {
-        // 1. The Dashboard/Charts page
-        Route::get('/admin/reports/analytics', [ReportController::class, 'index'])->name('admin.reports.analytics');
-
-        // 2. The Filterable Report Builder page
-        Route::get('/admin/reports/builder', [ReportController::class, 'generate'])->name('admin.reports.index');
-
-        // 3. The Actual Filtering/PDF Logic
+        Route::get('/admin/reports', [ReportController::class, 'index'])->name('admin.reports.index');
         Route::get('/admin/reports/generate', [ReportController::class, 'generate'])->name('admin.reports.generate');
+
+        // Preserve existing bookmarks while directing users to the unified workspace.
+        Route::redirect('/admin/reports/analytics', '/admin/reports')->name('admin.reports.analytics');
+        Route::redirect('/admin/reports/builder', '/admin/reports')->name('admin.reports.builder');
     });
 
     //Archive Page route
