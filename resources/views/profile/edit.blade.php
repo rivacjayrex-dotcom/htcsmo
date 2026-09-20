@@ -56,20 +56,6 @@
                     </div>
                     @include('profile.partials.update-password-form')
                 </div>
-
-                <!-- Danger Zone -->
-                <div class="card border-start border-danger border-4 shadow-sm rounded-4 p-4 opacity-75">
-                    <div class="d-flex align-items-center">
-                        <i data-lucide="alert-triangle" class="text-danger me-3"></i>
-                        <div>
-                            <h6 class="fw-bold mb-0 text-danger">Danger Zone</h6>
-                            <small class="text-muted">Once your account is deleted, all of its resources and data will be permanently deleted.</small>
-                        </div>
-                        <div class="ms-auto">
-                            @include('profile.partials.delete-user-form')
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
