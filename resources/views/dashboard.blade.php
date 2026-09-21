@@ -272,7 +272,7 @@
 
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <div>
-                    <h4 class="fw-black text-dark mb-0">Good Day, {{ Auth::user()->name }}!</h4>
+                    <h4 class="fw-black text-dark mb-0">GoodHoly! {{ Auth::user()->name }}!</h4>
                     <p class="text-muted small mb-0">{{ Auth::user()->department }} Department • {{ Auth::user()->school_id }}</p>
                 </div>
                 <button type="button" class="btn btn-htc px-4 py-2 rounded-pill fw-bold shadow-sm d-flex align-items-center" data-bs-toggle="modal" data-bs-target="#globalRequestModal">
