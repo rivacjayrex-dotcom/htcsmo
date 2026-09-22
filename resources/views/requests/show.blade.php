@@ -77,7 +77,8 @@
 
                             <!-- Step 2: Dept Head -->
                             @php
-                                $isDeptDone = in_array($request->status, ['approved_dept', 'approved_vp', 'approved_provost', 'approved_president', 'released']);
+                                $isDeptDone = in_array($request->status, ['approved_dept', 'approved_vp', 'approved_provost', 'approved_president', 'released'])
+                                    || ($request->status === 'for_clarification' && in_array($questioningRole, ['vp_finance', 'vp_admin', 'provost', 'president']));
                                 $isDeptQuestioning = ($request->status === 'for_clarification' && ($questioningRole === 'dept_head' || is_null($questioningRole)));
                                 $isDeptActive = ($request->status === 'pending');
                             @endphp
@@ -92,7 +93,8 @@
 
                             <!-- Step 3: VP Finance (Minor) or VP Admin (Major) -->
                             @php
-                                $isVPDone = in_array($request->status, ['approved_vp', 'approved_provost', 'approved_president', 'released']);
+                                $isVPDone = in_array($request->status, ['approved_vp', 'approved_provost', 'approved_president', 'released'])
+                                    || ($request->status === 'for_clarification' && in_array($questioningRole, ['provost', 'president']));
                                 $isVPQuestioning = ($request->status === 'for_clarification' && in_array($questioningRole, ['vp_finance', 'vp_admin']));
                                 $isVPActive = ($request->status === 'approved_dept');
                                 $vpTitle = $request->request_type === 'minor' ? 'VP Finance' : 'VP Admin';
@@ -109,7 +111,8 @@
                             @if($request->request_type == 'major')
                                 <!-- Step 4: Provost -->
                                 @php
-                                    $isProvostDone = in_array($request->status, ['approved_provost', 'approved_president', 'released']);
+                                    $isProvostDone = in_array($request->status, ['approved_provost', 'approved_president', 'released'])
+                                        || ($request->status === 'for_clarification' && $questioningRole === 'president');
                                     $isProvostQuestioning = ($request->status === 'for_clarification' && $questioningRole === 'provost');
                                     $isProvostActive = ($request->status === 'approved_vp');
                                 @endphp

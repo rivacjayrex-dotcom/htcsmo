@@ -133,7 +133,8 @@
                                 <!-- Step 2: Dept Head -->
                                 <div class="step-item"
                                     :class="{
-                                        'completed': ['approved_dept', 'approved_vp', 'approved_provost', 'approved_president', 'released'].includes(selectedReq.status),
+                                        'completed': ['approved_dept', 'approved_vp', 'approved_provost', 'approved_president', 'released'].includes(selectedReq.status)
+                                            || (selectedReq.status === 'for_clarification' && ['vp_finance', 'vp_admin', 'provost', 'president'].includes(questioningRole)),
                                         'questioning': selectedReq.status === 'for_clarification' && (!questioningRole || questioningRole === 'dept_head'),
                                         'active': selectedReq.status === 'pending'
                                     }">
@@ -146,7 +147,8 @@
                                 <!-- Step 3: VP Finance / Admin -->
                                 <div class="step-item"
                                     :class="{
-                                        'completed': ['approved_vp', 'approved_provost', 'approved_president', 'released'].includes(selectedReq.status),
+                                        'completed': ['approved_vp', 'approved_provost', 'approved_president', 'released'].includes(selectedReq.status)
+                                            || (selectedReq.status === 'for_clarification' && ['provost', 'president'].includes(questioningRole)),
                                         'questioning': selectedReq.status === 'for_clarification' && ['vp_finance', 'vp_admin'].includes(questioningRole),
                                         'active': selectedReq.status === 'approved_dept'
                                     }">
@@ -160,7 +162,8 @@
                                 <template x-if="selectedReq.request_type == 'major'">
                                     <div class="step-item"
                                         :class="{
-                                            'completed': ['approved_provost', 'approved_president', 'released'].includes(selectedReq.status),
+                                            'completed': ['approved_provost', 'approved_president', 'released'].includes(selectedReq.status)
+                                                || (selectedReq.status === 'for_clarification' && questioningRole === 'president'),
                                             'questioning': selectedReq.status === 'for_clarification' && questioningRole === 'provost',
                                             'active': selectedReq.status === 'approved_vp'
                                         }">
@@ -299,7 +302,9 @@
 
                     // Identify the signatory that initiated the clarification from logs
                     if (req.status === 'for_clarification' && req.logs && req.logs.length > 0) {
-                        const lastLog = [...req.logs].reverse().find(l => l.action.includes('Clarification'));
+                        const lastLog = [...req.logs]
+                            .sort((a, b) => Number(b.id) - Number(a.id))
+                            .find(log => log.action.includes('Clarification'));
                         this.questioningRole = lastLog ? lastLog.role : null;
                     } else {
                         this.questioningRole = null;

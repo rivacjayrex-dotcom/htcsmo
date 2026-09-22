@@ -137,10 +137,28 @@ class RequestController extends Controller
         $pendingRequests = $query->latest()->get();
 
         // Dedicated list for requests placed on hold / for clarification
-        $clarificationRequests = Requisition::with(['items', 'user'])
+        $clarificationRequests = Requisition::with([
+                'items',
+                'user',
+                'logs' => fn ($query) => $query->orderBy('id'),
+            ])
             ->where('status', 'for_clarification')
             ->latest()
             ->get();
+
+        // SMO coordinates every inquiry; signatories only handle inquiries they initiated.
+        if ($user->role !== 'smo') {
+            $clarificationRequests = $clarificationRequests
+                ->filter(function ($requisition) use ($user) {
+                    $clarificationLog = $requisition->logs
+                        ->filter(fn ($log) => str_contains($log->action, 'Clarification'))
+                        ->sortByDesc('id')
+                        ->first();
+
+                    return $clarificationLog?->role === $user->role;
+                })
+                ->values();
+        }
 
         if ($user->role === 'smo') {
             $pendingMinor = $pendingRequests->where('request_type', 'minor');
@@ -164,6 +182,12 @@ class RequestController extends Controller
 
         $sr = Requisition::with(['items', 'user'])->findOrFail($id);
         $role = Auth::user()->role;
+
+        abort_unless(
+            $this->canReviewRequisition($sr, Auth::user()),
+            403,
+            'This requisition is not assigned to your approval stage.'
+        );
 
         $roleTitles = [
             'dept_head'  => 'Department Head',
@@ -294,6 +318,31 @@ class RequestController extends Controller
         );
 
         return redirect()->route('admin.approvals')->with('success', "Requisition #{$sr->id} status updated.");
+    }
+
+    /**
+     * Confirm that the signed-in signatory owns the requisition's current stage.
+     */
+    private function canReviewRequisition(Requisition $requisition, User $user): bool
+    {
+        if ($requisition->status === 'for_clarification') {
+            $questioningRole = $requisition->logs()
+                ->where('action', 'like', '%Clarification%')
+                ->latest('id')
+                ->value('role');
+
+            return $questioningRole !== null && $user->role === $questioningRole;
+        }
+
+        return match ($requisition->status) {
+            'pending' => $user->role === 'dept_head'
+                && $requisition->user->department === $user->department,
+            'approved_dept' => ($requisition->request_type === 'minor' && $user->role === 'vp_finance')
+                || ($requisition->request_type === 'major' && $user->role === 'vp_admin'),
+            'approved_vp' => $requisition->request_type === 'major' && $user->role === 'provost',
+            'approved_provost' => $requisition->request_type === 'major' && $user->role === 'president',
+            default => false,
+        };
     }
 
     /**

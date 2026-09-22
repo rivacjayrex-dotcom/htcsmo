@@ -194,7 +194,10 @@
             color: white !important;
         }
 
-        .step-item.completed .step-icon i { color: white !important; }
+        .step-item.completed .step-icon [data-lucide] {
+            color: white !important;
+            stroke: currentColor;
+        }
         .step-item.completed::after { background-color: var(--htc-green); }
 
 
@@ -203,6 +206,11 @@
             border-color: #ffc107;
             color: #ffc107;
             box-shadow: 0 0 0 4px rgba(255, 193, 7, 0.1);
+        }
+
+        .step-item.active .step-icon [data-lucide] {
+            color: #ffc107 !important;
+            stroke: currentColor;
         }
 
         /* Active (Yellow) */
@@ -231,6 +239,11 @@
             background-color: #fff8f3 !important;
             box-shadow: 0 0 0 4px rgba(253, 126, 20, 0.25) !important;
             animation: pulseWarning 2s infinite !important;
+        }
+
+        .step-item.questioning .step-icon [data-lucide] {
+            color: #fd7e14 !important;
+            stroke: currentColor;
         }
 
         .step-item.questioning .step-label {
