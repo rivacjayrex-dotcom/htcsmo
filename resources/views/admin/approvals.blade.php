@@ -230,12 +230,14 @@
                         <div class="mt-4">
                             @if(Auth::user()->role == 'smo')
                                 <!-- SMO FULFILLMENT FORM -->
-                                <form :action="'{{ url('/admin/requests') }}/' + selectedReq.id + '/release'" method="POST">
-                                    @csrf
-                                    <button type="submit" class="btn btn-primary w-100 py-3 fw-bold rounded-3 shadow-sm d-flex align-items-center justify-content-center">
-                                        <i data-lucide="package-check" class="me-2" style="width:18px;"></i> CONFIRM RELEASE & DEDUCT STOCK
-                                    </button>
-                                </form>
+                                <template x-if="selectedReq.status !== 'for_clarification'">
+                                    <form :action="'{{ url('/admin/requests') }}/' + selectedReq.id + '/release'" method="POST">
+                                        @csrf
+                                        <button type="submit" class="btn btn-primary w-100 py-3 fw-bold rounded-3 shadow-sm d-flex align-items-center justify-content-center">
+                                            <i data-lucide="package-check" class="me-2" style="width:18px;"></i> CONFIRM RELEASE
+                                        </button>
+                                    </form>
+                                </template>
                             @else
                                 <!-- SIGNATORY 3-BUTTON DECISION FORM -->
                                 <!-- SIGNATORY DECISION FORM -->
