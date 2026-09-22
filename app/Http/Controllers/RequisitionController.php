@@ -110,10 +110,13 @@ class RequisitionController extends Controller
         }
 
         $request->validate([
+            'request_type' => 'required|in:minor,major',
             'items' => 'required|array|min:1',
             'items.*.name' => 'required|string',
+            'items.*.specs' => 'nullable|string',
             'items.*.qty' => 'required|integer|min:1',
-            'items.*.price' => 'required|numeric',
+            'items.*.unit' => 'nullable|string|max:50',
+            'items.*.price' => 'required|numeric|min:0',
         ]);
 
         // Update the Requisition Header
@@ -130,7 +133,7 @@ class RequisitionController extends Controller
             RequisitionItem::create([
                 'requisition_id' => $requisition->id,
                 'item_name' => $itemData['name'],
-                'specifications' => $itemData['specs'],
+                'specifications' => $itemData['specs'] ?? null,
                 'quantity' => $itemData['qty'],
                 'unit' => $itemData['unit'] ?? 'pc',
                 'unit_price' => $itemData['price'],
@@ -146,7 +149,12 @@ class RequisitionController extends Controller
     // 3. Delete Requisition
     public function destroy($id)
     {
-        $requisition = Requisition::where('user_id', Auth::id())->where('status', 'pending')->findOrFail($id);
+        $requisition = Requisition::where('user_id', Auth::id())->findOrFail($id);
+
+        if ($requisition->status !== 'pending') {
+            return back()->with('error', 'Cannot delete: The Department Head has already acted on this requisition.');
+        }
+
         $requisition->delete(); // This also deletes items because of onDelete('cascade') in migration
 
         return redirect()->route('requests.index')->with('success', 'Requisition deleted successfully.');

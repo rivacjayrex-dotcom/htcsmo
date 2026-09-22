@@ -154,10 +154,12 @@ Route::get('/dashboard', function () {
     Route::get('/api/latest-notification', [RequestController::class, 'getLatestNotification']);
 
 
-    // Requisition Management (Edit/Delete)
-    Route::get('/requisitions/{id}/edit', [RequisitionController::class, 'edit'])->name('requisitions.edit');
-    Route::patch('/requisitions/{id}', [RequisitionController::class, 'update'])->name('requisitions.update');
-    Route::delete('/requisitions/{id}', [RequisitionController::class, 'destroy'])->name('requisitions.destroy');
+    // Requestors may manage only their own pending requisitions.
+    Route::middleware('auth')->group(function () {
+        Route::get('/requisitions/{id}/edit', [RequisitionController::class, 'edit'])->name('requisitions.edit');
+        Route::patch('/requisitions/{id}', [RequisitionController::class, 'update'])->name('requisitions.update');
+        Route::delete('/requisitions/{id}', [RequisitionController::class, 'destroy'])->name('requisitions.destroy');
+    });
 
     //Statistics and Reports Page
     // SMO REPORTING & ANALYTICS
