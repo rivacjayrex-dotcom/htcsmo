@@ -58,11 +58,11 @@ class RegisteredUserController extends Controller
                 'unique:users,username',
             ],
 
-            // Strict School ID Format: 0000-0000 (e.g., 2026-0001)
+            // Strict School ID Format: 00000-0000 (e.g., 20260-0001)
             'school_id' => [
                 'required',
                 'string',
-                'regex:/^\d{4}-\d{4}$/',
+                'regex:/^\d{5}-\d{4}$/',
                 'unique:users,school_id',
             ],
 
@@ -96,7 +96,7 @@ class RegisteredUserController extends Controller
             'name.regex' => 'Full name can only contain letters, spaces, and hyphens.',
             'username.alpha_dash' => 'Username can only contain letters, numbers, dashes, and underscores.',
             'username.unique' => 'This username is already taken.',
-            'school_id.regex' => 'School ID must follow the exact format: 0000-0000 (e.g. 2026-0001).',
+            'school_id.regex' => 'School ID must follow the exact format: 00000-0000 (e.g. 20260-0001).',
             'school_id.unique' => 'This School ID is already registered.',
             'department.in' => 'Please select a valid HTC academic department.',
             'email.regex' => 'You must use your official HTC email ending in @online.htcgsc.edu.ph.',

@@ -71,11 +71,11 @@
                                     name="school_id"
                                     value="{{ old('school_id') }}"
                                     class="form-control form-control-sm bg-light border-0 shadow-none @error('school_id') is-invalid @enderror"
-                                    placeholder="0000-0000"
-                                    maxlength="9"
+                                    placeholder="00000-0000"
+                                    maxlength="10"
                                     inputmode="numeric"
-                                    pattern="\d{4}-\d{4}"
-                                    title="Use the format 0000-0000"
+                                    pattern="\d{5}-\d{4}"
+                                    title="Use the format 00000-0000"
                                     autocomplete="off"
                                     required>
                                 @error('school_id') <span class="text-danger d-block mt-1" style="font-size: 10px;">{{ $message }}</span> @enderror
@@ -168,7 +168,7 @@
             lucide.createIcons();
         });
 
-        // Automatic masking for School ID: 0000-0000
+        // Automatic masking for School ID: 00000-0000
         const schoolIdInput = document.getElementById('school_id');
 
         if (schoolIdInput) {
@@ -176,13 +176,13 @@
                 // Strip any non-digit characters
                 let numbers = this.value.replace(/\D/g, '');
 
-                // Limit to eight digits (4 + 4)
-                if (numbers.length > 8) {
-                    numbers = numbers.substring(0, 8);
+                // Limit to nine digits (5 + 4)
+                if (numbers.length > 9) {
+                    numbers = numbers.substring(0, 9);
                 }
 
-                this.value = numbers.length > 4
-                    ? numbers.substring(0, 4) + '-' + numbers.substring(4)
+                this.value = numbers.length > 5
+                    ? numbers.substring(0, 5) + '-' + numbers.substring(5)
                     : numbers;
             });
 
