@@ -14,10 +14,14 @@
     @endphp
 
     <div class="container-fluid py-2" x-data="requisitionEditor({{ Js::from($editableItems) }})">
-        <div class="d-flex justify-content-between align-items-start mb-4">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-start gap-3 mb-4">
             <div>
-                <h4 class="fw-black text-dark mb-1">Edit {{ $requisition->tracking_code }}</h4>
-                <p class="text-muted small mb-0">Changes are allowed only while Department Head review is pending.</p>
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <span class="badge rounded-pill bg-light text-dark border px-3 py-2">{{ strtoupper($requisition->request_type) }} tier</span>
+                    <span class="text-muted small">{{ $requisition->tracking_code }}</span>
+                </div>
+                <h4 class="fw-black text-dark mb-1">Update your requisition</h4>
+                <p class="text-muted small mb-0">Adjust the items and quantities while your request is still pending review.</p>
             </div>
             <a href="{{ route('requests.index') }}" class="btn btn-light border rounded-pill px-3">Cancel</a>
         </div>
@@ -37,62 +41,62 @@
             @csrf
             @method('PATCH')
 
-            <div class="card border-0 shadow-sm rounded-4 mb-4">
-                <div class="card-body p-4">
-                    <label for="request_type" class="form-label small fw-bold text-uppercase text-muted">Request Type</label>
-                    <select id="request_type" name="request_type" class="form-select" required>
-                        <option value="minor" @selected(old('request_type', $requisition->request_type) === 'minor')>Minor</option>
-                        <option value="major" @selected(old('request_type', $requisition->request_type) === 'major')>Major</option>
-                    </select>
-                </div>
-            </div>
-
             <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
-                <div class="card-header bg-white border-bottom p-4 d-flex justify-content-between align-items-center">
+                <div class="card-header bg-white border-bottom p-4 d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3">
                     <div>
-                        <h6 class="fw-bold mb-0">Requested Items</h6>
-                        <small class="text-muted">Update quantities, specifications, units, or estimated prices.</small>
+                        <div class="d-flex align-items-center gap-2">
+                            <h6 class="fw-bold mb-0">Requested items</h6>
+                            <span class="badge rounded-pill bg-success-subtle text-success" x-text="items.length + (items.length === 1 ? ' item' : ' items')"></span>
+                        </div>
+                        <small class="text-muted">Keep each item specific so purchasing can prepare it correctly.</small>
                     </div>
-                    <button type="button" class="btn btn-outline-success btn-sm rounded-pill px-3" @click="addItem()">
-                        Add Item
+                    <button type="button" class="btn btn-success btn-sm rounded-pill px-3" @click="addItem()">
+                        <span class="me-1" aria-hidden="true">+</span> Add item
                     </button>
                 </div>
 
                 <div class="card-body p-4">
                     <template x-for="(item, index) in items" :key="item.key">
-                        <div class="border rounded-3 p-3 mb-3">
-                            <div class="row g-3 align-items-end">
+                        <div class="border rounded-3 p-3 p-md-4 mb-3 bg-light-subtle">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span class="small fw-bold text-uppercase text-muted">Item <span x-text="index + 1"></span></span>
+                                <button type="button" class="btn btn-sm btn-link text-danger text-decoration-none px-0" @click="removeItem(index)" :disabled="items.length === 1">
+                                    Remove
+                                </button>
+                            </div>
+                            <div class="row g-3">
+                                <div class="col-md-7">
+                                    <label class="form-label small fw-bold" :for="`item-name-${item.key}`">What do you need?</label>
+                                    <input :id="`item-name-${item.key}`" type="text" class="form-control" :name="`items[${index}][name]`" x-model="item.name" placeholder="e.g. A4 bond paper" required>
+                                </div>
+                                <div class="col-md-5">
+                                    <label class="form-label small fw-bold" :for="`item-specs-${item.key}`">Details <span class="text-muted fw-normal">(optional)</span></label>
+                                    <input :id="`item-specs-${item.key}`" type="text" class="form-control" :name="`items[${index}][specs]`" x-model="item.specs" placeholder="Size, color, brand, or model">
+                                </div>
+                                <div class="col-6 col-md-3">
+                                    <label class="form-label small fw-bold" :for="`item-qty-${item.key}`">Quantity</label>
+                                    <input :id="`item-qty-${item.key}`" type="number" class="form-control" :name="`items[${index}][qty]`" x-model.number="item.qty" min="1" required>
+                                </div>
+                                <div class="col-6 col-md-3">
+                                    <label class="form-label small fw-bold" :for="`item-unit-${item.key}`">Unit</label>
+                                    <input :id="`item-unit-${item.key}`" type="text" class="form-control" :name="`items[${index}][unit]`" x-model="item.unit" maxlength="50" placeholder="pc, box, set">
+                                </div>
                                 <div class="col-md-4">
-                                    <label class="form-label small fw-bold">Item Name</label>
-                                    <input type="text" class="form-control" :name="`items[${index}][name]`" x-model="item.name" required>
+                                    <label class="form-label small fw-bold" :for="`item-price-${item.key}`">Estimated unit price</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">₱</span>
+                                        <input :id="`item-price-${item.key}`" type="number" class="form-control" :name="`items[${index}][price]`" x-model.number="item.price" min="0" step="0.01" required>
+                                    </div>
                                 </div>
-                                <div class="col-md-3">
-                                    <label class="form-label small fw-bold">Specifications</label>
-                                    <input type="text" class="form-control" :name="`items[${index}][specs]`" x-model="item.specs">
-                                </div>
-                                <div class="col-6 col-md-1">
-                                    <label class="form-label small fw-bold">Qty</label>
-                                    <input type="number" class="form-control" :name="`items[${index}][qty]`" x-model.number="item.qty" min="1" required>
-                                </div>
-                                <div class="col-6 col-md-1">
-                                    <label class="form-label small fw-bold">Unit</label>
-                                    <input type="text" class="form-control" :name="`items[${index}][unit]`" x-model="item.unit" maxlength="50">
-                                </div>
-                                <div class="col-8 col-md-2">
-                                    <label class="form-label small fw-bold">Unit Price</label>
-                                    <input type="number" class="form-control" :name="`items[${index}][price]`" x-model.number="item.price" min="0" step="0.01" required>
-                                </div>
-                                <div class="col-4 col-md-1 d-grid">
-                                    <button type="button" class="btn btn-outline-danger" @click="removeItem(index)" :disabled="items.length === 1" title="Remove item">
-                                        ×
-                                    </button>
+                                <div class="col-md-2 d-flex align-items-end">
+                                    <div class="small text-muted pb-2" x-text="formatCurrency((Number(item.qty) || 0) * (Number(item.price) || 0))"></div>
                                 </div>
                             </div>
                         </div>
                     </template>
 
                     <div class="d-flex justify-content-end align-items-center gap-3 pt-2">
-                        <span class="small text-muted text-uppercase fw-bold">Estimated Total</span>
+                        <span class="small text-muted text-uppercase fw-bold">Estimated total</span>
                         <span class="fs-5 fw-black text-success" x-text="formatCurrency(total)"></span>
                     </div>
                 </div>

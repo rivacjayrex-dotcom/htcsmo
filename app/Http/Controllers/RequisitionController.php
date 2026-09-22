@@ -110,7 +110,6 @@ class RequisitionController extends Controller
         }
 
         $request->validate([
-            'request_type' => 'required|in:minor,major',
             'items' => 'required|array|min:1',
             'items.*.name' => 'required|string',
             'items.*.specs' => 'nullable|string',
@@ -118,9 +117,6 @@ class RequisitionController extends Controller
             'items.*.unit' => 'nullable|string|max:50',
             'items.*.price' => 'required|numeric|min:0',
         ]);
-
-        // Update the Requisition Header
-        $requisition->update(['request_type' => $request->request_type]);
 
         // Refresh the items (Delete old ones and add new ones)
         $requisition->items()->delete();

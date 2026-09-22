@@ -38,6 +38,33 @@ Route::get('/dashboard', function () {
         ->latest()
         ->get();
 
+    // SCHOOL ADMIN DASHBOARD: Show only requests currently assigned to this approver.
+    $approvalRequests = collect();
+    if (in_array($user->role, ['dept_head', 'vp_finance', 'vp_admin', 'provost', 'president'])) {
+        $approvalQuery = Requisition::with(['items', 'user']);
+
+        switch ($user->role) {
+            case 'dept_head':
+                $approvalQuery->where('status', 'pending')
+                    ->whereHas('user', fn ($query) => $query->where('department', $user->department));
+                break;
+            case 'vp_finance':
+                $approvalQuery->where('status', 'approved_dept')->where('request_type', 'minor');
+                break;
+            case 'vp_admin':
+                $approvalQuery->where('status', 'approved_dept')->where('request_type', 'major');
+                break;
+            case 'provost':
+                $approvalQuery->where('status', 'approved_vp')->where('request_type', 'major');
+                break;
+            case 'president':
+                $approvalQuery->where('status', 'approved_provost')->where('request_type', 'major');
+                break;
+        }
+
+        $approvalRequests = $approvalQuery->latest()->take(5)->get();
+    }
+
     // 3. SMO SPECIFIC LOGIC
     $stats = ['total' => 0, 'pending' => 0, 'urgent' => 0, 'monthly_value' => 0];
     $recentActivity = [];
@@ -90,7 +117,7 @@ Route::get('/dashboard', function () {
 
     return view('dashboard', compact(
         'activeCount', 'approvedLast24h', 'recentRequests',
-        'stats', 'allStaffRequests', 'recentActivity'
+        'stats', 'allStaffRequests', 'recentActivity', 'approvalRequests'
     ));
 })->middleware(['auth'])->name('dashboard');
 

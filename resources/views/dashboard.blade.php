@@ -280,6 +280,72 @@
                 </button>
             </div>
 
+            @if(in_array(Auth::user()->role, ['dept_head', 'vp_finance', 'vp_admin', 'provost', 'president']))
+                <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white mb-4">
+                    <div class="card-header bg-white border-bottom p-4 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
+                        <div>
+                            <div class="d-flex align-items-center gap-2">
+                                <h6 class="m-0 fw-bold text-dark">Requests awaiting your approval</h6>
+                                <span class="badge rounded-pill bg-danger-subtle text-danger">{{ $approvalRequests->count() }}</span>
+                            </div>
+                            <small class="text-muted">Your five most recent requests at the current approval stage.</small>
+                        </div>
+                        <a href="{{ route('admin.approvals') }}" class="btn btn-sm btn-htc rounded-pill px-3 fw-bold">
+                            <i data-lucide="clipboard-check" class="me-1" style="width: 14px;"></i> Review all
+                        </a>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0" style="font-size: 0.86rem;">
+                            <thead class="bg-light text-muted small text-uppercase">
+                                <tr>
+                                    <th class="ps-4 py-3">Control Code</th>
+                                    <th>Requestor</th>
+                                    <th>Requested items</th>
+                                    <th>Submitted</th>
+                                    <th class="pe-4 text-end">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($approvalRequests as $approvalRequest)
+                                    <tr>
+                                        <td class="ps-4">
+                                            <span class="font-monospace fw-bold text-dark">{{ $approvalRequest->tracking_code }}</span>
+                                            <span class="badge {{ $approvalRequest->request_type === 'major' ? 'bg-primary' : 'bg-secondary' }} rounded-pill px-2 ms-1" style="font-size: 8px;">
+                                                {{ strtoupper($approvalRequest->request_type) }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div class="fw-bold text-dark">{{ $approvalRequest->user->name }}</div>
+                                            <small class="text-muted">{{ $approvalRequest->user->department ?? 'General' }}</small>
+                                        </td>
+                                        <td>
+                                            <div class="fw-semibold text-dark">{{ $approvalRequest->items->first()->item_name ?? 'Supplies' }}</div>
+                                            @if($approvalRequest->items->count() > 1)
+                                                <small class="text-muted">+{{ $approvalRequest->items->count() - 1 }} other item(s)</small>
+                                            @endif
+                                        </td>
+                                        <td class="text-muted small">{{ $approvalRequest->created_at->format('M d, Y') }}</td>
+                                        <td class="pe-4 text-end">
+                                            <a href="{{ route('admin.approvals') }}" class="btn btn-sm btn-light border rounded-pill px-3 shadow-none fw-bold" style="font-size: 10px;">
+                                                Review
+                                            </a>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="5" class="text-center py-4 text-muted small">
+                                            <i data-lucide="check-circle" style="width: 22px; height: 22px;" class="mb-1 opacity-50 d-block mx-auto"></i>
+                                            You are all caught up. No requests are waiting for your approval.
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            @endif
+
             <!-- EMPLOYEE STAT METRICS -->
             <div class="row g-4 mb-4">
                 <div class="col-md-6">
