@@ -11,11 +11,8 @@
 
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <!-- Bootstrap 5 -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
 
-    <!-- 1. Alpine.js (Must be in head with defer) -->
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <!-- 2. Lucide Icons (Must be in head) -->
     <script src="https://unpkg.com/lucide@latest"></script>
 
@@ -629,7 +626,7 @@
                     <div class="row g-4 justify-content-center">
                         <div class="col-md-5">
                             <div class="selection-card minor" @click="setTier('minor')">
-                                <div class="selection-badge">FAST TRACK</div>
+                                <div class="selection-badge">< 1000</div>
                                 <i data-lucide="package-search" class="mb-3"></i>
                                 <h4>Minor Request</h4>
                                 <p>For standard office supplies and low-value consumables.</p>
@@ -638,7 +635,7 @@
                         </div>
                         <div class="col-md-5">
                             <div class="selection-card major" @click="setTier('major')">
-                                <div class="selection-badge">HIGH PRIORITY</div>
+                                <div class="selection-badge">> 1000</div>
                                 <i data-lucide="building-2" class="mb-3"></i>
                                 <h4>Major Request</h4>
                                 <p>For high-value equipment, IT hardware, and bulk orders.</p>
@@ -878,7 +875,6 @@
     </div>
 
     <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         // Initialize Icons
         lucide.createIcons();

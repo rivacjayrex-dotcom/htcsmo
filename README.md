@@ -166,6 +166,9 @@ DB_USERNAME=root
 DB_PASSWORD=
 ```
 
+### Broadcast server to all connected wifi
+php artisan serve --host=0.0.0.0 --port=8000
+
 Adjust the database username and password for your local environment.
 
 ### 5. Configure email
@@ -269,14 +272,6 @@ Requisition items store a price snapshot so historical totals do not change when
 | Margart Augwie Ampan | Systems Analyst and Frontend Designer | BS Information Technology, Holy Trinity College |
 | Segundino Jr. C. Baja | Backend Architect and Database Administrator | BS Information Technology, Holy Trinity College |
 | Jayrex E. Rivac | Full-Stack Developer and Quality Assurance | BS Information Technology, Holy Trinity College |
-
-## Advisers and academic review panel
-
-- **Project Adviser:** Nathaniel U. Babanto
-- **Panel Chairman:** Abejah S. Paculdo, MIT
-- **Panel Examiner:** Pretzil Joy S. Vivares
-- **Panel Examiner:** James Bill C. Labis
-- **Dean, CETE:** Charisse S. Ronquillo, MIT
 
 ---
 

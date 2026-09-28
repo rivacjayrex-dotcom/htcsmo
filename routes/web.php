@@ -110,7 +110,7 @@ Route::get('/dashboard', function () {
         // Sorting
         $sort = request('sort', 'created_at');
         $order = request('order', 'desc');
-        $allStaffRequests = $query->orderBy($sort, $order)->get();
+        $allStaffRequests = $query->orderBy($sort, $order)->paginate(20)->withQueryString();
 
         $recentActivity = \App\Models\Notification::where('user_id', $user->id)->latest()->take(5)->get();
     }

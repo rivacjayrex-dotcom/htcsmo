@@ -228,6 +228,11 @@
                                 </tbody>
                             </table>
                         </div>
+                        @if($allStaffRequests->hasPages())
+                            <div class="p-3 border-top">
+                                {{ $allStaffRequests->links() }}
+                            </div>
+                        @endif
                     </div>
                 </div>
 
