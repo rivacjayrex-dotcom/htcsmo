@@ -13,7 +13,7 @@
 <x-app-layout>
     <x-slot name="header">Personnel Management</x-slot>
 
-    <div class="container-fluid py-2" x-data="{
+    <div class="container-fluid py-2 personnel-page" x-data="{
         editModal: null,
         selectedUser: { id: '', name: '', role: '', department: '', is_approved: '1' },
         openEdit(user) {
@@ -26,7 +26,7 @@
             this.editModal.show();
         }
     }">
-        <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
+        <div class="personnel-toolbar d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
             <div>
                 <h4 class="fw-black text-dark mb-1">{{ $scopeLabel }} Personnel</h4>
                 <p class="text-muted small mb-0">
@@ -38,7 +38,7 @@
                 </p>
             </div>
 
-            <form action="{{ route('admin.users.manage') }}" method="GET" class="d-flex align-items-center gap-2">
+            <form action="{{ route('admin.users.manage') }}" method="GET" class="personnel-search d-flex align-items-center gap-2">
                 <div class="input-group input-group-sm">
                     <span class="input-group-text bg-white border-end-0 rounded-start-pill text-muted">
                         <i data-lucide="search" style="width: 14px;"></i>
@@ -99,7 +99,7 @@
             </div>
 
             <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
+                <table class="table table-hover align-middle mb-0 workflow-responsive-table personnel-table">
                     <thead class="bg-light small text-muted text-uppercase">
                         <tr>
                             <th class="ps-4 py-3">Personnel</th>
@@ -112,26 +112,26 @@
                     <tbody>
                         @forelse($users as $user)
                             <tr>
-                                <td class="ps-4">
+                                <td class="ps-4" data-label="Personnel">
                                     <div class="fw-bold text-dark">{{ $user->name }}</div>
                                     <small class="text-muted">{{ $user->school_id }} • {{ $user->email }}</small>
                                 </td>
-                                <td>
+                                <td data-label="Department">
                                     <span class="badge bg-light text-dark border rounded-pill px-3">
                                         {{ $user->department ?: 'Administrative Office' }}
                                     </span>
                                 </td>
-                                <td>
+                                <td data-label="Designation">
                                     <span class="small fw-semibold">{{ $roleLabels[$user->role] ?? ucwords(str_replace('_', ' ', $user->role)) }}</span>
                                 </td>
-                                <td>
+                                <td data-label="Access">
                                     @if($user->is_approved)
                                         <span class="badge bg-success-subtle text-success rounded-pill px-3">Approved</span>
                                     @else
                                         <span class="badge bg-warning-subtle text-warning rounded-pill px-3">Pending / Inactive</span>
                                     @endif
                                 </td>
-                                <td class="text-end pe-4">
+                                <td class="text-end pe-4" data-label="Action">
                                     @if(in_array($user->id, $manageableUserIds, true))
                                         <button type="button" class="btn btn-sm btn-light border rounded-pill px-3 fw-bold"
                                             @click="openEdit({{ json_encode([
@@ -158,12 +158,12 @@
             </div>
         </div>
 
-        <div class="modal fade" id="editPersonnelModal" tabindex="-1" aria-hidden="true">
+        <div class="modal fade" id="editPersonnelModal" tabindex="-1" aria-hidden="true" aria-labelledby="editPersonnelModalTitle">
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content border-0 shadow-lg rounded-4">
                     <div class="modal-header border-0 bg-light p-4 pb-3">
                         <div>
-                            <h6 class="modal-title fw-bold mb-0">Manage Personnel Record</h6>
+                            <h6 class="modal-title fw-bold mb-0" id="editPersonnelModalTitle">Manage Personnel Record</h6>
                             <small class="text-muted" x-text="selectedUser.name"></small>
                         </div>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -225,5 +225,24 @@
         .mini-label { font-size: 9px; font-weight: 800; text-transform: uppercase; color: #64748b; letter-spacing: 1px; }
         .btn-htc { background-color: var(--htc-green); color: white; border: none; }
         .btn-htc:hover { background-color: #0d2e16; color: white; }
+        @media (max-width: 767.98px) {
+            .personnel-toolbar { align-items: stretch !important; flex-direction: column; }
+            .personnel-search { width: 100%; }
+            .personnel-search .input-group { flex: 1; }
+            .personnel-search input { min-width: 0 !important; min-height: 42px; font-size: 16px; }
+            .personnel-page > .row.g-3 { --bs-gutter-y: .65rem; }
+            .personnel-page > .card > .card-header { padding: 1rem !important; }
+        }
+        @media (max-width: 575.98px) {
+            #editPersonnelModal .modal-dialog { width: 100%; max-width: none; height: 100%; min-height: 100%; margin: 0; }
+            #editPersonnelModal .modal-content { height: 100dvh; max-height: 100dvh; border-radius: 0 !important; }
+            #editPersonnelModal .modal-header,
+            #editPersonnelModal .modal-body,
+            #editPersonnelModal .modal-footer { padding: 1rem !important; }
+            #editPersonnelModal select,
+            #editPersonnelModal input { min-height: 44px; font-size: 16px; }
+            #editPersonnelModal .modal-footer { align-items: stretch; flex-direction: column-reverse; }
+            #editPersonnelModal .modal-footer .btn { width: 100%; min-height: 44px; margin: 0; }
+        }
     </style>
 </x-app-layout>

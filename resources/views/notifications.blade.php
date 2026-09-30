@@ -3,11 +3,11 @@
         {{ __('Notification Center') }}
     </x-slot>
 
-    <div class="container-fluid py-2">
+    <div class="container-fluid py-2 notification-center-page">
         <div class="row g-4">
 
             <!-- LEFT SIDE: CONTEXTUAL SIDEBAR (Col 4) -->
-            <div class="col-lg-4">
+            <div class="col-lg-4 notification-context">
                 <div class="sticky-top" style="top: 100px;">
 
                     @if(Auth::user()->role == 'smo')
@@ -109,7 +109,7 @@
                         <h5 class="fw-bold mb-3">System Activity</h5>
 
                         <!-- TAB NAVIGATION -->
-                        <ul class="nav nav-tabs border-0 gap-4" id="noteTabs" role="tablist">
+                        <ul class="nav nav-tabs flex-nowrap border-0 gap-4" id="noteTabs" role="tablist">
                             <li class="nav-item">
                                 <button class="nav-link active border-0 px-0 fw-bold small text-uppercase tracking-wider" id="all-tab" data-bs-toggle="tab" data-bs-target="#all">All Activity</button>
                             </li>
@@ -169,6 +169,19 @@
         .stock-alert-row { display: flex; align-items: center; gap: .65rem; padding: .65rem 0; border-bottom: 1px solid rgba(218, 203, 169, .45); color: inherit; text-decoration: none; }.stock-alert-row:hover { color: var(--htc-green); }.stock-alert-row > span:nth-child(2) { display: flex; flex: 1; min-width: 0; flex-direction: column; }.stock-alert-row strong { overflow: hidden; font-size: .72rem; text-overflow: ellipsis; white-space: nowrap; }.stock-alert-row small { color: #8c9891; font-size: .62rem; }.stock-alert-row > svg { width: 14px; color: #9ba69f; }
         .stock-alert-dot { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; background: #e39a1d; box-shadow: 0 0 0 4px rgba(227,154,29,.12); }.stock-alert-dot.out { background: #d23f48; box-shadow: 0 0 0 4px rgba(210,63,72,.12); }
         @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); } 100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); } }
+        @media (max-width: 991.98px) {
+            .notification-context .sticky-top { position: static !important; }
+            .notification-center-page .row.g-4 { --bs-gutter-y: 1rem; }
+        }
+        @media (max-width: 575.98px) {
+            .notification-center-page .card-header { padding: 1rem !important; }
+            #noteTabs { margin-right: -1rem; margin-left: -1rem; padding: 0 1rem; overflow-x: auto; scrollbar-width: none; }
+            #noteTabs::-webkit-scrollbar { display: none; }
+            #noteTabs .nav-item { flex: 0 0 auto; }
+            #noteTabs .nav-link { min-height: 42px; white-space: nowrap; }
+            .notification-health-card { margin-bottom: 1rem !important; }
+        }
+        @media (prefers-reduced-motion: reduce) { .animate-pulse { animation: none; } }
     </style>
 
     <script>

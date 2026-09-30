@@ -3,7 +3,7 @@
         <span style="color: white; font-weight: 800;">USER ACCESS VERIFICATION</span>
     </x-slot>
 
-    <div class="container-fluid py-2">
+    <div class="container-fluid py-2 pending-users-page">
         <div class="mb-4 animate__animated animate__fadeIn">
             <h4 class="fw-black text-dark mb-1">Pending Registrations</h4>
             <p class="text-muted small">Verify institutional identity and assign administrative authority levels.</p>
@@ -15,8 +15,8 @@
                     <div class="card border-0 shadow-sm rounded-4 mb-3 overflow-hidden animate__animated animate__fadeInUp" style="animation-delay: {{ $loop->index * 0.1 }}s">
                         <div class="row g-0">
                             <!-- User Identity Section -->
-                            <div class="col-md-5 p-4 bg-light border-end d-flex align-items-center">
-                                <div class="rounded-circle bg-white shadow-sm d-flex align-items-center justify-content-center me-3" style="width: 60px; height: 60px; color: var(--htc-green);">
+                            <div class="pending-user-identity col-md-5 p-4 bg-light border-end d-flex align-items-center">
+                                <div class="pending-user-avatar rounded-circle bg-white shadow-sm d-flex align-items-center justify-content-center me-3" style="width: 60px; height: 60px; color: var(--htc-green);">
                                     <i data-lucide="user" style="width: 30px; height: 30px;"></i>
                                 </div>
                                 <div>
@@ -29,7 +29,7 @@
                             </div>
 
                             <!-- Role Assignment Sectionnnnnn -->
-                            <div class="col-md-7 p-4 bg-white">
+                            <div class="pending-user-role col-md-7 p-4 bg-white">
                                 <form action="{{ route('admin.users.approve', $u->id) }}" method="POST">
                                     @csrf
                                     <div class="row align-items-center">
@@ -100,5 +100,12 @@
         .bg-success-subtle { background-color: #f0fdf4 !important; }
         .btn-htc { background-color: var(--htc-green); color: white; border: none; }
         .btn-htc:hover { background-color: #0d2e16; color: white; transform: translateY(-1px); }
+        .pending-user-avatar { flex: 0 0 60px; }
+        @media (max-width: 767.98px) {
+            .pending-user-identity { padding: 1rem !important; border-right: 0 !important; border-bottom: 1px solid #e2e8f0; }
+            .pending-user-role { padding: 1rem !important; }
+            .pending-users-page select,
+            .pending-users-page button[type="submit"] { min-height: 44px; font-size: 16px; }
+        }
     </style>
 </x-app-layout>
