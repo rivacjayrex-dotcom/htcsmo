@@ -535,6 +535,9 @@
         .reason-field textarea::placeholder { color: #a0aaa4; }
         .reason-field > span { display: flex; justify-content: space-between; margin-top: .3rem; color: #94a3b8; font-size: .62rem; }
         .reason-field em { font-style: normal; }
+        .live-refresh-notice { position: fixed; top: 76px; right: 20px; z-index: 10000; display: flex; align-items: center; gap: .65rem; max-width: 360px; padding: .8rem 1rem; border: 1px solid #cfe2d6; border-radius: 12px; background: #fff; color: #244c34; font-size: .75rem; font-weight: 700; box-shadow: 0 12px 32px rgba(20, 55, 34, .16); }
+        .live-refresh-notice[hidden] { display: none !important; }
+        .live-refresh-notice .spinner-border { color: var(--htc-green); }
         .cart-summary > div { display: flex; justify-content: space-between; align-items: center; margin-bottom: .65rem; color: #738178; font-size: .75rem; }
         .cart-summary > div strong { color: #173d27; font-size: 1.25rem; }
         .cart-summary p { font-size: .68rem; font-weight: 700; }
@@ -979,6 +982,12 @@
         </div>
     </div>
 
+    <!-- LIVE DATA REFRESH STATUS -->
+    <div id="liveRefreshNotice" class="live-refresh-notice" role="status" aria-live="polite" hidden>
+        <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+        <span id="liveRefreshMessage">New activity detected. Refreshing…</span>
+    </div>
+
     <!-- Scripts -->
     <script>
         // Initialize Icons
@@ -1116,6 +1125,73 @@
         @if($errors->any() && old('request_type'))
             window.setTimeout(() => bootstrap.Modal.getOrCreateInstance(document.getElementById('globalRequestModal')).show(), 100);
         @endif
+
+        // Keep every signed-in workspace in sync with requisition and inventory actions.
+        (() => {
+            const endpoint = @json(route('api.system-version'));
+            const notice = document.getElementById('liveRefreshNotice');
+            const message = document.getElementById('liveRefreshMessage');
+            let currentVersion = null;
+            let refreshPending = false;
+            let checking = false;
+
+            const userIsWorking = () => {
+                const active = document.activeElement;
+                const editing = active && ['INPUT', 'TEXTAREA', 'SELECT'].includes(active.tagName);
+                return editing || Boolean(document.querySelector('.modal.show'));
+            };
+
+            const showNotice = (deferred = false) => {
+                message.textContent = deferred
+                    ? 'New activity is available. This page will refresh when you finish.'
+                    : 'New activity detected. Refreshing…';
+                notice.hidden = false;
+            };
+
+            const refreshWhenSafe = () => {
+                if (!refreshPending) return;
+                if (userIsWorking()) {
+                    showNotice(true);
+                    return;
+                }
+                showNotice(false);
+                window.setTimeout(() => window.location.reload(), 500);
+            };
+
+            const checkForUpdates = async () => {
+                if (checking || document.hidden) return;
+                checking = true;
+
+                try {
+                    const response = await fetch(endpoint, {
+                        headers: {'Accept': 'application/json'},
+                        cache: 'no-store',
+                        credentials: 'same-origin',
+                    });
+                    if (!response.ok) return;
+
+                    const data = await response.json();
+                    if (currentVersion === null) {
+                        currentVersion = data.version;
+                        return;
+                    }
+                    if (data.version !== currentVersion) {
+                        refreshPending = true;
+                        refreshWhenSafe();
+                    }
+                } catch (error) {
+                    // A temporary connection issue should not interrupt the user.
+                } finally {
+                    checking = false;
+                }
+            };
+
+            window.setInterval(checkForUpdates, 7000);
+            document.addEventListener('visibilitychange', () => !document.hidden && checkForUpdates());
+            document.addEventListener('focusout', () => window.setTimeout(refreshWhenSafe, 150));
+            document.addEventListener('hidden.bs.modal', refreshWhenSafe);
+            checkForUpdates();
+        })();
 
         function countUp(target, duration = 1000) {
             return {

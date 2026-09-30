@@ -20,6 +20,27 @@ use Illuminate\Support\Facades\Mail;
 class RequestController extends Controller
 {
     /**
+     * Lightweight fingerprint used by open pages to detect requisition activity.
+     */
+    public function systemVersion()
+    {
+        $requisitions = DB::table('requisitions')
+            ->selectRaw('COUNT(*) as total, COALESCE(MAX(id), 0) as latest_id, MAX(updated_at) as latest_update')
+            ->first();
+        $approvals = DB::table('approval_logs')
+            ->selectRaw('COUNT(*) as total, COALESCE(MAX(id), 0) as latest_id, MAX(created_at) as latest_update')
+            ->first();
+        $supplies = DB::table('supplies')
+            ->selectRaw('COUNT(*) as total, COALESCE(MAX(id), 0) as latest_id, MAX(updated_at) as latest_update')
+            ->first();
+
+        $version = hash('sha256', json_encode([$requisitions, $approvals, $supplies]));
+
+        return response()->json(['version' => $version])
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate');
+    }
+
+    /**
      * Active Requisitions (Pending, In-Progress, Approved)
      */
     public function index(Request $request)

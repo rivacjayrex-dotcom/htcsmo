@@ -179,6 +179,9 @@ Route::get('/dashboard', function () {
 
 
     Route::get('/api/latest-notification', [RequestController::class, 'getLatestNotification']);
+    Route::get('/api/system-version', [RequestController::class, 'systemVersion'])
+        ->middleware('auth')
+        ->name('api.system-version');
 
 
     // Requestors may manage only their own pending requisitions.
