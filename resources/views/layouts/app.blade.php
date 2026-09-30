@@ -643,6 +643,118 @@
         @media (prefers-reduced-motion: reduce) {
             .sidebar, .sidebar-backdrop { transition: none; }
         }
+
+        .mobile-cart-jump { display: none; }
+
+        @media (max-width: 991.98px) {
+            #globalRequestModal .requisition-shell { overflow-y: auto !important; }
+            #globalRequestModal .requisition-workspace { min-height: 0; }
+            #globalRequestModal .catalog-pane,
+            #globalRequestModal .cart-pane { max-height: none; overflow: visible; }
+            #globalRequestModal .catalog-pane { padding: 1.25rem; }
+            #globalRequestModal .cart-pane { border-left: 0; border-top: 1px solid #dce6e0; }
+            #globalRequestModal .product-hero { height: 230px; }
+            #globalRequestModal .cart-title { position: sticky; top: 0; z-index: 3; background: #fff; }
+            #globalRequestModal .option-group button,
+            #globalRequestModal .quantity-picker button,
+            #globalRequestModal .mini-quantity button { min-height: 40px; }
+            #globalRequestModal .mini-quantity button { width: 38px; }
+            #globalRequestModal .mobile-cart-jump {
+                position: sticky;
+                bottom: .75rem;
+                z-index: 4;
+                width: 100%;
+                min-height: 48px;
+                margin-top: 1rem;
+                padding: .7rem 1rem;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                border: 0;
+                border-radius: 12px;
+                background: var(--htc-green);
+                color: #fff;
+                box-shadow: 0 10px 25px rgba(20, 73, 46, .28);
+                font-size: .75rem;
+                font-weight: 700;
+            }
+            #globalRequestModal .mobile-cart-jump span { display: flex; align-items: center; gap: .5rem; }
+            #globalRequestModal .mobile-cart-jump svg { width: 17px; height: 17px; }
+            #globalRequestModal .mobile-cart-jump strong { padding: .2rem .55rem; border-radius: 999px; background: rgba(255,255,255,.18); }
+        }
+
+        @media (max-width: 575.98px) {
+            #globalRequestModal .modal-dialog {
+                width: 100%;
+                max-width: none;
+                height: 100%;
+                min-height: 100%;
+                margin: 0;
+            }
+            #globalRequestModal .requisition-shell {
+                width: 100%;
+                height: 100dvh;
+                max-height: 100dvh;
+                min-height: 100dvh;
+                border-radius: 0 !important;
+            }
+            #globalRequestModal .requisition-header {
+                position: sticky;
+                top: 0;
+                z-index: 6;
+                gap: .75rem;
+                padding: .85rem 1rem;
+                background: #fff;
+            }
+            #globalRequestModal .requisition-header h4 { font-size: 1.05rem; }
+            #globalRequestModal .requisition-header p { display: none; }
+            #globalRequestModal .requisition-progress { gap: .25rem; padding: .65rem .8rem !important; overflow: hidden; }
+            #globalRequestModal .requisition-progress div { gap: .3rem; font-size: .53rem; letter-spacing: 0; white-space: nowrap; }
+            #globalRequestModal .requisition-progress div::after { min-width: 8px; }
+            #globalRequestModal .requisition-progress span { width: 21px; height: 21px; flex: 0 0 21px; }
+            #globalRequestModal .tier-stage { min-height: 0; padding: 1.1rem !important; }
+            #globalRequestModal .tier-stage .text-center { margin-bottom: 1rem !important; }
+            #globalRequestModal .tier-stage .row { --bs-gutter-y: .8rem; }
+            #globalRequestModal .tier-choice { min-height: 0; padding: 1.15rem; border-radius: 16px; }
+            #globalRequestModal .tier-choice .tier-icon { width: 42px; height: 42px; margin-bottom: .75rem; border-radius: 12px; }
+            #globalRequestModal .tier-choice .tier-icon svg { width: 21px; height: 21px; }
+            #globalRequestModal .tier-choice strong { font-size: 1.05rem; margin: .2rem 0 .35rem; }
+            #globalRequestModal .tier-choice > span:not(.tier-icon):not(.tier-kicker) { line-height: 1.4; }
+            #globalRequestModal .tier-choice small { padding-top: .65rem; margin-top: .75rem; }
+            #globalRequestModal .catalog-pane { padding: .85rem; }
+            #globalRequestModal .catalog-toolbar { gap: .5rem; }
+            #globalRequestModal .catalog-search { height: 44px; }
+            #globalRequestModal .category-chips { padding: .8rem 0; scrollbar-width: none; }
+            #globalRequestModal .category-chips::-webkit-scrollbar { display: none; }
+            #globalRequestModal .category-chips button { min-height: 38px; }
+            #globalRequestModal .catalog-heading { align-items: flex-start; gap: .5rem; }
+            #globalRequestModal .catalog-heading p { display: none; }
+            #globalRequestModal .catalog-grid { grid-template-columns: 1fr; gap: .7rem; }
+            #globalRequestModal .product-card { display: grid; grid-template-columns: 88px minmax(0, 1fr); min-height: 112px; }
+            #globalRequestModal .product-visual { min-height: 112px; }
+            #globalRequestModal .product-visual svg { width: 29px; height: 29px; }
+            #globalRequestModal .product-visual em { right: .35rem; left: .35rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            #globalRequestModal .product-body { min-width: 0; padding: .8rem; }
+            #globalRequestModal .product-meta { margin-top: .6rem; gap: .4rem; }
+            #globalRequestModal .product-meta em { text-align: right; }
+            #globalRequestModal .product-configurator > .btn { margin-bottom: 1rem !important; min-height: 40px; }
+            #globalRequestModal .product-hero { height: 125px; border-radius: 14px; }
+            #globalRequestModal .product-hero svg { width: 45px; height: 45px; }
+            #globalRequestModal .product-configurator .row { --bs-gutter-y: 1rem; }
+            #globalRequestModal .product-configurator h3 { font-size: 1.35rem; }
+            #globalRequestModal .option-group button { min-height: 42px; padding: .55rem .75rem; }
+            #globalRequestModal .product-configurator .d-flex.align-items-end { align-items: stretch !important; flex-direction: column; }
+            #globalRequestModal .quantity-picker { width: 100%; }
+            #globalRequestModal .quantity-picker button { width: 46px; }
+            #globalRequestModal .quantity-picker input { flex: 1; width: auto; }
+            #globalRequestModal .cart-title,
+            #globalRequestModal .cart-items,
+            #globalRequestModal .cart-summary { padding: 1rem; }
+            #globalRequestModal .cart-empty { min-height: 150px; }
+            #globalRequestModal .cart-summary { padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
+            #globalRequestModal .reason-field textarea { min-height: 92px; font-size: 16px; }
+            #globalRequestModal .cart-summary > button[type="submit"] { min-height: 48px; }
+        }
     </style>
 </head>
 <body>

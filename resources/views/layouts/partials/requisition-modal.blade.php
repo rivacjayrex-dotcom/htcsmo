@@ -1,11 +1,11 @@
 <!-- GLOBAL REQUISITION ENGINE -->
-<div class="modal fade" id="globalRequestModal" tabindex="-1" aria-hidden="true" x-data="cartSystem()">
+<div class="modal fade" id="globalRequestModal" tabindex="-1" aria-hidden="true" aria-labelledby="requisitionModalTitle" x-data="cartSystem()">
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content requisition-shell border-0 overflow-hidden">
             <div class="requisition-header">
                 <div>
                     <div class="requisition-eyebrow">HTC Supply Marketplace</div>
-                    <h4 class="mb-1 fw-bold">Build a requisition</h4>
+                    <h4 class="mb-1 fw-bold" id="requisitionModalTitle">Build a requisition</h4>
                     <p class="mb-0 text-muted small">Three simple steps: choose a tier, select your items, and explain why they are needed.</p>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -86,6 +86,10 @@
                                 </template>
                             </div>
                             <div x-show="filteredItems.length === 0" class="empty-catalog"><i data-lucide="package-search"></i><strong>No matching items</strong><span>Try another search or category. Only SMO-listed items appear here.</span></div>
+                            <button type="button" x-show="cart.length" x-transition class="mobile-cart-jump" @click="$refs.cartPane.scrollIntoView({behavior: 'smooth', block: 'start'})">
+                                <span><i data-lucide="shopping-cart"></i> Review requisition</span>
+                                <strong x-text="cartQuantity + ' item' + (cartQuantity === 1 ? '' : 's')"></strong>
+                            </button>
                         </div>
 
                         <div x-show="view === 'product' && selectedItem" x-transition class="product-configurator">
@@ -111,7 +115,7 @@
                         </div>
                     </section>
 
-                    <aside class="col-lg-4 cart-pane">
+                    <aside class="col-lg-4 cart-pane" x-ref="cartPane">
                         <div class="cart-title"><div><span class="cart-icon"><i data-lucide="shopping-cart"></i></span><strong>Your requisition</strong></div><span x-text="cartQuantity + ' item' + (cartQuantity === 1 ? '' : 's')"></span></div>
                         <div class="cart-items">
                             <template x-for="(item, index) in cart" :key="item.key">
