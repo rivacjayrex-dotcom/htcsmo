@@ -277,5 +277,4 @@ Requisition items store a price snapshot so historical totals do not change when
 
 <p align="center">
   <strong>Holy Trinity College of General Santos City</strong><br>
-  <em>Leading with Honor, Service, and Excellence.</em>
 </p>
