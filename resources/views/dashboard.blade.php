@@ -7,7 +7,7 @@
         </div>
     </x-slot>
 
-    <div class="container-fluid py-3">
+    <div class="container-fluid py-3 dashboard-page">
 
         @if(Auth::user()->role == 'smo')
             <!-- ============================================================== -->
@@ -18,7 +18,7 @@
             <div class="row g-3 mb-4">
                 <!-- 1. Total Requisitions -->
                 <div class="col-xl-3 col-md-6">
-                    <div class="card border-0 shadow-sm rounded-4 p-4 bg-white h-100 border-start border-4 border-dark">
+                    <div class="card dashboard-metric border-0 shadow-sm rounded-4 p-4 bg-white h-100 border-start border-4 border-dark">
                         <div class="d-flex justify-content-between align-items-start">
                             <div>
                                 <span class="text-muted small fw-bold text-uppercase tracking-wider">Total Requisitions</span>
@@ -34,7 +34,7 @@
 
                 <!-- 2. Active in Pipeline -->
                 <div class="col-xl-3 col-md-6">
-                    <div class="card border-0 shadow-sm rounded-4 p-4 bg-white h-100 border-start border-4 border-warning">
+                    <div class="card dashboard-metric border-0 shadow-sm rounded-4 p-4 bg-white h-100 border-start border-4 border-warning">
                         <div class="d-flex justify-content-between align-items-start">
                             <div>
                                 <span class="text-muted small fw-bold text-uppercase tracking-wider">Active Requisitions</span>
@@ -50,7 +50,7 @@
 
                 <!-- 3. CRITICAL 3-DAY SLA ALERT (High-visibility pulsing indicator) -->
                 <div class="col-xl-3 col-md-6">
-                    <div class="card border-0 shadow-sm rounded-4 p-4 h-100 border-start border-4 {{ $stats['urgent'] > 0 ? 'border-danger bg-danger-subtle pulse-card' : 'border-secondary bg-white' }}">
+                    <div class="card dashboard-metric border-0 shadow-sm rounded-4 p-4 h-100 border-start border-4 {{ $stats['urgent'] > 0 ? 'border-danger bg-danger-subtle pulse-card' : 'border-secondary bg-white' }}">
                         <div class="d-flex justify-content-between align-items-start">
                             <div>
                                 <span class="{{ $stats['urgent'] > 0 ? 'text-danger fw-bold' : 'text-muted' }} small text-uppercase tracking-wider">
@@ -74,7 +74,7 @@
 
                 <!-- 4. Monthly Distribution Value -->
                 <div class="col-xl-3 col-md-6">
-                    <div class="card border-0 shadow-sm rounded-4 p-4 bg-white h-100 border-start border-4 border-success">
+                    <div class="card dashboard-metric border-0 shadow-sm rounded-4 p-4 bg-white h-100 border-start border-4 border-success">
                         <div class="d-flex justify-content-between align-items-start">
                             <div>
                                 <span class="text-muted small fw-bold text-uppercase tracking-wider">Disbursed This Month</span>
@@ -101,7 +101,7 @@
                                     <h5 class="fw-bold mb-0 text-dark">Active Requisitions</h5>
                                 </div>
                                 <div class="d-flex align-items-center gap-2">
-                                    <a href="{{ route('admin.approvals') }}" class="btn btn-sm btn-htc rounded-pill px-3 fw-bold shadow-sm" style="font-size: 11px;">
+                                    <a href="{{ route('admin.approvals') }}" class="btn btn-sm btn-htc dashboard-header-action rounded-pill px-3 fw-bold shadow-sm" style="font-size: 11px;">
                                         <i data-lucide="package-check" class="me-1" style="width: 14px;"></i> Open Release Queue
                                     </a>
                                 </div>
@@ -111,7 +111,7 @@
                             <form action="{{ route('dashboard') }}" method="GET" class="row g-2 pb-3 border-bottom">
                                 <!-- Status Filter -->
                                 <!-- Status Filter (Active Requisitions Only) -->
-                                <div class="col-md-3 col-6">
+                                <div class="col-md-3 col-sm-6 col-12">
                                     <select name="status" class="form-select form-select-sm border-0 bg-light rounded-3 shadow-none fw-semibold" onchange="this.form.submit()" style="font-size: 11px;">
                                         <option value="">All Active Requisitions</option>
                                         <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Pending Dept Head</option>
@@ -125,7 +125,7 @@
                                 </div>
 
                                 <!-- Dept Filter -->
-                                <div class="col-md-3 col-6">
+                                <div class="col-md-3 col-sm-6 col-12">
                                     <select name="dept" class="form-select form-select-sm border-0 bg-light rounded-3 shadow-none fw-semibold" onchange="this.form.submit()" style="font-size: 11px;">
                                         <option value="">All Departments</option>
                                         <option value="CETE" {{ request('dept') == 'CETE' ? 'selected' : '' }}>CETE</option>
@@ -137,7 +137,7 @@
                                 </div>
 
                                 <!-- Date Range -->
-                                <div class="col-md-4 col-8">
+                                <div class="col-md-4 col-sm-8 col-12">
                                     <div class="input-group input-group-sm">
                                         <input type="date" name="date_from" value="{{ request('date_from') }}" class="form-control border-0 bg-light rounded-start-3" onchange="this.form.submit()" style="font-size: 10px;">
                                         <input type="date" name="date_to" value="{{ request('date_to') }}" class="form-control border-0 bg-light rounded-end-3" onchange="this.form.submit()" style="font-size: 10px;">
@@ -145,7 +145,7 @@
                                 </div>
 
                                 <!-- Sort Order & Reset -->
-                                <div class="col-md-2 col-4 text-end d-flex gap-1 justify-content-end">
+                                <div class="col-md-2 col-sm-4 col-12 text-end d-flex gap-1 justify-content-end">
                                     <select name="order" class="form-select form-select-sm border-0 bg-light rounded-3 shadow-none" onchange="this.form.submit()" style="font-size: 10px;">
                                         <option value="desc" {{ request('order') == 'desc' ? 'selected' : '' }}>Newest</option>
                                         <option value="asc" {{ request('order') == 'asc' ? 'selected' : '' }}>Oldest</option>
@@ -161,7 +161,7 @@
 
                         <!-- REQUISITIONS TABLE -->
                         <div class="table-responsive">
-                            <table class="table table-hover align-middle mb-0" style="font-size: 0.86rem;">
+                            <table class="table table-hover align-middle mb-0 responsive-dashboard-table" style="font-size: 0.86rem;">
                                 <thead class="bg-light text-muted uppercase" style="font-size: 9px;">
                                     <tr>
                                         <th class="ps-4 py-3">Control Tracking Code</th>
@@ -186,23 +186,23 @@
                                         };
                                     @endphp
                                     <tr class="{{ $isOverdue ? 'row-overdue' : ($isNearDeadline ? 'row-near-deadline' : '') }}">
-                                        <td class="ps-4">
+                                        <td class="ps-4" data-label="Control code">
                                             <div class="font-monospace fw-bold text-dark" style="font-size: 11px;">
                                                 {{ $req->tracking_code }}
                                             </div>
                                             <small class="text-muted" style="font-size: 9px;">{{ $req->created_at->format('M d, Y') }}</small>
                                         </td>
-                                        <td>
+                                        <td data-label="Requestor">
                                             <div class="fw-bold text-dark">{{ $req->user->name }}</div>
                                             <span class="badge bg-light text-dark border" style="font-size: 9px;">{{ $req->user->department }}</span>
                                         </td>
-                                        <td>
+                                        <td data-label="Primary item">
                                             <div class="fw-semibold text-dark">{{ $req->items->first()->item_name ?? 'Supplies' }}</div>
                                             @if($req->items->count() > 1)
                                                 <small class="text-primary fw-bold" style="font-size: 9px;">+{{ $req->items->count() - 1 }} additional item(s)</small>
                                             @endif
                                         </td>
-                                        <td class="text-center">
+                                        <td class="text-center" data-label="Status">
                                             <span class="badge {{ $statusClass }} text-uppercase px-2 py-1 rounded-pill" style="font-size: 8px;">
                                                 {{ str_replace('_', ' ', $req->status) }}
                                             </span>
@@ -214,7 +214,7 @@
                                                 <div class="text-warning fw-bold mt-1" style="font-size: 8px;">⏳ DAY 2 WARNING</div>
                                             @endif
                                         </td>
-                                        <td class="pe-4 text-end">
+                                        <td class="pe-4 text-end" data-label="Action">
                                             <a href="{{ route('requests.show', $req->id) }}" class="btn btn-sm btn-light border rounded-pill px-3 shadow-none fw-bold" style="font-size: 10px;">
                                                 Track →
                                             </a>
@@ -275,12 +275,12 @@
             <!-- EMPLOYEE & FACULTY DASHBOARD VIEW                              -->
             <!-- ============================================================== -->
 
-            <div class="d-flex justify-content-between align-items-center mb-4">
+            <div class="dashboard-welcome d-flex justify-content-between align-items-center mb-4 gap-3">
                 <div>
                     <h4 class="fw-black text-dark mb-0">GoodHoly! {{ Auth::user()->name }}!</h4>
                     <p class="text-muted small mb-0">{{ Auth::user()->department }} Department • {{ Auth::user()->school_id }}</p>
                 </div>
-                <button type="button" class="btn btn-htc px-4 py-2 rounded-pill fw-bold shadow-sm d-flex align-items-center" data-bs-toggle="modal" data-bs-target="#globalRequestModal">
+                <button type="button" class="btn btn-htc dashboard-primary-action px-4 py-2 rounded-pill fw-bold shadow-sm d-flex align-items-center justify-content-center" data-bs-toggle="modal" data-bs-target="#globalRequestModal">
                     <i data-lucide="plus-circle" class="me-2" style="width: 16px;"></i> Initialize Requisition
                 </button>
             </div>
@@ -295,13 +295,13 @@
                             </div>
                             <small class="text-muted">Your five most recent requests at the current approval stage.</small>
                         </div>
-                        <a href="{{ route('admin.approvals') }}" class="btn btn-sm btn-htc rounded-pill px-3 fw-bold">
+                        <a href="{{ route('admin.approvals') }}" class="btn btn-sm btn-htc dashboard-header-action rounded-pill px-3 fw-bold">
                             <i data-lucide="clipboard-check" class="me-1" style="width: 14px;"></i> Review all
                         </a>
                     </div>
 
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0" style="font-size: 0.86rem;">
+                        <table class="table table-hover align-middle mb-0 responsive-dashboard-table" style="font-size: 0.86rem;">
                             <thead class="bg-light text-muted small text-uppercase">
                                 <tr>
                                     <th class="ps-4 py-3">Control Code</th>
@@ -314,24 +314,24 @@
                             <tbody>
                                 @forelse($approvalRequests as $approvalRequest)
                                     <tr>
-                                        <td class="ps-4">
+                                        <td class="ps-4" data-label="Control code">
                                             <span class="font-monospace fw-bold text-dark">{{ $approvalRequest->tracking_code }}</span>
                                             <span class="badge {{ $approvalRequest->request_type === 'major' ? 'bg-primary' : 'bg-secondary' }} rounded-pill px-2 ms-1" style="font-size: 8px;">
                                                 {{ strtoupper($approvalRequest->request_type) }}
                                             </span>
                                         </td>
-                                        <td>
+                                        <td data-label="Requestor">
                                             <div class="fw-bold text-dark">{{ $approvalRequest->user->name }}</div>
                                             <small class="text-muted">{{ $approvalRequest->user->department ?? 'General' }}</small>
                                         </td>
-                                        <td>
+                                        <td data-label="Requested items">
                                             <div class="fw-semibold text-dark">{{ $approvalRequest->items->first()->item_name ?? 'Supplies' }}</div>
                                             @if($approvalRequest->items->count() > 1)
                                                 <small class="text-muted">+{{ $approvalRequest->items->count() - 1 }} other item(s)</small>
                                             @endif
                                         </td>
-                                        <td class="text-muted small">{{ $approvalRequest->created_at->format('M d, Y') }}</td>
-                                        <td class="pe-4 text-end">
+                                        <td class="text-muted small" data-label="Submitted">{{ $approvalRequest->created_at->format('M d, Y') }}</td>
+                                        <td class="pe-4 text-end" data-label="Action">
                                             <a href="{{ route('admin.approvals') }}" class="btn btn-sm btn-light border rounded-pill px-3 shadow-none fw-bold" style="font-size: 10px;">
                                                 Review
                                             </a>
@@ -354,7 +354,7 @@
             <!-- EMPLOYEE STAT METRICS -->
             <div class="row g-4 mb-4">
                 <div class="col-md-6">
-                    <div class="card border-0 shadow-sm p-4 rounded-4 bg-white border-start border-4 border-primary">
+                    <div class="card dashboard-metric border-0 shadow-sm p-4 rounded-4 bg-white border-start border-4 border-primary">
                         <small class="text-uppercase fw-bold text-muted mb-2 d-block tracking-widest" style="font-size: 10px;">My Active Requisitions</small>
                         <div class="d-flex justify-content-between align-items-center" x-data="countUp({{ $activeCount }})">
                             <h2 class="display-6 fw-black m-0 text-dark" x-text="current">0</h2>
@@ -367,7 +367,7 @@
                 </div>
 
                 <div class="col-md-6">
-                    <div class="card border-0 shadow-sm p-4 rounded-4 bg-white border-start border-4 border-success">
+                    <div class="card dashboard-metric border-0 shadow-sm p-4 rounded-4 bg-white border-start border-4 border-success">
                         <small class="text-uppercase fw-bold text-muted mb-2 d-block tracking-widest" style="font-size: 10px;">Approved & Ready (Last 24h)</small>
                         <div class="d-flex justify-content-between align-items-center" x-data="countUp({{ $approvedLast24h }})">
                             <h2 class="display-6 fw-black m-0 text-success" x-text="current">0</h2>
@@ -382,7 +382,7 @@
 
             <!-- MY IN-PROGRESS REQUISITIONS TABLE -->
             <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
-                <div class="card-header bg-white border-bottom p-4 d-flex justify-content-between align-items-center">
+                <div class="dashboard-section-header card-header bg-white border-bottom p-4 d-flex justify-content-between align-items-center gap-2">
                     <div>
                         <h6 class="m-0 fw-bold text-dark">My Active Procurement Activity</h6>
                         <small class="text-muted">Real-time status tracking of your submitted requisitions</small>
@@ -393,7 +393,7 @@
                 </div>
 
                 <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0" style="font-size: 0.88rem;">
+                    <table class="table table-hover align-middle mb-0 responsive-dashboard-table" style="font-size: 0.88rem;">
                         <thead class="bg-light text-muted small text-uppercase">
                             <tr>
                                 <th class="ps-4 py-3">Control Code</th>
@@ -406,20 +406,20 @@
                         <tbody>
                             @forelse($recentRequests as $request)
                             <tr>
-                                <td class="ps-4">
+                                <td class="ps-4" data-label="Control code">
                                     <span class="font-monospace fw-bold text-dark">{{ $request->tracking_code }}</span>
                                     <span class="badge {{ $request->request_type == 'major' ? 'bg-primary' : 'bg-secondary' }} rounded-pill px-2 ms-1" style="font-size: 8px;">
                                         {{ strtoupper($request->request_type) }}
                                     </span>
                                 </td>
-                                <td>
+                                <td data-label="Primary item">
                                     <div class="fw-bold text-dark">{{ $request->items->first()->item_name ?? 'Supplies' }}</div>
                                     @if($request->items->count() > 1)
                                         <small class="text-muted">+{{ $request->items->count() - 1 }} other item(s)</small>
                                     @endif
                                 </td>
-                                <td class="text-muted small">{{ $request->created_at->format('M d, Y') }}</td>
-                                <td class="text-center">
+                                <td class="text-muted small" data-label="Submitted">{{ $request->created_at->format('M d, Y') }}</td>
+                                <td class="text-center" data-label="Status">
                                     @php
                                         $statusClass = match($request->status) {
                                             'released'          => 'bg-success text-white',
@@ -432,7 +432,7 @@
                                         {{ str_replace('_', ' ', $request->status) }}
                                     </span>
                                 </td>
-                                <td class="pe-4 text-end">
+                                <td class="pe-4 text-end" data-label="Action">
                                     <a href="{{ route('requests.show', $request->id) }}" class="btn btn-sm btn-light border rounded-pill px-3 shadow-none fw-bold" style="font-size: 10px;">
                                         Track Order →
                                     </a>
@@ -465,5 +465,72 @@
             100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
         }
         .mini-alert-feed { max-height: 480px; overflow-y: auto; }
+
+        .dashboard-page .form-select,
+        .dashboard-page input[type="date"] { min-height: 36px; }
+
+        @media (max-width: 767.98px) {
+            .dashboard-page { padding-top: .35rem !important; }
+            .dashboard-page .row.g-4 { --bs-gutter-y: 1rem; }
+            .dashboard-welcome { align-items: flex-start !important; flex-direction: column; }
+            .dashboard-primary-action { width: 100%; min-height: 44px; }
+            .dashboard-metric { padding: 1.15rem !important; }
+            .dashboard-metric h2,
+            .dashboard-metric .display-6 { font-size: 1.8rem; }
+            .dashboard-metric .p-3 { padding: .75rem !important; }
+            .dashboard-page .card-header { padding: 1rem !important; }
+            .dashboard-page .card-header > .d-flex,
+            .dashboard-section-header { align-items: flex-start !important; flex-direction: column; }
+            .dashboard-header-action { width: 100%; min-height: 40px; display: inline-flex; align-items: center; justify-content: center; }
+            .dashboard-page form .form-select,
+            .dashboard-page form input[type="date"] { min-height: 42px; font-size: 12px !important; }
+            .dashboard-page form .col-12.text-end { justify-content: stretch !important; }
+            .dashboard-page form .col-12.text-end .form-select { flex: 1; }
+
+            .dashboard-page .table-responsive { overflow: visible; }
+            .dashboard-page .responsive-dashboard-table { display: block; min-width: 0; background: #f5f8f6; }
+            .responsive-dashboard-table thead { display: none; }
+            .responsive-dashboard-table tbody { display: grid; gap: .75rem; padding: .75rem; }
+            .responsive-dashboard-table tr { display: block; overflow: hidden; border: 1px solid #e2e8e4; border-radius: 14px; background: #fff; box-shadow: 0 3px 12px rgba(24, 58, 37, .05); }
+            .responsive-dashboard-table tbody tr:hover { background: #fff; }
+            .responsive-dashboard-table td {
+                display: grid;
+                grid-template-columns: minmax(88px, 35%) minmax(0, 1fr);
+                align-items: center;
+                gap: .75rem;
+                width: 100%;
+                padding: .7rem .85rem !important;
+                border-color: #edf1ee;
+                text-align: right !important;
+                overflow-wrap: anywhere;
+            }
+            .responsive-dashboard-table td::before {
+                content: attr(data-label);
+                color: #7b8981;
+                font-size: .65rem;
+                font-weight: 800;
+                letter-spacing: .04em;
+                text-align: left;
+                text-transform: uppercase;
+            }
+            .responsive-dashboard-table td > * { justify-self: end; }
+            .responsive-dashboard-table td > div { max-width: 100%; }
+            .responsive-dashboard-table td[colspan] { display: block; text-align: center !important; }
+            .responsive-dashboard-table td[colspan]::before { display: none; }
+            .responsive-dashboard-table .row-overdue,
+            .responsive-dashboard-table .row-near-deadline { border-left-width: 4px !important; }
+            .responsive-dashboard-table .btn { min-height: 36px; display: inline-flex; align-items: center; }
+            .mini-alert-feed { max-height: none; }
+        }
+
+        @media (max-width: 420px) {
+            .responsive-dashboard-table td { grid-template-columns: 82px minmax(0, 1fr); }
+            .dashboard-section-header > a,
+            .dashboard-page .card-header > a { width: 100%; text-align: center; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .pulse-card { animation: none; }
+        }
     </style>
 </x-app-layout>
