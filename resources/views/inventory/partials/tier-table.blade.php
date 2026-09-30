@@ -17,7 +17,7 @@
                 @endphp
                 <tr x-show='matches({{ Illuminate\Support\Js::from($searchText) }}, "{{ $stockState }}")'
                     class="inventory-row {{ $stockState === 'out' ? 'stock-out-row' : ($stockState === 'low' ? 'stock-low-row' : '') }}">
-                    <td class="ps-4">
+                    <td class="ps-4 inventory-primary" data-label="Item">
                         <div class="d-flex align-items-center gap-3">
                             <div class="inventory-item-icon {{ $tier }}"><i data-lucide="{{ $tier === 'major' ? 'monitor' : 'package' }}"></i></div>
                             <div>
@@ -27,7 +27,7 @@
                             </div>
                         </div>
                     </td>
-                    <td>
+                    <td data-label="Category & choices">
                         <span class="inventory-category">{{ $item->category }}</span>
                         @if(!empty($item->configurable_options))
                             <div class="option-preview">
@@ -39,7 +39,7 @@
                             <small class="text-muted d-block mt-2">Standard item · no choices</small>
                         @endif
                     </td>
-                    <td class="text-center">
+                    <td class="text-center" data-label="Stock">
                         @if($stockState === 'out')
                             <span class="stock-badge out"><i data-lucide="circle-x"></i> Out of stock</span>
                         @elseif($stockState === 'low')
@@ -49,12 +49,12 @@
                             <span class="stock-badge healthy"><i data-lucide="circle-check"></i> {{ $item->quantity }} {{ $item->unit }}</span>
                         @endif
                     </td>
-                    <td class="text-end">
+                    <td class="text-end" data-label="Unit cost">
                         <div class="fw-bold text-dark">₱{{ number_format($item->unit_price, 2) }}</div>
                         <small class="text-muted">per {{ strtolower($item->unit) }}</small>
                     </td>
-                    <td class="pe-4 text-end">
-                        <div class="d-inline-flex gap-2">
+                    <td class="pe-4 text-end" data-label="Actions">
+                        <div class="inventory-row-actions d-inline-flex gap-2">
                             <a href="{{ route('inventory.edit', $item->id) }}" class="btn inventory-action" title="Edit {{ $item->item_name }}"><i data-lucide="pencil"></i></a>
                             <button type="button" class="btn inventory-action danger" data-delete-url="{{ route('inventory.destroy', $item->id) }}" data-item-name="{{ $item->item_name }}" onclick="confirmDelete(this.dataset.deleteUrl, this.dataset.itemName)" title="Delete {{ $item->item_name }}"><i data-lucide="trash-2"></i></button>
                         </div>

@@ -196,7 +196,82 @@
         .inventory-action { width: 32px; height: 32px; display: inline-grid; place-items: center; padding: 0; border: 1px solid #dce4df; border-radius: 9px; color: #5f6f66; background: #fff; }.inventory-action svg { width: 14px; }.inventory-action:hover { border-color: var(--htc-green); color: var(--htc-green); background: #eff7f2; }.inventory-action.danger:hover { border-color: #dc3545; color: #dc3545; background: #fff5f5; }
         .inventory-empty { height: 220px; text-align: center; color: #94a3b8; }.inventory-empty svg { display: block; width: 34px; margin: 0 auto .5rem; }.inventory-empty strong, .inventory-empty span { display: block; }.delete-icon { width: 58px; height: 58px; display: grid; place-items: center; margin: 0 auto 1rem; border-radius: 50%; color: #b52d35; background: #fdebec; }.delete-icon svg { width: 25px; }
         @media(max-width: 1199px) { .inventory-metrics { grid-template-columns: repeat(3, 1fr); }.restock-grid, .forecast-grid { grid-template-columns: repeat(2, 1fr); } }
-        @media(max-width: 767px) { .inventory-page-header, .catalog-controls, .forecast-header { align-items: stretch; flex-direction: column; }.forecast-readiness { flex-wrap: wrap; }.forecast-readiness details > div { left: 0; right: auto; width: min(290px, 80vw); }.inventory-add-btn { justify-content: center; }.inventory-metrics { grid-template-columns: repeat(2, 1fr); }.inventory-filters { flex-direction: column; }.inventory-search { width: 100%; }.tier-tabs { grid-template-columns: 1fr; }.restock-grid, .forecast-grid { grid-template-columns: 1fr; } }
+        @media(max-width: 767px) {
+            .inventory-workspace { padding: 0; }
+            .inventory-page-header, .catalog-controls, .forecast-header { align-items: stretch; flex-direction: column; }
+            .inventory-add-btn { min-height: 44px; justify-content: center; }
+            .inventory-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; }
+            .inventory-metrics > div { padding: .85rem; }
+            .inventory-metrics > div:last-child { grid-column: 1 / -1; }
+            .forecast-header, .section-heading, .catalog-controls { padding: 1rem; }
+            .forecast-heading { align-items: flex-start; }
+            .forecast-readiness { flex-wrap: wrap; }
+            .forecast-readiness > span { flex: 1; text-align: center; }
+            .forecast-readiness details { flex-basis: 100%; }
+            .forecast-readiness summary { min-height: 40px; display: grid; place-items: center; }
+            .forecast-readiness details > div { position: static; width: 100%; margin-top: .5rem; }
+            .forecast-callout { align-items: flex-start; margin: 0 1rem 1rem; }
+            .forecast-grid, .restock-grid {
+                grid-template-columns: none;
+                grid-auto-flow: column;
+                grid-auto-columns: minmax(270px, 86vw);
+                gap: .75rem;
+                padding: 0 1rem 1rem;
+                overflow-x: auto;
+                scroll-snap-type: x proximity;
+                scrollbar-width: thin;
+            }
+            .forecast-card, .restock-card { scroll-snap-align: start; }
+            .forecast-card { min-height: 245px; }
+            .section-heading { align-items: flex-start; }
+            .priority-count { white-space: nowrap; }
+            .inventory-filters { flex-direction: column; }
+            .inventory-search { width: 100%; min-height: 44px; }
+            .inventory-filters select { min-height: 44px; }
+            .tier-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; padding: .8rem; }
+            .tier-tabs button { min-width: 0; padding: .7rem; }
+            .tier-tabs button > span:nth-child(2) { min-width: 0; }
+            .tier-tabs small { display: none; }
+            .tier-tabs strong { font-size: .75rem; }
+            .tier-tabs em { width: 24px; height: 24px; flex: 0 0 24px; }
+            .tab-icon { width: 34px; height: 34px; flex: 0 0 34px; }
+
+            .inventory-tab-content .table-responsive { overflow: visible; }
+            .inventory-table { display: block; min-width: 0 !important; background: #f5f8f6; }
+            .inventory-table thead { display: none; }
+            .inventory-table tbody { display: grid; gap: .75rem; padding: .75rem; }
+            .inventory-table tbody tr { display: block; overflow: hidden; border: 1px solid #e0e8e3; border-radius: 14px; background: #fff; box-shadow: 0 3px 12px rgba(24, 58, 37, .05); }
+            .inventory-table tbody tr.stock-out-row { border-left: 4px solid #dc3545; }
+            .inventory-table tbody tr.stock-low-row { border-left: 4px solid #e4a11b; }
+            .inventory-table tbody td {
+                display: grid;
+                grid-template-columns: minmax(88px, 34%) minmax(0, 1fr);
+                align-items: center;
+                gap: .75rem;
+                width: 100%;
+                padding: .7rem .85rem !important;
+                text-align: right !important;
+                overflow-wrap: anywhere;
+            }
+            .inventory-table tbody td::before { content: attr(data-label); color: #7b8981; font-size: .63rem; font-weight: 800; text-align: left; text-transform: uppercase; }
+            .inventory-table tbody td > * { justify-self: end; max-width: 100%; }
+            .inventory-table tbody td.inventory-primary { display: block; text-align: left !important; }
+            .inventory-table tbody td.inventory-primary::before { display: none; }
+            .inventory-table tbody td.inventory-primary > * { justify-self: auto; }
+            .inventory-table tbody td[colspan] { display: block; }
+            .inventory-table tbody td[colspan]::before { display: none; }
+            .item-specification { max-width: 100%; white-space: normal; }
+            .option-preview { align-items: flex-end; }
+            .inventory-row-actions { justify-content: flex-end; }
+            .inventory-action { width: 40px; height: 40px; }
+        }
+
+        @media(max-width: 420px) {
+            .inventory-metrics p { margin-top: .55rem; }
+            .inventory-metrics strong { font-size: 1.15rem; }
+            .tier-tabs button { gap: .45rem; }
+            .tab-icon { display: none; }
+        }
     </style>
 
     <script>

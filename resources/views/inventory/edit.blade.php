@@ -3,12 +3,12 @@
         {{ __('Update Supply Specification') }}
     </x-slot>
 
-    <div class="container-fluid py-2">
+    <div class="container-fluid py-2 inventory-form-page">
         <div class="row justify-content-center">
             <div class="col-xl-9 col-lg-11">
 
                 <!-- Breadcrumb & Item Info -->
-                <div class="d-flex justify-content-between align-items-center mb-4">
+                <div class="inventory-form-meta d-flex justify-content-between align-items-center mb-4 gap-2">
                     <a href="{{ route('inventory.index') }}" class="btn btn-link text-decoration-none text-muted p-0 d-flex align-items-center">
                         <i data-lucide="chevron-left" class="me-1" style="width:18px"></i> Back to Inventory
                     </a>
@@ -39,7 +39,7 @@
 
                     <!-- ITEM STATUS HEADER -->
                     <div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
-                        <div class="card-body p-4 d-flex align-items-center justify-content-between">
+                        <div class="inventory-status-card card-body p-4 d-flex align-items-center justify-content-between gap-3">
                             <div class="d-flex align-items-center">
                                 <div class="p-3 rounded-circle bg-light me-3">
                                     <i data-lucide="package" class="text-success" style="width: 28px; height: 28px;"></i>
@@ -134,7 +134,7 @@
                                     : $savedOptions;
                             @endphp
                             <div class="mt-4" x-data="{ rows: {{ Illuminate\Support\Js::from($optionRows) }} }">
-                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div class="inventory-options-header d-flex justify-content-between align-items-center mb-2 gap-2">
                                     <div>
                                         <label class="form-label mini-label mb-0">Requestor Choices</label>
                                         <div class="small text-muted">Brand is required. These choices appear after a requestor clicks this item.</div>
@@ -144,10 +144,10 @@
                                     </button>
                                 </div>
                                 <template x-for="(row, index) in rows" :key="index">
-                                    <div class="row g-2 mb-2">
+                                    <div class="inventory-option-row row g-2 mb-2">
                                         <div class="col-md-4"><input type="text" name="option_names[]" x-model="row.name" :readonly="row.name === 'Brand'" :class="row.name === 'Brand' ? 'fw-bold text-success' : ''" class="form-control border-0 bg-light" placeholder="Option name"></div>
                                         <div class="col-md-7"><input type="text" name="option_values[]" x-model="row.values" class="form-control border-0 bg-light" placeholder="Choice 1, Choice 2"></div>
-                                        <div class="col-md-1 d-grid"><button type="button" class="btn btn-light text-danger" :disabled="row.name === 'Brand'" @click="rows.splice(index, 1)" aria-label="Remove option"><i data-lucide="x" style="width:15px"></i></button></div>
+                                        <div class="inventory-option-remove col-md-1 d-grid"><button type="button" class="btn btn-light text-danger" :disabled="row.name === 'Brand'" @click="rows.splice(index, 1)" aria-label="Remove option"><i data-lucide="x" style="width:15px"></i></button></div>
                                     </div>
                                 </template>
                             </div>
@@ -181,7 +181,7 @@
                     </div>
 
                     <!-- Actions -->
-                    <div class="d-flex gap-3 justify-content-end mb-5">
+                    <div class="inventory-form-actions d-flex gap-3 justify-content-end mb-5">
                         <a href="{{ route('inventory.index') }}" class="btn btn-light px-5 py-3 rounded-pill fw-bold border">Discard Changes</a>
                         <button type="submit" class="btn btn-htc px-5 py-3 rounded-pill fw-bold shadow-lg d-flex align-items-center">
                             <i data-lucide="save" class="me-2"></i> UPDATE REGISTRY

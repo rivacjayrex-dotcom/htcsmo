@@ -1,7 +1,7 @@
 <x-app-layout>
     <x-slot name="header">Inventory Specification Registry</x-slot>
 
-    <div class="container-fluid py-4">
+    <div class="container-fluid py-4 inventory-form-page">
         <div class="row justify-content-center">
             <div class="col-xl-10 col-lg-11">
 
@@ -87,7 +87,7 @@
                                 $optionRows = collect($oldNames)->map(fn ($name, $i) => ['name' => $name, 'values' => $oldValues[$i] ?? ''])->values();
                             @endphp
                             <div class="mt-4" x-data="{ rows: {{ Illuminate\Support\Js::from($optionRows) }} }">
-                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div class="inventory-options-header d-flex justify-content-between align-items-center mb-2 gap-2">
                                     <div>
                                         <label class="form-label mini-label mb-0">Requestor Choices</label>
                                         <div class="small text-muted">Brand is required. Separate every choice with a comma, such as Panda, Pilot, HBW.</div>
@@ -97,14 +97,14 @@
                                     </button>
                                 </div>
                                 <template x-for="(row, index) in rows" :key="index">
-                                    <div class="row g-2 mb-2">
+                                    <div class="inventory-option-row row g-2 mb-2">
                                         <div class="col-md-4">
                                             <input type="text" name="option_names[]" x-model="row.name" :readonly="row.name === 'Brand'" :class="row.name === 'Brand' ? 'fw-bold text-success' : ''" class="form-control border-0 bg-white shadow-sm" placeholder="Option name (e.g. Size)">
                                         </div>
                                         <div class="col-md-7">
                                             <input type="text" name="option_values[]" x-model="row.values" class="form-control border-0 bg-white shadow-sm" placeholder="A4, Legal, Letter">
                                         </div>
-                                        <div class="col-md-1 d-grid">
+                                        <div class="inventory-option-remove col-md-1 d-grid">
                                             <button type="button" class="btn btn-light text-danger" :disabled="row.name === 'Brand'" @click="rows.splice(index, 1)" aria-label="Remove option"><i data-lucide="x" style="width:15px"></i></button>
                                         </div>
                                     </div>
@@ -145,7 +145,7 @@
                         </div>
                     </div>
 
-                    <div class="d-flex gap-3 justify-content-end mb-5">
+                    <div class="inventory-form-actions d-flex gap-3 justify-content-end mb-5">
                         <a href="{{ route('inventory.index') }}" class="btn btn-light px-5 py-3 rounded-pill fw-bold border">Discard</a>
                         <button type="submit" class="btn btn-htc px-5 py-3 rounded-pill fw-bold shadow-lg">
                             VERIFY AND REGISTER ASSET

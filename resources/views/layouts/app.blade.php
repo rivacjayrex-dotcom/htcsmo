@@ -833,6 +833,31 @@
             .request-summary-head .rounded-circle { padding: .7rem !important; }
             .request-details-page .activity-log-item { padding-left: 1.25rem !important; }
         }
+
+        /* Inventory create/edit forms */
+        @media (max-width: 767.98px) {
+            .inventory-form-meta { align-items: flex-start !important; flex-direction: column; }
+            .inventory-form-meta .text-end { text-align: left !important; }
+            .inventory-status-card { align-items: flex-start !important; flex-direction: column; }
+            .inventory-status-card > .text-end { text-align: left !important; }
+            .inventory-options-header { align-items: flex-start !important; flex-direction: column; }
+            .inventory-options-header > button { min-height: 40px; }
+            .inventory-option-row { margin-bottom: 1rem !important; padding: .75rem; border: 1px solid #e3eae6; border-radius: 12px; background: #f8faf9; }
+            .inventory-option-row input { min-height: 42px; }
+            .inventory-option-remove { display: flex !important; justify-content: flex-end; }
+            .inventory-option-remove .btn { width: 42px; height: 42px; }
+            .inventory-form-actions { flex-direction: column-reverse; }
+            .inventory-form-actions .btn { width: 100%; min-height: 46px; padding: .8rem 1rem !important; }
+        }
+
+        @media (max-width: 575.98px) {
+            .inventory-form-page { padding-top: .5rem !important; }
+            .inventory-form-page .card-body { padding: 1rem !important; }
+            .inventory-form-page input,
+            .inventory-form-page select,
+            .inventory-form-page textarea { min-height: 44px; font-size: 16px; }
+            .inventory-form-page textarea { min-height: 100px; }
+        }
     </style>
 </head>
 <body>
