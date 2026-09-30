@@ -218,6 +218,29 @@ php artisan serve
 npm run dev
 ```
 
+### Render environment settings
+
+Keep `APP_KEY` stable between deployments. Generate it once with
+`php artisan key:generate --show`, save that value in Render, and never rotate
+it during a build. Rotating the key invalidates sessions and produces 419
+responses for forms that were already open.
+
+Recommended Render environment variables:
+
+```dotenv
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://your-service.onrender.com
+APP_KEY=base64:your-persistent-key
+SESSION_DRIVER=database
+SESSION_DOMAIN=
+SESSION_SECURE_COOKIE=true
+SESSION_SAME_SITE=lax
+```
+
+The test suite is restricted to in-memory SQLite. Clear locally cached
+configuration with `php artisan config:clear` before running tests.
+
 Open `http://127.0.0.1:8000` in a browser.
 
 Alternatively, the Composer development script starts the Laravel server, queue listener, log viewer, and Vite together:

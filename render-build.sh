@@ -5,8 +5,11 @@ set -o errexit
 echo "--- Installing PHP Composer Dependencies ---"
 composer install --no-dev --optimize-autoloader --no-interaction
 
-echo "--- Generating App Key if not present ---"
-php artisan key:generate --force || true
+echo "--- Verifying Stable Application Key ---"
+if [ -z "${APP_KEY:-}" ]; then
+    echo "ERROR: APP_KEY must be configured as a persistent Render environment variable."
+    exit 1
+fi
 
 echo "--- Clearing & Caching Configurations ---"
 php artisan config:clear

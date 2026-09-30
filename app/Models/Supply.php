@@ -16,7 +16,6 @@ class Supply extends Model
         'requisition_tier',
         'specifications',
         'configurable_options',
-        'physical_description',
         'quantity',
         'unit',
         'unit_price',

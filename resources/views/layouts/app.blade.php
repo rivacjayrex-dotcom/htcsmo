@@ -786,7 +786,7 @@
                                         <option value="{{ json_encode([
                                             'id' => $s->id,
                                             'name' => $s->item_name,
-                                            'specs' => $s->brand . ' — ' . $s->physical_description,
+                                            'specs' => collect([$s->brand, $s->specifications])->filter()->join(' — '),
                                             'unit' => $s->unit,
                                             'price' => $s->unit_price
                                         ]) }}">

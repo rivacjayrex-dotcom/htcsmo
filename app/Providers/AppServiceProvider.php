@@ -31,7 +31,7 @@ class AppServiceProvider extends ServiceProvider
                 $view->with('availableSupplies', Supply::query()
                     ->select([
                         'id', 'item_name', 'brand', 'category', 'requisition_tier',
-                        'specifications', 'physical_description', 'unit', 'unit_price',
+                        'specifications', 'unit', 'unit_price',
                         'quantity', 'configurable_options',
                     ])
                     ->where('quantity', '>', 0)
