@@ -1,7 +1,7 @@
 <x-app-layout>
     <x-slot name="header">{{ __('Edit Requisition') }}</x-slot>
 
-    <div class="container-fluid py-2">
+    <div class="container-fluid py-2 request-edit-page">
         <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-start gap-3 mb-4">
             <div>
                 <div class="d-flex align-items-center gap-2 mb-2">
@@ -57,10 +57,21 @@
                     @endforeach
                 </div>
             </div>
-            <div class="d-flex justify-content-end gap-2">
+            <div class="request-edit-actions d-flex justify-content-end gap-2">
                 <a href="{{ route('requests.index') }}" class="btn btn-light border rounded-3 px-4">Cancel</a>
                 <button type="submit" class="btn btn-success rounded-3 px-4 fw-bold">Save quantities</button>
             </div>
         </form>
     </div>
+
+    <style>
+        @media (max-width: 575.98px) {
+            .request-edit-page .card-header,
+            .request-edit-page .card-body { padding: 1rem !important; }
+            .request-edit-page textarea { min-height: 96px; font-size: 16px; }
+            .request-edit-page input[type="number"] { min-height: 44px; font-size: 16px; }
+            .request-edit-actions { flex-direction: column-reverse; }
+            .request-edit-actions .btn { width: 100%; min-height: 44px; }
+        }
+    </style>
 </x-app-layout>

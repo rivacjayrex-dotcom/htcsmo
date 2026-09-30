@@ -755,6 +755,84 @@
             #globalRequestModal .reason-field textarea { min-height: 92px; font-size: 16px; }
             #globalRequestModal .cart-summary > button[type="submit"] { min-height: 48px; }
         }
+
+        /* Responsive request lists, details, and approval workflow */
+        .workflow-stepper-scroll { max-width: 100%; }
+        .min-w-0 { min-width: 0; }
+
+        @media (max-width: 767.98px) {
+            .workflow-page-heading { align-items: flex-start !important; flex-direction: column; }
+            .workflow-heading-action { width: 100%; min-height: 42px; }
+            .archive-date-range { display: grid; grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr); }
+            .archive-date-range > * { min-width: 0; }
+            .workflow-stepper-scroll { margin-right: -.5rem; margin-left: -.5rem; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; }
+            .workflow-stepper-scroll .tracking-stepper { min-width: 520px; margin-bottom: .5rem; scroll-snap-type: x proximity; }
+            .workflow-stepper-scroll .step-item { scroll-snap-align: center; }
+
+            .table-responsive:has(> .workflow-responsive-table) { overflow: visible; }
+            .workflow-responsive-table { display: block; min-width: 0 !important; background: #f5f8f6; }
+            .workflow-responsive-table thead { display: none; }
+            .workflow-responsive-table tbody { display: grid; gap: .75rem; padding: .75rem; }
+            .workflow-responsive-table tbody tr { display: block; overflow: hidden; border: 1px solid #e0e8e3; border-radius: 14px; background: #fff; box-shadow: 0 3px 12px rgba(24, 58, 37, .05); }
+            .workflow-responsive-table tbody tr:hover { background: #fff; }
+            .workflow-responsive-table tbody td {
+                display: grid;
+                grid-template-columns: minmax(82px, 34%) minmax(0, 1fr);
+                align-items: center;
+                gap: .75rem;
+                width: 100%;
+                padding: .7rem .85rem !important;
+                border-color: #edf1ee;
+                text-align: right !important;
+                overflow-wrap: anywhere;
+            }
+            .workflow-responsive-table tbody td::before {
+                content: attr(data-label);
+                color: #7b8981;
+                font-size: .64rem;
+                font-weight: 800;
+                letter-spacing: .04em;
+                text-align: left;
+                text-transform: uppercase;
+            }
+            .workflow-responsive-table tbody td > * { justify-self: end; max-width: 100%; }
+            .workflow-responsive-table tbody td[colspan] { display: block; text-align: center !important; }
+            .workflow-responsive-table tbody td[colspan]::before { display: none; }
+            .workflow-responsive-table tfoot { display: block; border-top: 1px solid #dce7e0; }
+            .workflow-responsive-table tfoot tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+            .workflow-responsive-table tfoot td { display: block; padding: .85rem !important; }
+            .workflow-actions { justify-content: flex-end; flex-wrap: wrap; }
+            .workflow-actions .btn { min-height: 36px; }
+
+            .request-detail-actions { align-items: stretch !important; flex-direction: column; }
+            .request-pdf-action { width: 100%; min-height: 44px; }
+            .request-summary-head { flex-direction: column; }
+            .request-summary-head > .text-end { width: 100%; padding-top: .75rem; border-top: 1px solid #edf1ef; text-align: left !important; }
+            .request-flow-heading { align-items: flex-start !important; flex-direction: column; }
+            .request-details-page .card.p-4 { padding: 1rem !important; }
+            .request-details-page .card-header { padding: 1rem !important; }
+            .request-reason { padding: .85rem; }
+
+            #approvalsTabs { margin-right: -1rem; margin-left: -1rem; padding: 0 1rem .65rem; overflow-x: auto; scrollbar-width: none; }
+            #approvalsTabs::-webkit-scrollbar { display: none; }
+            #approvalsTabs .nav-item { flex: 0 0 auto; }
+            #approvalsTabs .nav-link { min-height: 42px; white-space: nowrap; }
+            .approval-workspace > .card > .card-header { padding: 1rem !important; }
+            #reviewModal .modal-header,
+            #reviewModal .modal-body { padding: 1rem !important; }
+            #reviewModal .modal-title { padding-right: .5rem; font-size: 1rem; }
+            #reviewModal textarea { min-height: 84px; font-size: 16px; }
+            #reviewModal form .btn { min-height: 44px; }
+        }
+
+        @media (max-width: 575.98px) {
+            #reviewModal .modal-dialog { width: 100%; max-width: none; height: 100%; min-height: 100%; margin: 0; }
+            #reviewModal .modal-content { height: 100dvh; max-height: 100dvh; border-radius: 0 !important; }
+            #reviewModal .modal-body { overscroll-behavior: contain; }
+            .request-summary-head > div:first-child { align-items: flex-start !important; }
+            .request-summary-head .rounded-circle { padding: .7rem !important; }
+            .request-details-page .activity-log-item { padding-left: 1.25rem !important; }
+        }
     </style>
 </head>
 <body>

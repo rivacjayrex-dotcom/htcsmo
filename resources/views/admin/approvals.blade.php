@@ -3,7 +3,7 @@
         {{ Auth::user()->role == 'smo' ? __('Release Queue') : __('Pending Request Approvals') }}
     </x-slot>
 
-    <div class="container-fluid py-2" x-data="approvalManager()">
+    <div class="container-fluid py-2 approval-workspace" x-data="approvalManager()">
         <!-- ALERTS -->
         @if(session('success'))
             <div class="alert alert-success border-0 shadow-sm mb-4 rounded-4 d-flex align-items-center">
@@ -29,7 +29,7 @@
                 </div>
 
                 <!-- TABS NAVIGATION -->
-                <ul class="nav nav-pills gap-2" id="approvalsTabs" role="tablist">
+                <ul class="nav nav-pills flex-nowrap gap-2" id="approvalsTabs" role="tablist">
                     @if(Auth::user()->role == 'smo')
                         <li class="nav-item">
                             <button class="nav-link active rounded-pill px-4 fw-bold small text-uppercase" id="minor-tab" data-bs-toggle="pill" data-bs-target="#minor" type="button">
@@ -95,12 +95,12 @@
         </div>
 
         <!-- REVIEW MODAL -->
-        <div class="modal fade" id="reviewModal" tabindex="-1" aria-hidden="true">
+        <div class="modal fade" id="reviewModal" tabindex="-1" aria-hidden="true" aria-labelledby="reviewModalTitle">
             <div class="modal-dialog modal-lg modal-dialog-centered">
                 <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden bg-white">
                     <div class="modal-header border-0 bg-light p-4">
                         <div>
-                            <h5 class="modal-title fw-bold">Review Requisition
+                            <h5 class="modal-title fw-bold" id="reviewModalTitle">Review Requisition
                                 <span class="text-success font-monospace" x-text="(selectedReq.request_type === 'major' ? 'MAJ' : 'MIN') + '-' + requestorDept + '-' + (selectedReq.request_type === 'major' ? '10' : '20') + String(selectedReq.id).padStart(6, '0')"></span>
                             </h5>
                             <span class="badge bg-dark rounded-pill px-3 mt-1" style="font-size: 9px;" x-text="(selectedReq.request_type || '').toUpperCase() + ' TIER'"></span>
@@ -131,7 +131,7 @@
                         </div>
 
                         <!-- DYNAMIC TIMELINE (Alpine Real-Time for all Signatories) -->
-                        <div class="mb-4 px-2">
+                        <div class="workflow-stepper-scroll mb-4 px-2" tabindex="0" aria-label="Approval flow; scroll horizontally to see every step">
                             <div class="tracking-stepper">
                                 <!-- Step 1 -->
                                 <div class="step-item completed">
@@ -209,7 +209,7 @@
                         <!-- REQUESTED ITEMS TABLE -->
                         <h6 class="fw-bold mb-3 text-dark">Requested Item Breakdown</h6>
                         <div class="table-responsive border rounded-3 mb-4">
-                            <table class="table table-sm mb-0">
+                            <table class="table table-sm mb-0 workflow-responsive-table approval-items-table">
                                 <thead class="bg-light text-muted small text-uppercase">
                                     <tr>
                                         <th class="ps-3 py-2">Item Name & Specs</th>
@@ -220,12 +220,12 @@
                                 <tbody>
                                     <template x-for="item in selectedItems" :key="item.id">
                                         <tr>
-                                            <td class="ps-3 py-2">
+                                            <td class="ps-3 py-2" data-label="Item">
                                                 <div class="fw-bold text-dark" x-text="item.item_name"></div>
                                                 <small class="text-muted" x-text="item.specifications"></small>
                                             </td>
-                                            <td class="text-center py-2" x-text="item.quantity + ' ' + (item.unit || 'pc')"></td>
-                                            <td class="text-end pe-3 py-2 fw-bold text-dark" x-text="'₱' + parseFloat(item.subtotal).toLocaleString(undefined, {minimumFractionDigits:2})"></td>
+                                            <td class="text-center py-2" data-label="Quantity" x-text="item.quantity + ' ' + (item.unit || 'pc')"></td>
+                                            <td class="text-end pe-3 py-2 fw-bold text-dark" data-label="Subtotal" x-text="'₱' + parseFloat(item.subtotal).toLocaleString(undefined, {minimumFractionDigits:2})"></td>
                                         </tr>
                                     </template>
                                 </tbody>

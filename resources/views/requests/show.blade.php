@@ -3,17 +3,17 @@
         <span style="color: white; font-weight: 800;">REQUISITION DETAILS</span>
     </x-slot>
 
-    <div class="container-fluid py-2">
+    <div class="container-fluid py-2 request-details-page">
 
         <!-- 1. NAVIGATION & PRIMARY ACTIONS ROW -->
-        <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="request-detail-actions d-flex justify-content-between align-items-center mb-4 gap-3">
             <a href="{{ route('dashboard') }}" class="btn btn-link text-decoration-none text-muted p-0 d-flex align-items-center">
                 <i data-lucide="chevron-left" class="me-1" style="width:18px"></i>
                 <span class="fw-bold small text-uppercase tracking-wider">Back to Dashboard</span>
             </a>
 
             <!-- EXPORT BUTTON MOVED HERE: More accessible and styled -->
-            <a href="{{ route('requests.download', $request->id) }}" class="btn btn-htc px-4 rounded-pill shadow-sm d-flex align-items-center">
+            <a href="{{ route('requests.download', $request->id) }}" class="request-pdf-action btn btn-htc px-4 rounded-pill shadow-sm d-flex align-items-center justify-content-center">
                 <i data-lucide="file-down" class="me-2" style="width:18px"></i>
                 EXPORT AS OFFICIAL PDF
             </a>
@@ -25,8 +25,8 @@
 
                 <!-- 2. REQUESTOR PROFILE CARD -->
                 <div class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div class="d-flex align-items-center">
+                    <div class="request-summary-head d-flex justify-content-between align-items-start gap-3">
+                        <div class="d-flex align-items-center min-w-0">
                             <div class="rounded-circle bg-success-subtle p-3 me-3">
                                 <i data-lucide="user" class="text-success" style="width: 24px; height: 24px;"></i>
                             </div>
@@ -54,7 +54,7 @@
 
 <!-- 3. TRACKING TIMELINE -->
                 <div class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white">
-                    <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div class="request-flow-heading d-flex justify-content-between align-items-center mb-4 gap-2">
                         <h6 class="info-label mb-0">Real-time Approval Flow</h6>
                         @if($request->status == 'rejected')
                             <span class="badge bg-danger px-3 py-1 rounded-pill">REJECTED / DISAPPROVED</span>
@@ -69,7 +69,7 @@
                         $questioningRole = ($request->status === 'for_clarification' && $lastLog) ? $lastLog->role : null;
                     @endphp
 
-                    <div class="px-2">
+                    <div class="workflow-stepper-scroll px-2" tabindex="0" aria-label="Approval flow; scroll horizontally to see every step">
                         <div class="tracking-stepper">
                             <!-- Step 1: Submission -->
                             <div class="step-item completed">
@@ -158,7 +158,7 @@
                         <h6 class="fw-bold mb-0">Itemized Requisition Summary</h6>
                     </div>
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0">
+                        <table class="table table-hover align-middle mb-0 workflow-responsive-table request-items-table">
                             <thead class="bg-light small text-muted uppercase">
                                 <tr>
                                     <th class="ps-4 py-3">Item & Specifications</th>
@@ -170,13 +170,13 @@
                             <tbody>
                                 @foreach($request->items as $item)
                                 <tr>
-                                    <td class="ps-4">
+                                    <td class="ps-4" data-label="Item">
                                         <div class="fw-bold text-dark">{{ $item->item_name }}</div>
                                         <small class="text-muted">{{ $item->specifications }}</small>
                                     </td>
-                                    <td class="text-center">{{ $item->quantity }} {{ $item->unit }}</td>
-                                    <td class="text-end text-muted">₱{{ number_format($item->unit_price, 2) }}</td>
-                                    <td class="pe-4 text-end fw-bold text-success">₱{{ number_format($item->subtotal, 2) }}</td>
+                                    <td class="text-center" data-label="Quantity">{{ $item->quantity }} {{ $item->unit }}</td>
+                                    <td class="text-end text-muted" data-label="Unit price">₱{{ number_format($item->unit_price, 2) }}</td>
+                                    <td class="pe-4 text-end fw-bold text-success" data-label="Subtotal">₱{{ number_format($item->subtotal, 2) }}</td>
                                 </tr>
                                 @endforeach
                             </tbody>

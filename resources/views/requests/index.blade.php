@@ -4,7 +4,7 @@
     </x-slot>
 
     <div class="container-fluid py-2">
-        <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="workflow-page-heading d-flex justify-content-between align-items-center mb-4">
             <div>
                 <h4 class="fw-black text-dark mb-0">Active Requisitions</h4>
                 <p class="text-muted small mb-0">Track and monitor your in-progress supply requests.</p>

@@ -1,5 +1,5 @@
 <div class="table-responsive">
-    <table class="table table-hover align-middle mb-0">
+    <table class="table table-hover align-middle mb-0 workflow-responsive-table">
         <thead class="bg-light text-muted small text-uppercase">
             <tr>
                 <th class="ps-4 py-3">Req #</th>
@@ -12,10 +12,10 @@
         <tbody>
             @forelse($requests as $req)
                 <tr>
-                    <td class="ps-4 fw-mono text-muted">#{{ $req->id }}</td>
+                    <td class="ps-4 fw-mono text-muted" data-label="Request">{{ $req->tracking_code ?? '#'.$req->id }}</td>
 
                     <!-- UPDATE THIS TD BLOCK -->
-                    <td>
+                    <td data-label="Requestor">
                         <div class="fw-bold text-dark">{{ $req->user->name }}</div>
 
                         @if(in_array($req->user->role, ['president', 'provost']))
@@ -28,13 +28,14 @@
                     </td>
                     <!-- END OF UPDATE -->
 
-                    <td>
+                    <td data-label="Items">
+                        <div class="fw-semibold text-dark">{{ $req->items->first()->item_name ?? 'Supplies' }}</div>
                         @if($req->items->count() > 1)
                             <span class="text-muted small"> (+{{ $req->items->count() - 1 }} others)</span>
                         @endif
                     </td>
-                    <td class="fw-bold text-success">₱{{ number_format($req->grand_total, 2) }}</td>
-                    <td class="pe-4 text-end">
+                    <td class="fw-bold text-success" data-label="Total">₱{{ number_format($req->grand_total, 2) }}</td>
+                    <td class="pe-4 text-end" data-label="Action">
                         <button class="btn btn-sm {{ Auth::user()->role == 'smo' ? 'btn-primary' : 'btn-htc' }} px-3 rounded-pill shadow-sm"
                                 @click="openDetails({{ $req }}, {{ $req->items }}, '{{ addslashes($req->user->name) }}', '{{ $req->user->department }}')">
                             {{ Auth::user()->role == 'smo' ? 'Review & Release' : 'See More & Review' }}
