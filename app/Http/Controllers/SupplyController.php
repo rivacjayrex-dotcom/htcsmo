@@ -10,8 +10,11 @@ class SupplyController extends Controller
     // List all inventory items
     public function index()
     {
-        // We order by item_name so the list is alphabetical and easier to read
-        $supplies = Supply::orderBy('item_name', 'asc')->get();
+        // Operational priority: out of stock, low stock, then healthy stock.
+        $supplies = Supply::orderByRaw('CASE WHEN quantity <= 0 THEN 0 WHEN quantity <= min_stock_level THEN 1 ELSE 2 END')
+            ->orderBy('item_name')
+            ->get();
+
         return view('inventory.index', compact('supplies'));
     }
 
