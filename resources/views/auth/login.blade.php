@@ -1,91 +1,116 @@
 <x-guest-layout>
-    <div class="container-fluid p-0 h-100">
-        <div class="row g-0 h-100">
-
-            <!-- LEFT SIDE: GREEN PANEL (Scaled Down) -->
-            <div class="col-md-5 d-flex flex-column justify-content-between p-3 text-white" style="background-color: #144521;">
-                <div>
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="bg-white rounded-circle p-1 me-2" style="width: 25px; height: 25px;">
-                            <img src="{{ asset('images/android-chrome-192x192.png') }}" class="w-100" onerror="this.src='https://via.placeholder.com/20'">
-                        </div>
-                        <small class="fw-bold text-uppercase tracking-widest" style="font-size: 8px;">Supply Management</small>
-                    </div>
-
-                    <h2 class="fw-bold lh-sm mb-2" style="font-size: 1.3rem;">Institutional <br> Resource Control.</h2>
-                    <p class="opacity-75" style="max-width: 180px; line-height: 1.3; font-size: 0.75rem;">
-                        Secure access to the college's unified procurement ecosystem.
+    <div class="auth-page auth-login-page">
+        <div class="row g-0">
+            <aside class="col-md-5 auth-brand-panel">
+                <div class="auth-brand-main">
+                    <img src="{{ asset('images/android-chrome-512x5122.png') }}" alt="Holy Trinity College seal" class="auth-brand-logo">
+                    <p class="auth-brand-eyebrow">Holy Trinity College</p>
+                    <h2 class="auth-brand-title">Supply and Requisition System</h2>
+                    <p class="auth-brand-description">
+                        A simpler way to request, monitor, and manage school supplies in one secure workspace.
                     </p>
                 </div>
+                <p class="auth-brand-footer mb-0">Authorized faculty and staff access only</p>
+            </aside>
 
-                <div class="opacity-50 text-uppercase tracking-widest" style="font-size: 8px;">
-                    Holy Trinity College <br> General Santos City
-                </div>
-            </div>
+            <section class="col-md-7 auth-form-panel" aria-labelledby="login-heading">
+                <div class="auth-form-wrap">
+                    <header class="auth-form-heading">
+                        <h1 id="login-heading">Welcome back</h1>
+                        <p>Sign in with your username or school ID to continue.</p>
+                    </header>
 
-            <!-- RIGHT SIDE: LOGIN FORM (Compact) -->
-            <div class="col-md-7 d-flex flex-column justify-content-center p-4 bg-white">
-                <div class="mb-3">
-                    <h3 class="fw-black text-uppercase tracking-tighter m-0" style="font-size: 1.4rem;"><b>GOODHOLY!</b></h3>
-                    <p class="text-muted" style="font-size: 0.7rem;">Enter your credentials to continue</p>
-                </div>
+                    <x-auth-session-status class="alert alert-success py-2 small mb-3" :status="session('status')" />
 
-                <form method="POST" action="{{ route('login') }}">
-                    @csrf
+                    <form method="POST" action="{{ route('login') }}">
+                        @csrf
 
-                    <!-- Username/Login -->
-                    <div class="mb-2">
-                        <label class="form-label fw-bold text-muted text-uppercase tracking-widest" style="font-size: 9px; margin-bottom: 2px;">Username or School ID</label>
-                        <div class="input-group input-group-sm">
-                            <span class="input-group-text bg-light border-0 text-muted" style="font-size: 0.7rem;">@</span>
-                            <input type="text" name="login" value="{{ old('login') }}" required
-                                class="form-control bg-light border-0 shadow-none text-muted" style="font-size: 0.8rem;" placeholder="Username or ID">
+                        <div class="mb-3">
+                            <label for="login" class="auth-form-label">Username or School ID</label>
+                            <div class="input-group auth-input">
+                                <span class="input-group-text" aria-hidden="true"><i data-lucide="user" width="17" height="17"></i></span>
+                                <input
+                                    id="login"
+                                    type="text"
+                                    name="login"
+                                    value="{{ old('login') }}"
+                                    class="form-control @error('login') is-invalid @enderror"
+                                    placeholder="Enter your username or school ID"
+                                    autocomplete="username"
+                                    inputmode="text"
+                                    required
+                                    autofocus
+                                >
+                                @error('login')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
                         </div>
-                        <x-input-error :messages="$errors->get('login')" class="mt-1" style="font-size: 10px;" />
-                    </div>
 
-                    <!-- Password -->
-                    <div class="mb-3">
-                        <label class="form-label fw-bold text-muted text-uppercase tracking-widest" style="font-size: 9px; margin-bottom: 2px;">Password</label>
-                        <div class="input-group input-group-sm">
-                            <span class="input-group-text bg-light border-0">
-                                <i data-lucide="lock" style="width: 12px; color: #6c757d;"></i>
-                            </span>
-                            <input id="password" type="password" name="password" required
-                                class="form-control bg-light border-0 shadow-none text-muted"
-                                style="font-size: 0.8rem;" placeholder="Enter Password">
-
-                            <button class="btn bg-light border-0" type="button" id="btnToggle">
-                                <i data-lucide="eye" id="eyeIcon" style="width: 12px; color: #6c757d;"></i>
-                            </button>
+                        <div class="mb-3">
+                            <div class="d-flex align-items-center justify-content-between gap-3">
+                                <label for="password" class="auth-form-label">Password</label>
+                                @if (Route::has('password.request'))
+                                    <a class="auth-link small mb-1" href="{{ route('password.request') }}">Forgot password?</a>
+                                @endif
+                            </div>
+                            <div class="input-group auth-input">
+                                <span class="input-group-text" aria-hidden="true"><i data-lucide="lock-keyhole" width="17" height="17"></i></span>
+                                <input
+                                    id="password"
+                                    type="password"
+                                    name="password"
+                                    class="form-control @error('password') is-invalid @enderror"
+                                    placeholder="Enter your password"
+                                    autocomplete="current-password"
+                                    required
+                                >
+                                <button type="button" class="btn password-toggle" data-password-toggle="password" aria-label="Show password" aria-pressed="false">
+                                    <span data-password-show-icon><i data-lucide="eye" width="17" height="17"></i></span>
+                                    <span data-password-hide-icon hidden><i data-lucide="eye-off" width="17" height="17"></i></span>
+                                </button>
+                                @error('password')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
                         </div>
-                        <x-input-error :messages="$errors->get('password')" class="mt-1" style="font-size: 10px;" />
-                    </div>
 
-                    <button type="submit" class="btn btn-sm w-100 text-white fw-bold py-2 shadow-sm" style="background-color: #144521; border-radius: 6px; font-size: 0.8rem;">
-                        Log In →
-                    </button>
+                        <div class="form-check mb-4">
+                            <input id="remember_me" class="form-check-input" type="checkbox" name="remember">
+                            <label class="form-check-label small text-secondary" for="remember_me">Keep me signed in on this device</label>
+                        </div>
 
-                    <div class="mt-3 pt-2 border-top text-center">
-                        <p class="text-muted" style="font-size: 0.65rem;">New staff member? <a href="{{ route('register') }}" class="fw-bold text-decoration-none" style="color: #144521;">Request Access</a></p>
-                    </div>
-                </form>
-            </div>
+                        <button type="submit" class="btn auth-primary-button w-100">
+                            <span>Sign in</span>
+                            <i data-lucide="arrow-right" width="17" height="17" aria-hidden="true"></i>
+                        </button>
+
+                        @if (Route::has('register'))
+                            <p class="small text-secondary text-center mt-4 mb-0">
+                                Need an account?
+                                <a href="{{ route('register') }}" class="auth-link">Create one</a>
+                            </p>
+                        @endif
+                    </form>
+                </div>
+            </section>
         </div>
     </div>
 
     <script>
-        lucide.createIcons();
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('[data-password-toggle]').forEach(function (button) {
+                button.addEventListener('click', function () {
+                    const input = document.getElementById(button.dataset.passwordToggle);
+                    const reveal = input.type === 'password';
 
-        const btnToggle = document.querySelector('#btnToggle');
-        const passwordInput = document.querySelector('#password');
-        const eyeIcon = document.querySelector('#eyeIcon');
-
-        btnToggle.addEventListener('click', function () {
-            const isPassword = passwordInput.getAttribute('type') === 'password';
-            passwordInput.setAttribute('type', isPassword ? 'text' : 'password');
-            eyeIcon.setAttribute('data-lucide', isPassword ? 'eye-off' : 'eye');
-            lucide.createIcons();
+                    input.type = reveal ? 'text' : 'password';
+                    button.setAttribute('aria-label', reveal ? 'Hide password' : 'Show password');
+                    button.setAttribute('aria-pressed', reveal ? 'true' : 'false');
+                    button.querySelector('[data-password-show-icon]').hidden = reveal;
+                    button.querySelector('[data-password-hide-icon]').hidden = !reveal;
+                });
+            });
         });
     </script>
 </x-guest-layout>

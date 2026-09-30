@@ -1,197 +1,152 @@
 <x-guest-layout>
-    <div class="container-fluid p-0 h-100">
-        <div class="row g-0 h-100">
-
-            <!-- LEFT SIDE: GREEN PANEL -->
-            <div class="col-md-5 d-flex flex-column justify-content-between p-3 text-white" style="background-color: #144521;">
-                <div>
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="bg-white rounded-circle p-1 me-2" style="width: 25px; height: 25px;">
-                            <img src="{{ asset('images/school_seal.png') }}" class="w-100" onerror="this.src='https://via.placeholder.com/20'">
-                        </div>
-                        <small class="fw-bold text-uppercase tracking-widest" style="font-size: 8px;">Supply Management</small>
-                    </div>
-
-                    <h2 class="fw-bold lh-sm mb-2" style="font-size: 1.3rem;">Join the <br> GoodHoly <br> Experience!</h2>
-                    <p class="opacity-75" style="max-width: 180px; line-height: 1.3; font-size: 0.7rem;">
-                        Create your account to manage institutional requisitions.
+    <div class="auth-page auth-register-page">
+        <div class="row g-0">
+            <aside class="col-md-5 auth-brand-panel">
+                <div class="auth-brand-main">
+                    <img src="{{ asset('images/android-chrome-512x5122.png') }}" alt="Holy Trinity College seal" class="auth-brand-logo">
+                    <p class="auth-brand-eyebrow">Holy Trinity College</p>
+                    <h2 class="auth-brand-title">Request system access</h2>
+                    <p class="auth-brand-description">
+                        Register with your institutional information. Your account will be reviewed by the SMO In-Charge before access is granted.
                     </p>
                 </div>
+                <p class="auth-brand-footer mb-0">General Santos City</p>
+            </aside>
 
-                <div class="opacity-50 text-uppercase tracking-widest" style="font-size: 8px;">
-                    Holy Trinity College <br> General Santos City
-                </div>
-            </div>
+            <section class="col-md-7 auth-form-panel" aria-labelledby="register-heading">
+                <div class="auth-form-wrap">
+                    <header class="auth-form-heading">
+                        <h1 id="register-heading">Create your account</h1>
+                        <p>Enter your official HTC details below.</p>
+                    </header>
 
-            <!-- RIGHT SIDE: REGISTRATION FORM -->
-            <div class="col-md-7 d-flex flex-column justify-content-start p-3 bg-white h-100 shadow-inner" style="overflow-y: auto;">
+                    <form method="POST" action="{{ route('register') }}">
+                        @csrf
 
-                <div class="mb-2 mt-1">
-                    <h3 class="fw-black text-uppercase tracking-tighter m-0" style="font-size: 1.2rem; color: #1a1a1a;"><b>REQUEST ACCESS</b></h3>
-                    <p class="text-muted" style="font-size: 0.65rem; margin-bottom: 5px;">Fill in your institutional details</p>
-                </div>
-
-                <form method="POST" action="{{ route('register') }}">
-                    @csrf
-
-                    <div class="row g-1">
-                        <!-- Full Name -->
-                        <div class="col-12 mb-1">
-                            <label class="form-label small fw-bold text-muted text-uppercase tracking-widest" style="font-size: 8px;">Full Name</label>
-                            <div class="input-group input-group-sm">
-                                <span class="input-group-text bg-light border-0"><i data-lucide="user" style="width: 12px;"></i></span>
-                                <input type="text" name="name" value="{{ old('name') }}" class="form-control bg-light border-0 shadow-none @error('name') is-invalid @enderror" placeholder="Juan Dela Cruz" required autofocus>
-                            </div>
-                            @error('name') <span class="text-danger" style="font-size: 10px;">{{ $message }}</span> @enderror
-                        </div>
-
-                        <!-- Department Selection -->
-                        <div class="col-12 mb-1">
-                            <label class="form-label small fw-bold text-muted text-uppercase tracking-widest" style="font-size: 8px;">Department / College</label>
-                            <div class="input-group input-group-sm">
-                                <span class="input-group-text bg-light border-0"><i data-lucide="building" style="width: 12px;"></i></span>
-                                <select name="department" class="form-select bg-light border-0 shadow-none @error('department') is-invalid @enderror" required style="font-size: 0.75rem;">
-                                    <option value="" disabled {{ old('department') ? '' : 'selected' }}>Select your Department</option>
-                                    <option value="CTE" {{ old('department') == 'CTE' ? 'selected' : '' }}>College of Teacher Education (CTE)</option>
-                                    <option value="CETE" {{ old('department') == 'CETE' ? 'selected' : '' }}>College of Engineering and Tech. (CETE)</option>
-                                    <option value="CCJE" {{ old('department') == 'CCJE' ? 'selected' : '' }}>College of Crim. Justice Education (CCJE)</option>
-                                    <option value="CBMA" {{ old('department') == 'CBMA' ? 'selected' : '' }}>College of Business Mgmt. & Accountancy (CBMA)</option>
-                                    <option value="CAS" {{ old('department') == 'CAS' ? 'selected' : '' }}>College of Arts and Sciences (CAS)</option>
-                                </select>
-                            </div>
-                            @error('department') <span class="text-danger" style="font-size: 10px;">{{ $message }}</span> @enderror
-                        </div>
-
-                        <!-- School ID & Username (Same Row) -->
-                        <div class="row g-2 mb-1">
-                            <div class="col-6">
-                                <label class="form-label small fw-bold text-muted text-uppercase tracking-widest" style="font-size: 8px;">School ID</label>
-                                <input type="text"
-                                    id="school_id"
-                                    name="school_id"
-                                    value="{{ old('school_id') }}"
-                                    class="form-control form-control-sm bg-light border-0 shadow-none @error('school_id') is-invalid @enderror"
-                                    placeholder="00000-0000"
-                                    maxlength="10"
-                                    inputmode="numeric"
-                                    pattern="\d{5}-\d{4}"
-                                    title="Use the format 00000-0000"
-                                    autocomplete="off"
-                                    required>
-                                @error('school_id') <span class="text-danger d-block mt-1" style="font-size: 10px;">{{ $message }}</span> @enderror
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label small fw-bold text-muted text-uppercase tracking-widest" style="font-size: 8px;">Username</label>
-                                <input type="text" name="username" value="{{ old('username') }}" class="form-control form-control-sm bg-light border-0 shadow-none @error('username') is-invalid @enderror" placeholder="user123" required>
-                                @error('username') <span class="text-danger" style="font-size: 10px;">{{ $message }}</span> @enderror
-                            </div>
-                        </div>
-
-                        <!-- Institutional Email -->
-                        <div class="col-12 mb-1">
-                            <label class="form-label fw-bold text-muted text-uppercase tracking-widest" style="font-size: 8px; margin-bottom: 2px;">Institutional Email</label>
-                            <div class="input-group input-group-sm">
-                                <span class="input-group-text bg-light border-0 text-muted"><i data-lucide="mail" style="width: 12px;"></i></span>
-                                <input type="email"
-                                    name="email"
-                                    value="{{ old('email') }}"
-                                    class="form-control bg-light border-0 shadow-none @error('email') is-invalid @enderror"
-                                    style="font-size: 0.75rem;"
-                                    placeholder="username@online.htcgsc.edu.ph"
-                                    pattern=".+@online\.htcgsc\.edu\.ph"
-                                    title="Must end with @online.htcgsc.edu.ph"
-                                    required>
-                            </div>
-                            @error('email') <span class="text-danger d-block mt-1" style="font-size: 10px;">{{ $message }}</span> @enderror
-                        </div>
-
-                        <!-- Password & Confirm Password Row -->
-                        <div class="row g-2 mb-2">
-                            <div class="col-6">
-                                <label class="form-label fw-bold text-muted text-uppercase tracking-widest" style="font-size: 8px; margin-bottom: 2px;">Password</label>
-                                <div class="input-group input-group-sm">
-                                    <input id="password" type="password" name="password" class="form-control bg-light border-0 shadow-none @error('password') is-invalid @enderror" style="font-size: 0.75rem;" placeholder="Min. 8 chars" required>
-                                    <button class="btn bg-light border-0" type="button" id="toggleRegPassword">
-                                        <i data-lucide="eye" id="eyeIconReg" style="width: 12px; color: #6c757d;"></i>
-                                    </button>
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label for="name" class="auth-form-label">Full name</label>
+                                <div class="input-group auth-input">
+                                    <span class="input-group-text" aria-hidden="true"><i data-lucide="user" width="17" height="17"></i></span>
+                                    <input id="name" type="text" name="name" value="{{ old('name') }}" class="form-control @error('name') is-invalid @enderror" placeholder="Juan Dela Cruz" autocomplete="name" required autofocus>
+                                    @error('name') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
-                                @error('password') <span class="text-danger" style="font-size: 10px;">{{ $message }}</span> @enderror
                             </div>
 
-                            <div class="col-6">
-                                <label class="form-label fw-bold text-muted text-uppercase tracking-widest" style="font-size: 8px; margin-bottom: 2px;">Confirm</label>
-                                <div class="input-group input-group-sm">
-                                    <input id="password_confirmation" type="password" name="password_confirmation" class="form-control bg-light border-0 shadow-none" style="font-size: 0.75rem;" placeholder="Repeat password" required>
-                                    <button class="btn bg-light border-0" type="button" id="toggleConfirmPassword">
-                                        <i data-lucide="eye" id="eyeIconConfirm" style="width: 12px; color: #6c757d;"></i>
+                            <div class="col-12">
+                                <label for="department" class="auth-form-label">Department / College</label>
+                                <div class="input-group auth-input">
+                                    <span class="input-group-text" aria-hidden="true"><i data-lucide="building-2" width="17" height="17"></i></span>
+                                    <select id="department" name="department" class="form-select @error('department') is-invalid @enderror" required>
+                                        <option value="" disabled {{ old('department') ? '' : 'selected' }}>Select your department</option>
+                                        <option value="CTE" {{ old('department') === 'CTE' ? 'selected' : '' }}>College of Teacher Education (CTE)</option>
+                                        <option value="CETE" {{ old('department') === 'CETE' ? 'selected' : '' }}>College of Engineering and Technology (CETE)</option>
+                                        <option value="CCJE" {{ old('department') === 'CCJE' ? 'selected' : '' }}>College of Criminal Justice Education (CCJE)</option>
+                                        <option value="CBMA" {{ old('department') === 'CBMA' ? 'selected' : '' }}>College of Business Management & Accountancy (CBMA)</option>
+                                        <option value="CAS" {{ old('department') === 'CAS' ? 'selected' : '' }}>College of Arts and Sciences (CAS)</option>
+                                    </select>
+                                    @error('department') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-sm-6">
+                                <label for="school_id" class="auth-form-label">School ID</label>
+                                <div class="input-group auth-input">
+                                    <span class="input-group-text" aria-hidden="true"><i data-lucide="badge" width="17" height="17"></i></span>
+                                    <input id="school_id" type="text" name="school_id" value="{{ old('school_id') }}" class="form-control @error('school_id') is-invalid @enderror" placeholder="00000-0000" maxlength="10" inputmode="numeric" pattern="\d{5}-\d{4}" title="Use the format 00000-0000" autocomplete="off" required>
+                                    @error('school_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-sm-6">
+                                <label for="username" class="auth-form-label">Username</label>
+                                <div class="input-group auth-input">
+                                    <span class="input-group-text" aria-hidden="true"><i data-lucide="at-sign" width="17" height="17"></i></span>
+                                    <input id="username" type="text" name="username" value="{{ old('username') }}" class="form-control @error('username') is-invalid @enderror" placeholder="juan123" autocomplete="username" minlength="4" maxlength="30" required>
+                                    @error('username') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                </div>
+                            </div>
+
+                            <div class="col-12">
+                                <label for="email" class="auth-form-label">Institutional email</label>
+                                <div class="input-group auth-input">
+                                    <span class="input-group-text" aria-hidden="true"><i data-lucide="mail" width="17" height="17"></i></span>
+                                    <input id="email" type="email" name="email" value="{{ old('email') }}" class="form-control @error('email') is-invalid @enderror" placeholder="username@online.htcgsc.edu.ph" pattern=".+@online\.htcgsc\.edu\.ph" title="Must end with @online.htcgsc.edu.ph" autocomplete="email" required>
+                                    @error('email') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-sm-6">
+                                <label for="password" class="auth-form-label">Password</label>
+                                <div class="input-group auth-input">
+                                    <input id="password" type="password" name="password" class="form-control @error('password') is-invalid @enderror" placeholder="At least 8 characters" autocomplete="new-password" minlength="8" required>
+                                    <button type="button" class="btn password-toggle" data-password-toggle="password" aria-label="Show password" aria-pressed="false">
+                                        <span data-password-show-icon><i data-lucide="eye" width="17" height="17"></i></span>
+                                        <span data-password-hide-icon hidden><i data-lucide="eye-off" width="17" height="17"></i></span>
+                                    </button>
+                                    @error('password') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                </div>
+                                <div class="auth-help mt-1">Use at least one letter and one number.</div>
+                            </div>
+
+                            <div class="col-12 col-sm-6">
+                                <label for="password_confirmation" class="auth-form-label">Confirm password</label>
+                                <div class="input-group auth-input">
+                                    <input id="password_confirmation" type="password" name="password_confirmation" class="form-control" placeholder="Repeat password" autocomplete="new-password" minlength="8" required>
+                                    <button type="button" class="btn password-toggle" data-password-toggle="password_confirmation" aria-label="Show confirmation password" aria-pressed="false">
+                                        <span data-password-show-icon><i data-lucide="eye" width="17" height="17"></i></span>
+                                        <span data-password-hide-icon hidden><i data-lucide="eye-off" width="17" height="17"></i></span>
                                     </button>
                                 </div>
                             </div>
+
+                            <div class="col-12">
+                                <div class="auth-note">
+                                    <i data-lucide="shield-check" width="17" height="17" aria-hidden="true"></i>
+                                    <span>After registration, the SMO In-Charge will verify your information before activating your account.</span>
+                                </div>
+                            </div>
+
+                            <div class="col-12">
+                                <button type="submit" class="btn auth-primary-button w-100">
+                                    <span>Request account</span>
+                                    <i data-lucide="arrow-right" width="17" height="17" aria-hidden="true"></i>
+                                </button>
+                            </div>
                         </div>
-                    </div>
 
-                    <button type="submit" class="btn btn-sm w-100 text-white fw-bold py-2 shadow-sm mt-2" style="background-color: #144521; border-radius: 6px; font-size: 0.8rem;">
-                        Register Account →
-                    </button>
-
-                    <div class="mt-2 pt-2 border-top text-center">
-                        <p class="text-muted" style="font-size: 0.65rem;">Already registered? <a href="{{ route('login') }}" class="fw-bold text-decoration-none" style="color: #144521;">Log In</a></p>
-                    </div>
-                </form>
-            </div>
+                        <p class="small text-secondary text-center mt-4 mb-0">
+                            Already registered?
+                            <a href="{{ route('login') }}" class="auth-link">Sign in</a>
+                        </p>
+                    </form>
+                </div>
+            </section>
         </div>
     </div>
 
-    <!-- Scripts -->
     <script>
-        lucide.createIcons();
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('[data-password-toggle]').forEach(function (button) {
+                button.addEventListener('click', function () {
+                    const input = document.getElementById(button.dataset.passwordToggle);
+                    const reveal = input.type === 'password';
 
-        const toggleRegPassword = document.querySelector('#toggleRegPassword');
-        const passwordInput = document.querySelector('#password');
-        const eyeIconReg = document.querySelector('#eyeIconReg');
-
-        toggleRegPassword.addEventListener('click', function () {
-            const isPassword = passwordInput.getAttribute('type') === 'password';
-            passwordInput.setAttribute('type', isPassword ? 'text' : 'password');
-            eyeIconReg.setAttribute('data-lucide', isPassword ? 'eye-off' : 'eye');
-            lucide.createIcons();
-        });
-
-        const toggleConfirmPassword = document.querySelector('#toggleConfirmPassword');
-        const confirmInput = document.querySelector('#password_confirmation');
-        const eyeIconConfirm = document.querySelector('#eyeIconConfirm');
-
-        toggleConfirmPassword.addEventListener('click', function () {
-            const isPassword = confirmInput.getAttribute('type') === 'password';
-            confirmInput.setAttribute('type', isPassword ? 'text' : 'password');
-            eyeIconConfirm.setAttribute('data-lucide', isPassword ? 'eye-off' : 'eye');
-            lucide.createIcons();
-        });
-
-        // Automatic masking for School ID: 00000-0000
-        const schoolIdInput = document.getElementById('school_id');
-
-        if (schoolIdInput) {
-            schoolIdInput.addEventListener('input', function () {
-                // Strip any non-digit characters
-                let numbers = this.value.replace(/\D/g, '');
-
-                // Limit to nine digits (5 + 4)
-                if (numbers.length > 9) {
-                    numbers = numbers.substring(0, 9);
-                }
-
-                this.value = numbers.length > 5
-                    ? numbers.substring(0, 5) + '-' + numbers.substring(5)
-                    : numbers;
+                    input.type = reveal ? 'text' : 'password';
+                    button.setAttribute('aria-label', reveal ? 'Hide password' : 'Show password');
+                    button.setAttribute('aria-pressed', reveal ? 'true' : 'false');
+                    button.querySelector('[data-password-show-icon]').hidden = reveal;
+                    button.querySelector('[data-password-hide-icon]').hidden = !reveal;
+                });
             });
 
-            // Allow backspace to delete cleanly without getting stuck on a hyphen
-            schoolIdInput.addEventListener('keydown', function (e) {
-                if (e.key === 'Backspace' && (this.value.endsWith('-'))) {
-                    this.value = this.value.slice(0, -1);
-                }
-            });
-        }
+            const schoolIdInput = document.getElementById('school_id');
+            if (schoolIdInput) {
+                schoolIdInput.addEventListener('input', function () {
+                    const digits = this.value.replace(/\D/g, '').slice(0, 9);
+                    this.value = digits.length > 5 ? digits.slice(0, 5) + '-' + digits.slice(5) : digits;
+                });
+            }
+        });
     </script>
 </x-guest-layout>
