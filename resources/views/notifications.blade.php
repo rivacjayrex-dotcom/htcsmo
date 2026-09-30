@@ -11,6 +11,23 @@
                 <div class="sticky-top" style="top: 100px;">
 
                     @if(Auth::user()->role == 'smo')
+                        <div class="notification-health-card mb-4 {{ $lowStockSupplies->isNotEmpty() ? 'has-alerts' : '' }}">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <div><span class="notification-kicker">Inventory health</span><h5 class="fw-bold mb-0">{{ $lowStockSupplies->count() }} item(s) need attention</h5></div>
+                                <span class="health-icon"><i data-lucide="package-search"></i></span>
+                            </div>
+                            @forelse($lowStockSupplies->take(5) as $supply)
+                                <a href="{{ route('inventory.edit', $supply->id) }}" class="stock-alert-row">
+                                    <span class="stock-alert-dot {{ $supply->quantity <= 0 ? 'out' : 'low' }}"></span>
+                                    <span><strong>{{ $supply->item_name }}</strong><small>{{ $supply->quantity <= 0 ? 'Out of stock' : $supply->quantity.' '.$supply->unit.' remaining' }}</small></span>
+                                    <i data-lucide="chevron-right"></i>
+                                </a>
+                            @empty
+                                <div class="text-center text-muted small py-3">All inventory items are above their restock thresholds.</div>
+                            @endforelse
+                            <a href="{{ route('inventory.index') }}" class="btn btn-sm btn-htc w-100 rounded-3 mt-3">Open inventory forecast</a>
+                        </div>
+
                         <!-- SMO VIEW: CRITICAL DEADLINES -->
                         <div class="d-flex align-items-center mb-3">
                             <i data-lucide="alert-triangle" class="text-danger me-2" style="width: 20px;"></i>
@@ -102,6 +119,11 @@
                             <li class="nav-item">
                                 <button class="nav-link border-0 px-0 fw-bold small text-uppercase tracking-wider" id="deadlines-tab" data-bs-toggle="tab" data-bs-target="#deadlines">Deadlines</button>
                             </li>
+                            @if(Auth::user()->role === 'smo')
+                                <li class="nav-item">
+                                    <button class="nav-link border-0 px-0 fw-bold small text-uppercase tracking-wider" id="inventory-tab" data-bs-toggle="tab" data-bs-target="#inventory-alerts">Inventory <span class="badge bg-warning-subtle text-warning ms-1">{{ $inventoryNotes->count() }}</span></button>
+                                </li>
+                            @endif
                         </ul>
                     </div>
 
@@ -123,6 +145,12 @@
                                 @include('notifications.list', ['notes' => $deadlineNotes])
                             </div>
 
+                            @if(Auth::user()->role === 'smo')
+                                <div class="tab-pane fade" id="inventory-alerts">
+                                    @include('notifications.list', ['notes' => $inventoryNotes])
+                                </div>
+                            @endif
+
                         </div>
                     </div>
                 </div>
@@ -134,6 +162,12 @@
         .nav-tabs .nav-link { color: #94a3b8; transition: all 0.3s; border-bottom: 2px solid transparent !important; }
         .nav-tabs .nav-link.active { color: var(--htc-green) !important; border-bottom: 2px solid var(--htc-green) !important; background: transparent; }
         .animate-pulse { animation: pulse-red 2s infinite; }
+        .notification-health-card { padding: 1.15rem; border: 1px solid #dce8e0; border-radius: 16px; background: #fff; box-shadow: 0 8px 24px rgba(24,55,36,.06); }
+        .notification-health-card.has-alerts { border-color: #efd7a2; background: linear-gradient(145deg, #fffaf0, #fff); }
+        .notification-kicker { color: #8a978f; font-size: .6rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+        .health-icon { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 11px; color: #9d680d; background: #fff0cf; }.health-icon svg { width: 18px; }
+        .stock-alert-row { display: flex; align-items: center; gap: .65rem; padding: .65rem 0; border-bottom: 1px solid rgba(218, 203, 169, .45); color: inherit; text-decoration: none; }.stock-alert-row:hover { color: var(--htc-green); }.stock-alert-row > span:nth-child(2) { display: flex; flex: 1; min-width: 0; flex-direction: column; }.stock-alert-row strong { overflow: hidden; font-size: .72rem; text-overflow: ellipsis; white-space: nowrap; }.stock-alert-row small { color: #8c9891; font-size: .62rem; }.stock-alert-row > svg { width: 14px; color: #9ba69f; }
+        .stock-alert-dot { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; background: #e39a1d; box-shadow: 0 0 0 4px rgba(227,154,29,.12); }.stock-alert-dot.out { background: #d23f48; box-shadow: 0 0 0 4px rgba(210,63,72,.12); }
         @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); } 100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); } }
     </style>
 
@@ -147,4 +181,3 @@
     </script>
 
 </x-app-layout>
-

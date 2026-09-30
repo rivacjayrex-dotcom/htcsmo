@@ -1,17 +1,16 @@
 <div class="list-group list-group-flush">
     @forelse($notes as $note)
-        <div class="list-group-item p-4 border-0 border-bottom">
+        <div class="notification-feed-item type-{{ $note->type }} {{ $note->is_read ? '' : 'unread' }}">
             <div class="d-flex align-items-start">
                 <!-- Icon -->
-                <div class="rounded-circle bg-light d-flex align-items-center justify-content-center me-3 shadow-sm"
-                     style="width: 45px; height: 45px; color: var(--htc-green);">
+                <div class="notification-feed-icon">
                     <i data-lucide="{{ $note->icon ?? 'bell' }}"></i>
                 </div>
 
                 <!-- Text Content -->
                 <div class="flex-grow-1">
                     <div class="d-flex justify-content-between align-items-center mb-1">
-                        <h6 class="fw-bold mb-0 text-dark">{{ $note->title }}</h6>
+                        <h6 class="fw-bold mb-0 text-dark">@if(!$note->is_read)<span class="unread-dot"></span>@endif{{ $note->title }}</h6>
                         <small class="text-muted" style="font-size: 11px;">{{ $note->created_at->format('M d, g:i A') }}</small>
                     </div>
                     <p class="text-muted small mb-2">{{ $note->message }}</p>
@@ -25,6 +24,8 @@
                                 Review Access Request
                             </a>
 
+                        @elseif(str_contains($note->title, 'Stock'))
+                            <a href="{{ route('inventory.index') }}" class="notification-action">Review stock & forecast →</a>
                         @elseif(str_contains($note->title, 'Requisition') || str_contains($note->title, 'Supplies') || $note->title == 'Request Initiated' || $note->title == 'Request Approved')
                             <!-- 2. Requisition Actions (Separated by Role) -->
                             @if(Auth::user()->role == 'employee')
@@ -48,3 +49,10 @@
         </div>
     @endforelse
 </div>
+
+<style>
+    .notification-feed-item { position: relative; padding: 1.25rem 1.5rem; border-bottom: 1px solid #edf1ef; background: #fff; transition: .2s; }
+    .notification-feed-item:hover { background: #fafcfb; }.notification-feed-item.unread { background: #f7fbf8; }.notification-feed-item.type-warning { border-left: 3px solid #e4a128; }.notification-feed-item.type-danger { border-left: 3px solid #d4434c; }.notification-feed-item.type-success { border-left: 3px solid #27804f; }
+    .notification-feed-icon { width: 42px; height: 42px; flex: 0 0 42px; display: grid; place-items: center; margin-right: .85rem; border-radius: 12px; color: #397253; background: #e8f4ec; }.notification-feed-icon svg { width: 19px; }.type-warning .notification-feed-icon { color: #9a650c; background: #fff0cf; }.type-danger .notification-feed-icon { color: #b52d36; background: #fde9ea; }.type-success .notification-feed-icon { color: #17643d; background: #e4f4ea; }
+    .unread-dot { display: inline-block; width: 7px; height: 7px; margin-right: .45rem; border-radius: 50%; background: #dc3545; vertical-align: 1px; }.notification-action { color: var(--htc-green); font-size: .68rem; font-weight: 800; text-decoration: none; }
+</style>

@@ -166,7 +166,7 @@ Route::get('/dashboard', function () {
         Route::patch('/admin/users/{user}', [ProfileController::class, 'updateManagedUser'])->name('admin.users.update');
     });
 
-    Route::get('/notifications', [RequestController::class, 'notifications'])->name('notifications');
+    Route::get('/notifications', [RequestController::class, 'notifications'])->middleware('auth')->name('notifications');
 
     // Change the submission route to point to the new Requisition Controller
     Route::post('/requisitions', [RequisitionController::class, 'store'])->middleware('auth')->name('requisitions.store');
@@ -178,7 +178,7 @@ Route::get('/dashboard', function () {
     Route::get('/requests/{id}', [RequestController::class, 'show'])->name('requests.show');
 
 
-    Route::get('/api/latest-notification', [RequestController::class, 'getLatestNotification']);
+    Route::get('/api/latest-notification', [RequestController::class, 'getLatestNotification'])->middleware('auth');
     Route::get('/api/system-version', [RequestController::class, 'systemVersion'])
         ->middleware('auth')
         ->name('api.system-version');

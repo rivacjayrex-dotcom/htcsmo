@@ -15,6 +15,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\DB;
 use App\Mail\RequisitionAlertMail;
 use App\Models\EmailLog;
+use App\Services\InventoryAlertService;
 use Illuminate\Support\Facades\Mail;
 
 class RequestController extends Controller
@@ -369,7 +370,7 @@ class RequestController extends Controller
     /**
      * SMO Confirmation & Release (Fulfillment)
      */
-    public function releaseRequest($id)
+    public function releaseRequest($id, InventoryAlertService $alertService)
     {
         $sr = Requisition::with('items')->findOrFail($id);
 
@@ -383,7 +384,7 @@ class RequestController extends Controller
             return back()->with('error', 'Unauthorized. Only the SMO In-Charge can release supplies.');
         }
 
-        return DB::transaction(function () use ($sr) {
+        return DB::transaction(function () use ($sr, $alertService) {
             $deductedItems = [];
 
             // Check and deduct items that exist in our inventory catalog
@@ -397,7 +398,11 @@ class RequestController extends Controller
                  if ($inventoryItem->quantity < $item->quantity) {
                      return back()->with('error', "Insufficient stock for '{$item->item_name}'. Available: {$inventoryItem->quantity}, Requested: {$item->quantity}.");
                  }
+                 $wasOut = $inventoryItem->quantity <= 0;
+                 $wasLow = $inventoryItem->quantity <= $inventoryItem->min_stock_level;
                  $inventoryItem->decrement('quantity', $item->quantity);
+                 $inventoryItem->refresh();
+                 $alertService->notifyIfThresholdCrossed($inventoryItem, $wasLow, $wasOut);
                  // Record Immutable Inventory Audit Log (3NF Traceability)
                  \App\Models\SupplyInventoryLog::create([
                      'supply_id'        => $inventoryItem->id,
@@ -476,7 +481,8 @@ class RequestController extends Controller
 
         // Categorized notes for tabs
         $approvalNotes = $allNotes->where('type', 'success');
-        $deadlineNotes = $allNotes->where('type', 'danger');
+        $inventoryNotes = $allNotes->filter(fn ($note) => in_array($note->icon, ['triangle-alert', 'package-x']));
+        $deadlineNotes = $allNotes->where('type', 'danger')->whereNotIn('id', $inventoryNotes->pluck('id'));
 
         // 1. Data for SMO (Critical Deadlines)
         $criticalRequests = ($user->role == 'smo')
@@ -484,6 +490,12 @@ class RequestController extends Controller
                 ->whereIn('status', ['approved_president', 'approved_vp'])
                 ->where('updated_at', '<=', now()->subDays(2))->get()
             : [];
+        $lowStockSupplies = $user->role === 'smo'
+            ? Supply::whereColumn('quantity', '<=', 'min_stock_level')
+                ->orderByRaw('CASE WHEN quantity <= 0 THEN 0 ELSE 1 END')
+                ->orderBy('quantity')
+                ->get()
+            : collect();
 
         // 2. Data for Employee/Staff (Personal Summary)
         $personalStats = [
@@ -494,7 +506,10 @@ class RequestController extends Controller
 
         Notification::where('user_id', $user->id)->where('is_read', false)->update(['is_read' => true]);
 
-        return view('notifications', compact('allNotes', 'approvalNotes', 'deadlineNotes', 'criticalRequests', 'personalStats'));
+        return view('notifications', compact(
+            'allNotes', 'approvalNotes', 'inventoryNotes', 'deadlineNotes',
+            'criticalRequests', 'lowStockSupplies', 'personalStats'
+        ));
     }
 
     public function show($id)
@@ -521,18 +536,24 @@ class RequestController extends Controller
         ]);
     }
 
-    public function getLatestNotification()
+    public function getLatestNotification(Request $request)
     {
-        $notification = Notification::where('user_id', Auth::id())
-            ->where('is_read', false)
-            ->latest()
-            ->first();
+        $latestId = (int) Notification::where('user_id', Auth::id())->max('id');
 
-        if ($notification) {
-            return response()->json($notification);
+        if (! $request->filled('after_id')) {
+            return response()->json(['latest_id' => $latestId, 'notification' => null]);
         }
 
-        return response()->json(null);
+        $notification = Notification::where('user_id', Auth::id())
+            ->where('is_read', false)
+            ->where('id', '>', max(0, (int) $request->integer('after_id')))
+            ->oldest('id')
+            ->first();
+
+        return response()->json([
+            'latest_id' => $latestId,
+            'notification' => $notification,
+        ]);
     }
 
     /**

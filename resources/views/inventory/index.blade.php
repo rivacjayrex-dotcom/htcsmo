@@ -9,6 +9,7 @@
         $lowStockItems = $supplies->filter(fn ($item) => $item->quantity > 0 && $item->quantity <= $item->min_stock_level)->count();
         $outOfStockItems = $supplies->where('quantity', '<=', 0)->count();
         $inventoryValue = $supplies->sum(fn ($item) => $item->quantity * (float) $item->unit_price);
+        $forecastRecommendations = $forecast['recommendations']->take(8);
     @endphp
 
     <div class="inventory-workspace" x-data="inventoryWorkspace()">
@@ -32,6 +33,59 @@
             <div class="{{ $attentionItems->isNotEmpty() ? 'attention' : '' }}"><span class="metric-icon warning"><i data-lucide="triangle-alert"></i></span><p>Needs attention</p><strong>{{ $attentionItems->count() }}</strong><small>{{ $outOfStockItems }} out · {{ $lowStockItems }} low</small></div>
             <div><span class="metric-icon value"><i data-lucide="badge-dollar-sign"></i></span><p>Stock value</p><strong>₱{{ number_format($inventoryValue, 0) }}</strong><small>estimated on hand</small></div>
         </div>
+
+        <section class="forecast-section">
+            <div class="forecast-header">
+                <div class="forecast-heading">
+                    <span class="forecast-icon"><i data-lucide="chart-no-axes-combined"></i></span>
+                    <div>
+                        <span class="inventory-eyebrow">Demand intelligence</span>
+                        <h5>{{ $forecast['target_month']->format('F Y') }} purchase forecast</h5>
+                        <p>Suggested orders use actual SMO releases, seasonal demand, recent consumption, and safety stock.</p>
+                    </div>
+                </div>
+                <div class="forecast-readiness">
+                    <span><b>{{ $forecast['items_with_history'] }}</b> items learned</span>
+                    <span><b>{{ $forecast['release_events'] }}</b> release records</span>
+                    <details>
+                        <summary>How it works</summary>
+                        <div>The estimate blends the last three months of released quantities with the same calendar month from prior years. A safety allowance is added, then current stock is deducted. Low-confidence labels mean the system still needs more release history.</div>
+                    </details>
+                </div>
+            </div>
+
+            @if($forecastRecommendations->isNotEmpty())
+                <div class="forecast-callout"><i data-lucide="lightbulb"></i><span><strong>Planning signal:</strong> Consider purchasing these items before {{ $forecast['target_month']->format('F') }} demand begins.</span></div>
+                <div class="forecast-grid">
+                    @foreach($forecastRecommendations as $prediction)
+                        @php($item = $prediction['supply'])
+                        <article class="forecast-card {{ $prediction['urgency'] }}">
+                            <div class="forecast-card-top">
+                                <span class="forecast-urgency">
+                                    {{ $prediction['urgency'] === 'critical' ? 'Critical' : ($prediction['urgency'] === 'buy_now' ? 'Buy now' : 'Plan purchase') }}
+                                </span>
+                                <span class="forecast-confidence {{ $prediction['confidence'] }}">{{ ucfirst($prediction['confidence']) }} confidence</span>
+                            </div>
+                            <div class="forecast-item-name">{{ $item->item_name }}</div>
+                            <small>{{ strtoupper($item->requisition_tier ?? 'minor') }} · {{ $item->category }}</small>
+                            <div class="forecast-quantity"><span>Suggested purchase</span><strong>{{ $prediction['recommended_order'] }} <em>{{ $item->unit }}</em></strong></div>
+                            <div class="forecast-facts">
+                                <div><span>Expected use</span><b>{{ $prediction['forecast_demand'] }}</b></div>
+                                <div><span>On hand</span><b>{{ $item->quantity }}</b></div>
+                                <div><span>Peak month</span><b>{{ $prediction['peak_month'] ?? 'Learning' }}</b></div>
+                            </div>
+                            <p><i data-lucide="sparkles"></i>{{ $prediction['reason'] }}</p>
+                            <div class="forecast-card-footer"><span>{{ $prediction['months_observed'] }} month(s) observed</span><a href="{{ route('inventory.edit', $item->id) }}">Review item <i data-lucide="arrow-right"></i></a></div>
+                        </article>
+                    @endforeach
+                </div>
+            @else
+                <div class="forecast-empty">
+                    <span><i data-lucide="circle-check-big"></i></span>
+                    <div><strong>No forecasted purchase gap for {{ $forecast['target_month']->format('F') }}</strong><p>Current quantities cover expected consumption and configured safety stock. The forecast will keep learning from each SMO release.</p></div>
+                </div>
+            @endif
+        </section>
 
         @if($attentionItems->isNotEmpty())
             <section class="restock-section">
@@ -107,6 +161,22 @@
         .metric-icon { width: 34px; height: 34px; }
         .metric-icon svg { width: 17px; }
         .metric-icon.total { color: #355da8; background: #eaf0fb; }.metric-icon.minor { color: #17643d; background: #e6f5ec; }.metric-icon.major { color: #95610a; background: #fff3d9; }.metric-icon.warning { color: #b52d35; background: #fdebec; }.metric-icon.value { color: #6a45a5; background: #f1eafa; }
+        .forecast-section { margin-bottom: 1.25rem; border: 1px solid #dce8e0; border-radius: 18px; background: linear-gradient(145deg, #f5faf7, #fff 55%); box-shadow: 0 8px 24px rgba(24, 55, 36, .06); overflow: hidden; }
+        .forecast-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1.5rem; padding: 1.35rem 1.4rem 1rem; }
+        .forecast-heading { display: flex; align-items: center; gap: .85rem; }.forecast-heading h5 { margin: .15rem 0 .2rem; color: #20352a; font-weight: 800; }.forecast-heading p { margin: 0; color: #7b8981; font-size: .72rem; }
+        .forecast-icon { width: 46px; height: 46px; flex: 0 0 46px; display: grid; place-items: center; border-radius: 13px; background: #dff1e6; color: var(--htc-green); }.forecast-icon svg { width: 22px; }
+        .forecast-readiness { display: flex; align-items: center; gap: .55rem; }.forecast-readiness > span { padding: .45rem .65rem; border: 1px solid #dde7e1; border-radius: 9px; background: #fff; color: #7a8880; font-size: .64rem; white-space: nowrap; }.forecast-readiness b { color: #2d4839; }
+        .forecast-readiness details { position: relative; }.forecast-readiness summary { cursor: pointer; list-style: none; padding: .45rem .65rem; border-radius: 9px; background: var(--htc-green); color: #fff; font-size: .64rem; font-weight: 700; }.forecast-readiness details > div { position: absolute; z-index: 20; top: calc(100% + .5rem); right: 0; width: 290px; padding: .85rem; border: 1px solid #dbe5df; border-radius: 11px; background: #fff; color: #66756c; font-size: .68rem; line-height: 1.55; box-shadow: 0 12px 28px rgba(25, 52, 35, .14); }
+        .forecast-callout { display: flex; align-items: center; gap: .55rem; margin: 0 1.4rem 1rem; padding: .7rem .85rem; border-radius: 10px; background: #eaf5ee; color: #39634b; font-size: .7rem; }.forecast-callout svg { width: 16px; color: #267047; }
+        .forecast-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .85rem; padding: 0 1.4rem 1.4rem; }
+        .forecast-card { display: flex; flex-direction: column; min-height: 260px; padding: 1rem; border: 1px solid #dfe8e3; border-top: 3px solid #6c8e78; border-radius: 13px; background: #fff; }.forecast-card.critical { border-top-color: #c63c44; }.forecast-card.buy_now { border-top-color: #dc8a18; }
+        .forecast-card-top { display: flex; justify-content: space-between; align-items: center; gap: .35rem; margin-bottom: .7rem; }.forecast-urgency, .forecast-confidence { font-size: .56rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }.forecast-urgency { color: #65766c; }.critical .forecast-urgency { color: #bd3038; }.buy_now .forecast-urgency { color: #a8690e; }.forecast-confidence { padding: .25rem .4rem; border-radius: 999px; background: #eef2ef; color: #718078; }.forecast-confidence.high { background: #e2f3e8; color: #17643d; }.forecast-confidence.medium { background: #fff0ce; color: #8e5b08; }
+        .forecast-item-name { color: #203128; font-weight: 800; }.forecast-card > small { color: #8a968f; font-size: .6rem; }
+        .forecast-quantity { margin: .9rem 0; padding: .75rem; border-radius: 10px; background: #f5f8f6; }.forecast-quantity span { display: block; color: #839087; font-size: .58rem; font-weight: 700; text-transform: uppercase; }.forecast-quantity strong { display: block; margin-top: .15rem; color: var(--htc-green); font-size: 1.35rem; }.forecast-quantity em { font-size: .62rem; font-style: normal; font-weight: 600; }
+        .forecast-facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: .35rem; }.forecast-facts div { min-width: 0; }.forecast-facts span { display: block; color: #98a19c; font-size: .54rem; text-transform: uppercase; }.forecast-facts b { display: block; color: #405148; font-size: .68rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .forecast-card > p { display: flex; gap: .4rem; margin: .8rem 0; color: #6f7e75; font-size: .64rem; line-height: 1.45; }.forecast-card > p svg { width: 13px; height: 13px; flex: 0 0 13px; color: #71927d; }
+        .forecast-card-footer { display: flex; justify-content: space-between; align-items: center; margin-top: auto; padding-top: .65rem; border-top: 1px solid #edf1ef; font-size: .58rem; }.forecast-card-footer span { color: #96a199; }.forecast-card-footer a { display: flex; align-items: center; gap: .25rem; color: var(--htc-green); text-decoration: none; font-weight: 700; }.forecast-card-footer svg { width: 11px; }
+        .forecast-empty { display: flex; align-items: center; gap: .9rem; margin: 0 1.4rem 1.4rem; padding: 1.2rem; border: 1px dashed #cfe0d5; border-radius: 13px; background: #fff; }.forecast-empty > span { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 50%; color: #277148; background: #e5f5eb; }.forecast-empty svg { width: 20px; }.forecast-empty strong { color: #284033; }.forecast-empty p { margin: .2rem 0 0; color: #829087; font-size: .7rem; }
         .restock-section, .catalog-section { border: 1px solid #e2e9e5; border-radius: 18px; background: #fff; box-shadow: 0 8px 24px rgba(24, 55, 36, .05); overflow: hidden; }
         .restock-section { margin-bottom: 1.25rem; }
         .section-heading, .catalog-controls { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.2rem 1.4rem; }
@@ -125,8 +195,8 @@
         .stock-badge { display: inline-flex; align-items: center; gap: .3rem; padding: .35rem .6rem; border-radius: 999px; font-size: .65rem; font-weight: 800; }.stock-badge svg { width: 13px; }.stock-badge.out { color: #ac2730; background: #fde9ea; }.stock-badge.low { color: #96610a; background: #fff0cc; }.stock-badge.healthy { color: #17643d; background: #e5f5eb; }.stock-threshold { display: block; margin-top: .3rem; color: #9aa39e; font-size: .6rem; }
         .inventory-action { width: 32px; height: 32px; display: inline-grid; place-items: center; padding: 0; border: 1px solid #dce4df; border-radius: 9px; color: #5f6f66; background: #fff; }.inventory-action svg { width: 14px; }.inventory-action:hover { border-color: var(--htc-green); color: var(--htc-green); background: #eff7f2; }.inventory-action.danger:hover { border-color: #dc3545; color: #dc3545; background: #fff5f5; }
         .inventory-empty { height: 220px; text-align: center; color: #94a3b8; }.inventory-empty svg { display: block; width: 34px; margin: 0 auto .5rem; }.inventory-empty strong, .inventory-empty span { display: block; }.delete-icon { width: 58px; height: 58px; display: grid; place-items: center; margin: 0 auto 1rem; border-radius: 50%; color: #b52d35; background: #fdebec; }.delete-icon svg { width: 25px; }
-        @media(max-width: 1199px) { .inventory-metrics { grid-template-columns: repeat(3, 1fr); }.restock-grid { grid-template-columns: repeat(2, 1fr); } }
-        @media(max-width: 767px) { .inventory-page-header, .catalog-controls { align-items: stretch; flex-direction: column; }.inventory-add-btn { justify-content: center; }.inventory-metrics { grid-template-columns: repeat(2, 1fr); }.inventory-filters { flex-direction: column; }.inventory-search { width: 100%; }.tier-tabs { grid-template-columns: 1fr; }.restock-grid { grid-template-columns: 1fr; } }
+        @media(max-width: 1199px) { .inventory-metrics { grid-template-columns: repeat(3, 1fr); }.restock-grid, .forecast-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media(max-width: 767px) { .inventory-page-header, .catalog-controls, .forecast-header { align-items: stretch; flex-direction: column; }.forecast-readiness { flex-wrap: wrap; }.forecast-readiness details > div { left: 0; right: auto; width: min(290px, 80vw); }.inventory-add-btn { justify-content: center; }.inventory-metrics { grid-template-columns: repeat(2, 1fr); }.inventory-filters { flex-direction: column; }.inventory-search { width: 100%; }.tier-tabs { grid-template-columns: 1fr; }.restock-grid, .forecast-grid { grid-template-columns: 1fr; } }
     </style>
 
     <script>

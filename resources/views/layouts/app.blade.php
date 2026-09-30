@@ -538,6 +538,14 @@
         .live-refresh-notice { position: fixed; top: 76px; right: 20px; z-index: 10000; display: flex; align-items: center; gap: .65rem; max-width: 360px; padding: .8rem 1rem; border: 1px solid #cfe2d6; border-radius: 12px; background: #fff; color: #244c34; font-size: .75rem; font-weight: 700; box-shadow: 0 12px 32px rgba(20, 55, 34, .16); }
         .live-refresh-notice[hidden] { display: none !important; }
         .live-refresh-notice .spinner-border { color: var(--htc-green); }
+        .notification-toast-wrap { position: fixed; right: 22px; bottom: 22px; z-index: 10050; width: min(390px, calc(100vw - 28px)); }
+        .notification-toast { position: relative; overflow: hidden; border: 1px solid #dce7e0; border-radius: 17px; background: rgba(255,255,255,.98); box-shadow: 0 20px 55px rgba(20, 48, 31, .2); backdrop-filter: blur(12px); }
+        .notification-toast-accent { height: 4px; background: #397a56; }.notification-toast.type-warning .notification-toast-accent { background: #e2a126; }.notification-toast.type-danger .notification-toast-accent { background: #d13e47; }.notification-toast.type-success .notification-toast-accent { background: #21804c; }
+        .notification-toast-body { display: flex; align-items: flex-start; gap: .8rem; padding: 1rem; }.notification-toast-icon { width: 42px; height: 42px; flex: 0 0 42px; display: grid; place-items: center; border-radius: 12px; color: #276947; background: #e6f4eb; }.notification-toast-icon svg { width: 20px; }.type-warning .notification-toast-icon { color: #97620a; background: #fff0ce; }.type-danger .notification-toast-icon { color: #b32933; background: #fde8e9; }.type-success .notification-toast-icon { color: #17643d; background: #e2f3e8; }
+        .notification-toast-content { min-width: 0; flex: 1; }.notification-toast-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: .25rem; }.notification-toast-meta span { color: #738078; font-size: .56rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }.notification-toast-meta time { color: #a0aaa4; font-size: .58rem; }.notification-toast h6 { margin: 0 1.4rem .25rem 0; color: #203128; font-size: .82rem; font-weight: 800; }.notification-toast p { margin: 0; color: #6f7d75; font-size: .69rem; line-height: 1.55; }
+        .notification-toast-actions { display: flex; align-items: center; gap: .8rem; margin-top: .75rem; }.notification-toast-actions a { color: var(--htc-green); font-size: .63rem; font-weight: 800; text-decoration: none; text-transform: uppercase; }.notification-toast-actions button { padding: 0; border: 0; background: transparent; color: #849088; font-size: .62rem; }.notification-toast-actions button svg { width: 14px; height: 14px; }.notification-toast-close { position: absolute; top: .8rem; right: .8rem; padding: .15rem; border: 0; background: transparent; color: #98a39d; }.notification-toast-close svg { width: 15px; }
+        .notification-toast-timer { height: 3px; background: #397a56; transform-origin: left; animation: notificationCountdown 9s linear forwards; }.type-warning .notification-toast-timer { background: #e2a126; }.type-danger .notification-toast-timer { background: #d13e47; }.type-success .notification-toast-timer { background: #21804c; }
+        @keyframes notificationCountdown { from { transform: scaleX(1); } to { transform: scaleX(0); } }
         .cart-summary > div { display: flex; justify-content: space-between; align-items: center; margin-bottom: .65rem; color: #738178; font-size: .75rem; }
         .cart-summary > div strong { color: #173d27; font-size: 1.25rem; }
         .cart-summary p { font-size: .68rem; font-weight: 700; }
@@ -925,61 +933,34 @@
 
     @include('layouts.partials.requisition-modal')
 
-    <!-- LIVE TOAST NOTIFICATION SYSTEM -->
-    <div x-data="{
-            show: false,
-            message: '',
-            title: '',
-            type: 'info',
-            lastId: null,
-
-            init() {
-                // Check for new notifications every 15 seconds
-                setInterval(() => {
-                    fetch('/api/latest-notification')
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data && data.id !== this.lastId) {
-                                this.title = data.title;
-                                this.message = data.message;
-                                this.type = data.type;
-                                this.lastId = data.id;
-                                this.show = true;
-
-                                // Play a subtle sound (Optional)
-                                // new Audio('/sounds/notification.mp3').play();
-
-                                // Auto-hide after 8 seconds
-                                setTimeout(() => { this.show = false; }, 8000);
-                            }
-                        });
-                }, 15000);
-            }
-        }"
-        x-show="show"
-        x-transition:enter="animate__animated animate__fadeInUp"
-        x-transition:leave="animate__animated animate__fadeOutDown"
-        class="position-fixed bottom-0 end-0 p-4"
-        style="z-index: 9999; display: none;"
-        x-cloak>
-
-        <div class="card border-0 shadow-lg rounded-4 overflow-hidden" style="width: 320px; border-left: 5px solid var(--htc-green) !important;">
-            <div class="card-body p-3">
-                <div class="d-flex align-items-start">
-                    <div class="p-2 rounded-circle bg-light me-3">
-                        <i data-lucide="bell-ring" class="text-success" style="width: 18px;"></i>
-                    </div>
-                    <div class="flex-grow-1">
-                        <h6 class="fw-bold mb-1 small text-dark" x-text="title"></h6>
-                        <p class="text-muted mb-2" style="font-size: 11px; line-height: 1.3;" x-text="message"></p>
-                        <div class="d-flex justify-content-between align-items-center">
-                            <a href="{{ route('notifications') }}" class="small fw-bold text-success text-decoration-none" style="font-size: 10px;">VIEW DETAILS</a>
-                            <button @click="show = false" class="btn btn-link p-0 text-muted shadow-none" style="font-size: 10px;">Dismiss</button>
-                        </div>
+    <!-- LIVE PRIORITY NOTIFICATION -->
+    <div x-data="notificationCenter()" x-show="show" x-transition.opacity.duration.250ms class="notification-toast-wrap" x-cloak>
+        <article class="notification-toast" :class="'type-' + type" role="alert" aria-live="assertive">
+            <div class="notification-toast-accent"></div>
+            <div class="notification-toast-body">
+                <div class="notification-toast-icon">
+                    <template x-if="type === 'danger'"><i data-lucide="siren"></i></template>
+                    <template x-if="type === 'warning'"><i data-lucide="triangle-alert"></i></template>
+                    <template x-if="type === 'success'"><i data-lucide="circle-check"></i></template>
+                    <template x-if="!['danger', 'warning', 'success'].includes(type)"><i data-lucide="bell-ring"></i></template>
+                </div>
+                <div class="notification-toast-content">
+                    <div class="notification-toast-meta"><span x-text="label"></span><time>Just now</time></div>
+                    <h6 x-text="title"></h6>
+                    <p x-text="message"></p>
+                    <div class="notification-toast-actions">
+                        <a :href="actionUrl" x-text="actionLabel"></a>
+                        <button type="button" @click="toggleSound()" :title="soundEnabled ? 'Mute notification sounds' : 'Enable notification sounds'">
+                            <template x-if="soundEnabled"><i data-lucide="volume-2"></i></template>
+                            <template x-if="!soundEnabled"><i data-lucide="volume-x"></i></template>
+                        </button>
+                        <button type="button" @click="dismiss()">Dismiss</button>
                     </div>
                 </div>
+                <button type="button" class="notification-toast-close" @click="dismiss()" aria-label="Dismiss notification"><i data-lucide="x"></i></button>
             </div>
-        </div>
+            <div class="notification-toast-timer" :key="timerKey"></div>
+        </article>
     </div>
 
     <!-- LIVE DATA REFRESH STATUS -->
@@ -992,6 +973,125 @@
     <script>
         // Initialize Icons
         lucide.createIcons();
+
+        function notificationCenter() {
+            const storageKey = 'htc-last-notification-{{ Auth::id() }}';
+            const soundKey = 'htc-notification-sound';
+
+            return {
+                show: false,
+                title: '',
+                message: '',
+                type: 'info',
+                icon: 'bell-ring',
+                label: 'System update',
+                actionUrl: @json(route('notifications')),
+                actionLabel: 'View notification center',
+                soundEnabled: localStorage.getItem(soundKey) !== 'off',
+                lastId: Number(localStorage.getItem(storageKey) || 0),
+                initialized: false,
+                timer: null,
+                timerKey: 0,
+                audioContext: null,
+
+                init() {
+                    const unlock = () => this.unlockAudio();
+                    document.addEventListener('pointerdown', unlock, {once: true});
+                    document.addEventListener('keydown', unlock, {once: true});
+                    this.poll();
+                    window.setInterval(() => this.poll(), 8000);
+                },
+                async poll() {
+                    try {
+                        const suffix = this.initialized || this.lastId > 0 ? `?after_id=${this.lastId}` : '';
+                        const response = await fetch('/api/latest-notification' + suffix, {
+                            headers: {'Accept': 'application/json'},
+                            cache: 'no-store',
+                            credentials: 'same-origin',
+                        });
+                        if (!response.ok) return;
+                        const data = await response.json();
+
+                        if (!this.initialized && this.lastId === 0) {
+                            this.lastId = Number(data.latest_id || 0);
+                            localStorage.setItem(storageKey, this.lastId);
+                            this.initialized = true;
+                            return;
+                        }
+
+                        this.initialized = true;
+                        if (data.notification) {
+                            this.lastId = Number(data.notification.id);
+                            localStorage.setItem(storageKey, this.lastId);
+                            this.present(data.notification);
+                        } else if (Number(data.latest_id || 0) > this.lastId) {
+                            this.lastId = Number(data.latest_id);
+                            localStorage.setItem(storageKey, this.lastId);
+                        }
+                    } catch (error) {
+                        // Notification polling resumes automatically after transient network errors.
+                    }
+                },
+                present(notification) {
+                    this.title = notification.title;
+                    this.message = notification.message;
+                    this.type = ['success', 'warning', 'danger'].includes(notification.type) ? notification.type : 'info';
+                    this.icon = notification.icon || 'bell-ring';
+                    const inventoryAlert = ['triangle-alert', 'package-x'].includes(notification.icon) || notification.title.includes('Stock');
+                    this.label = inventoryAlert ? (this.type === 'danger' ? 'Critical inventory alert' : 'Inventory warning') : this.type === 'success' ? 'Action completed' : this.type === 'danger' ? 'Action required' : 'System update';
+                    this.actionUrl = inventoryAlert ? @json(route('inventory.index')) : @json(route('notifications'));
+                    this.actionLabel = inventoryAlert ? 'Review stock & forecast' : 'View notification center';
+                    this.show = true;
+                    this.timerKey++;
+                    window.clearTimeout(this.timer);
+                    this.timer = window.setTimeout(() => this.dismiss(), 9000);
+                    this.playSound(this.type);
+                    this.$nextTick(() => lucide.createIcons());
+                },
+                dismiss() {
+                    this.show = false;
+                    window.clearTimeout(this.timer);
+                },
+                toggleSound() {
+                    this.soundEnabled = !this.soundEnabled;
+                    localStorage.setItem(soundKey, this.soundEnabled ? 'on' : 'off');
+                    if (this.soundEnabled) {
+                        this.unlockAudio();
+                        this.playSound('info');
+                    }
+                    this.$nextTick(() => lucide.createIcons());
+                },
+                unlockAudio() {
+                    if (!this.soundEnabled) return;
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    if (!AudioContext) return;
+                    this.audioContext ??= new AudioContext();
+                    if (this.audioContext.state === 'suspended') this.audioContext.resume();
+                },
+                playSound(type) {
+                    if (!this.soundEnabled || !this.audioContext || this.audioContext.state !== 'running') return;
+                    const patterns = {
+                        danger: [[220, 0, .13], [170, .18, .2]],
+                        warning: [[520, 0, .1], [410, .14, .14]],
+                        success: [[440, 0, .09], [660, .12, .15]],
+                        info: [[540, 0, .12]],
+                    };
+                    const start = this.audioContext.currentTime;
+                    (patterns[type] || patterns.info).forEach(([frequency, offset, duration]) => {
+                        const oscillator = this.audioContext.createOscillator();
+                        const gain = this.audioContext.createGain();
+                        oscillator.type = 'sine';
+                        oscillator.frequency.value = frequency;
+                        gain.gain.setValueAtTime(.0001, start + offset);
+                        gain.gain.exponentialRampToValueAtTime(.035, start + offset + .015);
+                        gain.gain.exponentialRampToValueAtTime(.0001, start + offset + duration);
+                        oscillator.connect(gain).connect(this.audioContext.destination);
+                        oscillator.start(start + offset);
+                        oscillator.stop(start + offset + duration + .02);
+                    });
+                }
+            };
+        }
 
         // Cart Engine
         function cartSystem() {

@@ -3,19 +3,23 @@
 namespace App\Http\Controllers;
 
 use App\Models\Supply;
+use App\Services\InventoryForecastService;
+use App\Services\InventoryAlertService;
 use Illuminate\Http\Request;
 
 class SupplyController extends Controller
 {
     // List all inventory items
-    public function index()
+    public function index(InventoryForecastService $forecastService)
     {
         // Operational priority: out of stock, low stock, then healthy stock.
         $supplies = Supply::orderByRaw('CASE WHEN quantity <= 0 THEN 0 WHEN quantity <= min_stock_level THEN 1 ELSE 2 END')
             ->orderBy('item_name')
             ->get();
 
-        return view('inventory.index', compact('supplies'));
+        $forecast = $forecastService->build($supplies);
+
+        return view('inventory.index', compact('supplies', 'forecast'));
     }
 
     // Show the form to add a new item
@@ -26,7 +30,7 @@ class SupplyController extends Controller
 
     // Save a new item to the database
 // Save a new item to the database
-    public function store(Request $request)
+    public function store(Request $request, InventoryAlertService $alertService)
     {
         $validated = $request->validate([
             'item_name'       => 'required|string|max:255|unique:supplies,item_name',
@@ -54,7 +58,8 @@ class SupplyController extends Controller
             $validated['supply_category_id'] = $categoryRecord->id;
         }
 
-        Supply::create($validated);
+        $supply = Supply::create($validated);
+        $alertService->notifyIfThresholdCrossed($supply, false, false);
 
         return redirect()->route('inventory.index')->with('success', "Item '{$validated['item_name']}' has been registered into inventory.");
     }
@@ -71,9 +76,11 @@ class SupplyController extends Controller
     /**
      * Save changes to an existing item
      */
-    public function update(Request $request, $id)
+    public function update(Request $request, $id, InventoryAlertService $alertService)
     {
         $item = Supply::findOrFail($id);
+        $wasOut = $item->quantity <= 0;
+        $wasLow = $item->quantity <= $item->min_stock_level;
 
         $validated = $request->validate([
             'item_name'       => 'required|string|max:255|unique:supplies,item_name,' . $id,
@@ -102,6 +109,7 @@ class SupplyController extends Controller
         }
 
         $item->update($validated);
+        $alertService->notifyIfThresholdCrossed($item->fresh(), $wasLow, $wasOut);
 
         return redirect()->route('inventory.index')->with('success', "Record for '{$item->item_name}' has been updated.");
     }
