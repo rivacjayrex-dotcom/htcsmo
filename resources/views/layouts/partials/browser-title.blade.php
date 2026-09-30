@@ -1,6 +1,6 @@
 @php
     $browserSection = match (true) {
-        request()->routeIs('dashboard') => 'Dashboard',
+        request()->routeIs('dashboard') => 'Home',
         request()->routeIs('inventory.create') => 'Register Inventory Item',
         request()->routeIs('inventory.edit') => 'Edit Inventory Item',
         request()->routeIs('inventory.index') => 'Manage Stock',

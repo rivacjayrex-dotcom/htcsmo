@@ -292,8 +292,8 @@ Requisition items store a price snapshot so historical totals do not change when
 
 | Name | Role / focus | Program / institution |
 | --- | --- | --- |
-| Margart Augwie Ampan | Systems Analyst and Frontend Designer | BS Information Technology, Holy Trinity College |
-| Segundino Jr. C. Baja | Backend Architect and Database Administrator | BS Information Technology, Holy Trinity College |
+| Margart Augwie Ampan | Assistant Documenter and System Tester | BS Information Technology, Holy Trinity College |
+| Segundino Jr. C. Baja | Head Documenter and System Tester | BS Information Technology, Holy Trinity College |
 | Jayrex E. Rivac | Full-Stack Developer and Quality Assurance | BS Information Technology, Holy Trinity College |
 
 ---
