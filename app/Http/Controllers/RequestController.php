@@ -25,6 +25,37 @@ class RequestController extends Controller
      */
     public function systemVersion()
     {
+        return response()->json(['version' => $this->runtimeVersion()])
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate');
+    }
+
+    /**
+     * One compact response replaces the former notification and refresh pollers.
+     */
+    public function runtimeState(Request $request)
+    {
+        $userId = (int) Auth::id();
+        $afterId = max(0, (int) $request->integer('after_id'));
+        $latestId = (int) Notification::where('user_id', $userId)->max('id');
+        $notification = null;
+
+        if ($afterId > 0) {
+            $notification = Notification::where('user_id', $userId)
+                ->where('is_read', false)
+                ->where('id', '>', $afterId)
+                ->oldest('id')
+                ->first();
+        }
+
+        return response()->json([
+            'version' => $this->runtimeVersion(),
+            'latest_id' => $latestId,
+            'notification' => $notification,
+        ])->header('Cache-Control', 'private, no-store, no-cache, must-revalidate');
+    }
+
+    private function runtimeVersion(): string
+    {
         $requisitions = DB::table('requisitions')
             ->selectRaw('COUNT(*) as total, COALESCE(MAX(id), 0) as latest_id, MAX(updated_at) as latest_update')
             ->first();
@@ -35,10 +66,7 @@ class RequestController extends Controller
             ->selectRaw('COUNT(*) as total, COALESCE(MAX(id), 0) as latest_id, MAX(updated_at) as latest_update')
             ->first();
 
-        $version = hash('sha256', json_encode([$requisitions, $approvals, $supplies]));
-
-        return response()->json(['version' => $version])
-            ->header('Cache-Control', 'no-store, no-cache, must-revalidate');
+        return hash('sha256', json_encode([$requisitions, $approvals, $supplies]));
     }
 
     /**

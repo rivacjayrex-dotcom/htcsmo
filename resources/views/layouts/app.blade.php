@@ -973,6 +973,8 @@
         <span id="liveRefreshMessage">New activity detected. Refreshing…</span>
     </div>
 
+    @include('layouts.partials.runtime-guard')
+
     <!-- Scripts -->
     <script>
         // Initialize Icons
@@ -1002,38 +1004,26 @@
                     const unlock = () => this.unlockAudio();
                     document.addEventListener('pointerdown', unlock, {once: true});
                     document.addEventListener('keydown', unlock, {once: true});
-                    this.poll();
-                    window.setInterval(() => this.poll(), 8000);
+                    document.addEventListener('htc:runtime-state', event => this.consumeRuntimeState(event.detail));
                 },
-                async poll() {
-                    try {
-                        const suffix = this.initialized || this.lastId > 0 ? `?after_id=${this.lastId}` : '';
-                        const response = await fetch('/api/latest-notification' + suffix, {
-                            headers: {'Accept': 'application/json'},
-                            cache: 'no-store',
-                            credentials: 'same-origin',
-                        });
-                        if (!response.ok) return;
-                        const data = await response.json();
+                consumeRuntimeState(data) {
+                    if (!data) return;
 
-                        if (!this.initialized && this.lastId === 0) {
-                            this.lastId = Number(data.latest_id || 0);
-                            localStorage.setItem(storageKey, this.lastId);
-                            this.initialized = true;
-                            return;
-                        }
-
+                    if (!this.initialized && this.lastId === 0) {
+                        this.lastId = Number(data.latest_id || 0);
+                        localStorage.setItem(storageKey, this.lastId);
                         this.initialized = true;
-                        if (data.notification) {
-                            this.lastId = Number(data.notification.id);
-                            localStorage.setItem(storageKey, this.lastId);
-                            this.present(data.notification);
-                        } else if (Number(data.latest_id || 0) > this.lastId) {
-                            this.lastId = Number(data.latest_id);
-                            localStorage.setItem(storageKey, this.lastId);
-                        }
-                    } catch (error) {
-                        // Notification polling resumes automatically after transient network errors.
+                        return;
+                    }
+
+                    this.initialized = true;
+                    if (data.notification && Number(data.notification.id) > this.lastId) {
+                        this.lastId = Number(data.notification.id);
+                        localStorage.setItem(storageKey, this.lastId);
+                        this.present(data.notification);
+                    } else if (Number(data.latest_id || 0) > this.lastId) {
+                        this.lastId = Number(data.latest_id);
+                        localStorage.setItem(storageKey, this.lastId);
                     }
                 },
                 present(notification) {
@@ -1232,12 +1222,17 @@
 
         // Keep every signed-in workspace in sync with requisition and inventory actions.
         (() => {
-            const endpoint = @json(route('api.system-version'));
+            const endpoint = @json(route('api.runtime-state'));
+            const notificationKey = 'htc-last-notification-{{ Auth::id() }}';
+            const cacheKey = 'htc-runtime-state:{{ Auth::id() }}';
             const notice = document.getElementById('liveRefreshNotice');
             const message = document.getElementById('liveRefreshMessage');
             let currentVersion = null;
             let refreshPending = false;
             let checking = false;
+            let timer = null;
+            let failures = 0;
+            let lastCheckedAt = 0;
 
             const userIsWorking = () => {
                 const active = document.activeElement;
@@ -1262,19 +1257,62 @@
                 window.setTimeout(() => window.location.reload(), 500);
             };
 
+            const scheduleCheck = delay => {
+                window.clearTimeout(timer);
+                timer = window.setTimeout(checkForUpdates, delay);
+            };
+
+            const cacheMetadata = data => {
+                try {
+                    sessionStorage.setItem(cacheKey, JSON.stringify({
+                        version: data.version,
+                        latest_id: Number(data.latest_id || 0),
+                        cached_at: Date.now(),
+                    }));
+                } catch (error) {
+                    // Runtime caching is an optional optimization.
+                }
+            };
+
+            const initialDelay = () => {
+                try {
+                    const cached = JSON.parse(sessionStorage.getItem(cacheKey) || 'null');
+                    const age = Date.now() - Number(cached?.cached_at || 0);
+                    const mutationAge = Date.now() - Number(sessionStorage.getItem('htc-runtime-mutated-at') || 0);
+                    const cacheDelay = age >= 0 && age < 12000 ? 12000 - age : 0;
+                    const mutationDelay = mutationAge >= 0 && mutationAge < 6000 ? 6000 - mutationAge : 0;
+                    return Math.max(cacheDelay, mutationDelay);
+                } catch (error) {
+                    return 0;
+                }
+            };
+
             const checkForUpdates = async () => {
-                if (checking || document.hidden) return;
+                if (checking) return;
+                if (document.hidden) {
+                    scheduleCheck(60000);
+                    return;
+                }
                 checking = true;
+                const controller = new AbortController();
+                const timeout = window.setTimeout(() => controller.abort(), 8000);
 
                 try {
-                    const response = await fetch(endpoint, {
+                    const afterId = Math.max(0, Number(localStorage.getItem(notificationKey) || 0));
+                    const response = await fetch(`${endpoint}?after_id=${afterId}`, {
                         headers: {'Accept': 'application/json'},
                         cache: 'no-store',
                         credentials: 'same-origin',
+                        signal: controller.signal,
                     });
                     if (!response.ok) return;
 
                     const data = await response.json();
+                    failures = 0;
+                    lastCheckedAt = Date.now();
+                    cacheMetadata(data);
+                    document.dispatchEvent(new CustomEvent('htc:runtime-state', {detail: data}));
+
                     if (currentVersion === null) {
                         currentVersion = data.version;
                         return;
@@ -1284,17 +1322,21 @@
                         refreshWhenSafe();
                     }
                 } catch (error) {
-                    // A temporary connection issue should not interrupt the user.
+                    failures++;
                 } finally {
+                    window.clearTimeout(timeout);
                     checking = false;
+                    const retryDelay = failures ? Math.min(60000, 15000 * (2 ** failures)) : 15000;
+                    scheduleCheck(retryDelay);
                 }
             };
 
-            window.setInterval(checkForUpdates, 7000);
-            document.addEventListener('visibilitychange', () => !document.hidden && checkForUpdates());
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden && Date.now() - lastCheckedAt > 5000) checkForUpdates();
+            });
             document.addEventListener('focusout', () => window.setTimeout(refreshWhenSafe, 150));
             document.addEventListener('hidden.bs.modal', refreshWhenSafe);
-            checkForUpdates();
+            scheduleCheck(initialDelay());
         })();
 
         function countUp(target, duration = 1000) {

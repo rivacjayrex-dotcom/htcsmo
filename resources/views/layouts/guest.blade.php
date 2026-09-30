@@ -320,6 +320,8 @@
         {{ $slot }}
     </main>
 
+    @include('layouts.partials.runtime-guard')
+
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             if (window.lucide) lucide.createIcons();

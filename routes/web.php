@@ -182,6 +182,9 @@ Route::get('/dashboard', function () {
     Route::get('/api/system-version', [RequestController::class, 'systemVersion'])
         ->middleware('auth')
         ->name('api.system-version');
+    Route::get('/api/runtime-state', [RequestController::class, 'runtimeState'])
+        ->middleware(['auth', 'throttle:20,1'])
+        ->name('api.runtime-state');
 
 
     // Requestors may manage only their own pending requisitions.
