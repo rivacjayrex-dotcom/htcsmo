@@ -87,6 +87,8 @@
         .main-content { margin-left: var(--sidebar-width); width: calc(100% - var(--sidebar-width)); }
         .top-bar { height: 60px; background: var(--htc-green); border-bottom: 1px solid #fff5f5; display: flex; align-items: center; justify-content: space-between; padding: 0 1.5rem; position: sticky; top: 0; z-index: 1010; }
         .page-title { font-weight: 800; font-size: 1.1rem; color: white; }
+        .mobile-menu-button, .sidebar-close { display: none; }
+        .sidebar-backdrop { display: none; }
 
         .role-badge { font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; padding: 5px 12px; border-radius: 20px; background-color: var(--htc-light-green); color: var(--htc-green); margin-right: 15px; border: 1px solid rgba(14, 41, 21, 0.885); }
         .main-content-inner { background: white; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); min-height: calc(100vh - 160px); border: 1px solid #e2e8f0; padding: 1.5rem !important; /* Reduced from p-5 */ }
@@ -558,15 +560,102 @@
         [x-cloak] { display: none !important; }
         @media (max-width: 991.98px) { .requisition-shell { min-height: auto; } .catalog-pane, .cart-pane { max-height: none; } .cart-pane { border-left: 0; border-top: 1px solid #e4ebe7; } }
         @media (max-width: 575.98px) { .catalog-grid { grid-template-columns: 1fr; } .catalog-toolbar { flex-wrap: wrap; } .catalog-search { order: 3; max-width: none; flex-basis: 100%; } .requisition-progress { gap: .3rem; } .requisition-progress div { font-size: .58rem; } }
+
+        /* Shared responsive application shell */
+        @media (max-width: 991.98px) {
+            body.sidebar-open { overflow: hidden; }
+            .sidebar {
+                width: min(290px, 86vw);
+                padding: 1rem;
+                z-index: 1045;
+                transform: translateX(-105%);
+                transition: transform .25s ease, box-shadow .25s ease;
+                box-shadow: none;
+            }
+            .sidebar.is-open { transform: translateX(0); box-shadow: 18px 0 50px rgba(15, 37, 25, .22); }
+            .sidebar-backdrop {
+                display: block;
+                position: fixed;
+                inset: 0;
+                z-index: 1040;
+                border: 0;
+                background: rgba(13, 32, 22, .48);
+                opacity: 0;
+                visibility: hidden;
+                transition: opacity .25s ease, visibility .25s ease;
+            }
+            .sidebar-backdrop.is-open { opacity: 1; visibility: visible; }
+            .sidebar-close {
+                display: inline-grid;
+                width: 38px;
+                height: 38px;
+                flex: 0 0 38px;
+                margin-left: auto;
+                place-items: center;
+                border: 0;
+                border-radius: 10px;
+                background: #f1f5f3;
+                color: #52645a;
+            }
+            .sidebar-close svg { width: 18px; height: 18px; }
+            .main-content { width: 100%; margin-left: 0; min-width: 0; }
+            .top-bar { height: 58px; padding: 0 .9rem; gap: .65rem; }
+            .mobile-menu-button {
+                display: inline-grid;
+                width: 40px;
+                height: 40px;
+                flex: 0 0 40px;
+                place-items: center;
+                border: 1px solid rgba(255, 255, 255, .24);
+                border-radius: 11px;
+                background: rgba(255, 255, 255, .1);
+                color: #fff;
+            }
+            .mobile-menu-button svg { width: 20px; height: 20px; }
+            .page-title { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 1rem; }
+            .main-content-inner { min-height: calc(100vh - 82px); padding: 1rem !important; overflow-x: auto; }
+            .nav-link-custom { min-height: 44px; padding: .7rem .85rem; }
+            .btn-new-request { min-height: 44px; }
+        }
+
+        @media (max-width: 575.98px) {
+            html { font-size: 13px; }
+            .brand-section { padding-bottom: 1rem; }
+            .brand-logo { width: 39px; height: 39px; }
+            .top-bar .dropdown > button { padding: .25rem !important; }
+            .top-bar .dropdown-menu { max-width: calc(100vw - 1rem); }
+            .main-content > .p-1 { padding: .5rem !important; }
+            .main-content-inner { border-radius: 12px; padding: .8rem !important; }
+            .main-content-inner .container,
+            .main-content-inner .container-fluid { padding-left: .35rem; padding-right: .35rem; }
+            .main-content-inner h1 { font-size: 1.55rem; }
+            .main-content-inner h2 { font-size: 1.35rem; }
+            .main-content-inner .card-body { padding: 1rem; }
+            .main-content-inner .table { min-width: 680px; }
+            .modal-dialog { width: calc(100% - 1rem); margin: .5rem; }
+            .modal-content { max-height: calc(100dvh - 1rem); }
+            .requisition-header { padding: 1rem; }
+            .requisition-progress { padding-left: 1rem !important; padding-right: 1rem !important; overflow-x: auto; }
+            .notification-toast-wrap { right: 10px; bottom: 10px; width: calc(100vw - 20px); }
+            .live-refresh-notice { top: 68px; right: 10px; left: 10px; max-width: none; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .sidebar, .sidebar-backdrop { transition: none; }
+        }
     </style>
 </head>
 <body>
     <div class="d-flex">
+        <button type="button" class="sidebar-backdrop" id="sidebarBackdrop" aria-label="Close navigation"></button>
         <!-- SIDEBAR -->
-        <aside class="sidebar">
+        <aside class="sidebar" id="appSidebar" aria-label="Primary navigation">
             <div class="brand-section">
                 <img src="{{ asset('images/android-chrome-512x5122.png') }}" alt="Logo" class="brand-logo">
                 <div class="brand-title">SUPPLY<br>MANAGEMENT</div>
+                <button type="button" class="sidebar-close" id="sidebarClose" aria-label="Close navigation">
+                    <i data-lucide="x"></i>
+                </button>
             </div>
 
             <div class="flex-grow-1">
@@ -650,6 +739,9 @@
         <!-- MAIN CONTENT AREA -->
         <main class="main-content">
             <header class="top-bar">
+                <button type="button" class="mobile-menu-button" id="sidebarToggle" aria-controls="appSidebar" aria-expanded="false" aria-label="Open navigation">
+                    <i data-lucide="menu"></i>
+                </button>
                 <div class="page-title">{{ $header ?? 'System Dashboard' }}</div>
 
                 <div class="d-flex align-items-center">
@@ -979,6 +1071,45 @@
     <script>
         // Initialize Icons
         lucide.createIcons();
+
+        (() => {
+            const sidebar = document.getElementById('appSidebar');
+            const toggle = document.getElementById('sidebarToggle');
+            const closeButton = document.getElementById('sidebarClose');
+            const backdrop = document.getElementById('sidebarBackdrop');
+            const mobileQuery = window.matchMedia('(max-width: 991.98px)');
+
+            if (!sidebar || !toggle || !backdrop) return;
+
+            const setSidebar = open => {
+                const shouldOpen = Boolean(open && mobileQuery.matches);
+                sidebar.classList.toggle('is-open', shouldOpen);
+                backdrop.classList.toggle('is-open', shouldOpen);
+                document.body.classList.toggle('sidebar-open', shouldOpen);
+                toggle.setAttribute('aria-expanded', String(shouldOpen));
+                sidebar.setAttribute('aria-hidden', String(mobileQuery.matches && !shouldOpen));
+
+                if (shouldOpen) closeButton?.focus();
+            };
+
+            toggle.addEventListener('click', () => setSidebar(!sidebar.classList.contains('is-open')));
+            closeButton?.addEventListener('click', () => {
+                setSidebar(false);
+                toggle.focus();
+            });
+            backdrop.addEventListener('click', () => setSidebar(false));
+            sidebar.querySelectorAll('a, .btn-new-request').forEach(element => {
+                element.addEventListener('click', () => setSidebar(false));
+            });
+            document.addEventListener('keydown', event => {
+                if (event.key === 'Escape' && sidebar.classList.contains('is-open')) {
+                    setSidebar(false);
+                    toggle.focus();
+                }
+            });
+            mobileQuery.addEventListener('change', () => setSidebar(false));
+            setSidebar(false);
+        })();
 
         function notificationCenter() {
             const storageKey = 'htc-last-notification-{{ Auth::id() }}';
