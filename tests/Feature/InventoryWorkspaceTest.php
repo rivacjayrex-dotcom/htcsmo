@@ -23,6 +23,7 @@ class InventoryWorkspaceTest extends TestCase
         $response = $this->actingAs($smo)->get(route('inventory.index'));
 
         $response->assertOk()
+            ->assertSee('<title>Manage Stock | HTC Supply System</title>', false)
             ->assertSee('Restock priority')
             ->assertSee('Minor catalog')
             ->assertSee('Major catalog')
