@@ -31,7 +31,7 @@ class SupplyController extends Controller
         $validated = $request->validate([
             'item_name'       => 'required|string|max:255|unique:supplies,item_name',
             'brand'           => 'required|string|max:100',
-            'category'        => 'required|in:Cleaning Supplies,Construction Supplies,Drugs and Medicines,HDMI,Maintenance Supplies,Medical Supplies,Non-Medical Supplies,Office Supplies',
+            'category'        => 'required|in:Cleaning Supplies,Construction Supplies,Drugs and Medicines,Maintenance Supplies,Medical Supplies,Non-Medical Supplies,Office Supplies',
             'requisition_tier'=> 'required|in:minor,major',
             'specifications'  => 'required|string|min:3',
             'quantity'        => 'required|integer|min:0',
@@ -78,7 +78,7 @@ class SupplyController extends Controller
         $validated = $request->validate([
             'item_name'       => 'required|string|max:255|unique:supplies,item_name,' . $id,
             'brand'           => 'required|string|max:100',
-            'category'        => 'required|in:Cleaning Supplies,Construction Supplies,Drugs and Medicines,HDMI,Maintenance Supplies,Medical Supplies,Non-Medical Supplies,Office Supplies',
+            'category'        => 'required|in:Cleaning Supplies,Construction Supplies,Drugs and Medicines,Maintenance Supplies,Medical Supplies,Non-Medical Supplies,Office Supplies',
             'requisition_tier'=> 'required|in:minor,major',
             'specifications'  => 'required|string|min:3',
             'quantity'        => 'required|integer|min:0',

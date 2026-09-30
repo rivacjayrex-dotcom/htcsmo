@@ -148,7 +148,7 @@
                             <label for="category" class="form-label mini-label">Supply Category</label>
                             <select id="category" name="category" class="form-select border-0 bg-light rounded-3 shadow-none">
                                 <option value="">All Categories</option>
-                                @foreach(['Cleaning Supplies', 'Construction Supplies', 'Drugs and Medicines', 'HDMI', 'Maintenance Supplies', 'Medical Supplies', 'Non-Medical Supplies', 'Office Supplies'] as $category)
+                                @foreach(['Cleaning Supplies', 'Construction Supplies', 'Drugs and Medicines', 'Maintenance Supplies', 'Medical Supplies', 'Non-Medical Supplies', 'Office Supplies'] as $category)
                                     <option value="{{ $category }}" @selected(request('category') === $category)>{{ $category }}</option>
                                 @endforeach
                             </select>

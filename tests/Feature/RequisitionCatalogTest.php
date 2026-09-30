@@ -58,7 +58,7 @@ class RequisitionCatalogTest extends TestCase
         $user = User::factory()->create();
         $supply = Supply::create([
             'item_name' => 'Projector',
-            'category' => 'HDMI',
+            'category' => 'Office Supplies',
             'requisition_tier' => 'major',
             'specifications' => 'Full HD',
             'quantity' => 2,

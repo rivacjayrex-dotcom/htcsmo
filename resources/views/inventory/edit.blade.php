@@ -91,7 +91,6 @@
                                             'Cleaning Supplies',
                                             'Construction Supplies',
                                             'Drugs and Medicines',
-                                            'HDMI',
                                             'Maintenance Supplies',
                                             'Medical Supplies',
                                             'Non-Medical Supplies',
