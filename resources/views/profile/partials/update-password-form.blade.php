@@ -41,7 +41,7 @@
             </div>
         </div>
 
-        <div class="mt-4 d-flex align-items-center gap-3">
+        <div class="profile-form-action mt-4 d-flex align-items-center gap-3">
             <button type="submit" class="btn btn-sm px-4 py-2 text-white fw-bold shadow-sm" style="background-color: var(--htc-green); border-radius: 8px;">
                 Update Security
             </button>

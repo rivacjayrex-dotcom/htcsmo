@@ -22,7 +22,7 @@
     ];
 @endphp
 
-<section class="mt-5 pt-4 border-top" id="report-builder">
+<section class="report-builder mt-5 pt-4 border-top" id="report-builder">
     <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
         <div>
             <h4 class="fw-black text-dark mb-1">Comprehensive Report Center</h4>
@@ -34,9 +34,9 @@
     </div>
 
     <form action="{{ route('admin.reports.index') }}" method="GET" id="reportForm" class="no-print">
-        <div class="row g-3 mb-4">
+        <div class="report-type-grid row g-3 mb-4">
             @foreach($reportOptions as $value => [$label, $description, $icon])
-                <div class="col-xl-3 col-md-6">
+                <div class="report-type-option col-xl-3 col-md-6">
                     <label class="card report-type-card shadow-sm rounded-4 p-3 w-100 h-100 cursor-pointer {{ $reportType === $value ? 'border-success border-2 bg-success-subtle' : 'border-0 bg-white' }}">
                         <div class="d-flex align-items-start gap-3">
                             <input type="radio" name="report_type" value="{{ $value }}" class="form-check-input mt-1" @checked($reportType === $value) onchange="this.form.submit()">
@@ -178,12 +178,12 @@
                 @endif
             </div>
 
-            <div class="card-footer bg-light border-0 p-4 d-flex flex-wrap justify-content-between gap-3">
+            <div class="report-actions card-footer bg-light border-0 p-4 d-flex flex-wrap justify-content-between gap-3">
                 <button type="submit" class="btn btn-outline-dark px-4 rounded-pill fw-bold">
                     <i data-lucide="filter" class="me-1" style="width: 14px;"></i> Apply Filters
                 </button>
 
-                <div class="d-flex flex-wrap gap-2">
+                <div class="report-export-actions d-flex flex-wrap gap-2">
                     <button type="submit" name="export" value="csv" class="btn btn-outline-success rounded-pill fw-bold px-4">
                         <i data-lucide="sheet" class="me-1" style="width: 16px;"></i> Export for Excel
                     </button>
@@ -196,7 +196,7 @@
     </form>
 
     <div id="report-preview" class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
-        <div class="card-header bg-white border-bottom p-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div class="report-preview-header card-header bg-white border-bottom p-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
             <div>
                 <div class="d-flex align-items-center gap-2 mb-1">
                     <h5 class="fw-black mb-0">{{ $title }}</h5>
@@ -205,7 +205,7 @@
                 <small class="text-muted">{{ number_format($rows->count()) }} matching records</small>
             </div>
 
-            <div class="d-flex align-items-center gap-4">
+            <div class="report-preview-summary d-flex align-items-center gap-4">
                 <div class="text-end">
                     <small class="text-muted text-uppercase fw-bold" style="font-size: 9px;">{{ $summaryLabel }}</small>
                     <h5 class="fw-black text-success mb-0">
@@ -223,7 +223,7 @@
         </div>
 
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0 report-table" style="font-size: 0.82rem;">
+            <table class="table table-hover align-middle mb-0 report-table report-responsive-table" style="font-size: 0.82rem;">
                 <thead class="bg-light small text-muted text-uppercase">
                     <tr>
                         @foreach($columns as $column)
@@ -237,7 +237,7 @@
                     @forelse($rows as $row)
                         <tr>
                             @foreach($columns as $column)
-                                <td class="{{ $column['type'] === 'money' || $column['type'] === 'number' ? 'text-end' : '' }}">
+                                <td data-label="{{ $column['label'] }}" class="{{ $column['type'] === 'money' || $column['type'] === 'number' ? 'text-end' : '' }}">
                                     @if($column['type'] === 'money')
                                         ₱{{ number_format((float) ($row[$column['key']] ?? 0), 2) }}
                                     @elseif($column['type'] === 'number')
@@ -262,6 +262,62 @@
 </section>
 
 <style>
+    @media screen and (max-width: 767.98px) {
+        .reports-workspace > .row.g-3 { --bs-gutter-x: .65rem; --bs-gutter-y: .65rem; }
+        .reports-workspace > .row.g-3 .card { padding: .85rem !important; }
+        .reports-workspace > .row.g-3 h4 { font-size: 1.05rem; overflow-wrap: anywhere; }
+        .reports-workspace > .row.g-4 { --bs-gutter-y: 1rem; }
+        .reports-workspace > .row.g-4 .card.p-4 { padding: 1rem !important; min-height: 280px; }
+        .reports-workspace canvas { max-height: 245px !important; }
+        .report-builder { margin-top: 1.5rem !important; padding-top: 1.25rem !important; }
+        .report-type-grid {
+            display: grid;
+            grid-template-columns: none;
+            grid-auto-flow: column;
+            grid-auto-columns: minmax(255px, 82vw);
+            margin-right: -.8rem;
+            margin-left: -.8rem;
+            padding: 0 .8rem .5rem;
+            overflow-x: auto;
+            scroll-snap-type: x proximity;
+            scrollbar-width: thin;
+        }
+        .report-type-option { width: auto; padding-right: 0; padding-left: 0; scroll-snap-align: start; }
+        .report-type-card { min-height: 105px; }
+        #reportForm .card-header,
+        #reportForm .card-body,
+        #reportForm .card-footer { padding: 1rem !important; }
+        #reportForm select,
+        #reportForm input { min-height: 44px; font-size: 16px; }
+        .report-actions, .report-export-actions { align-items: stretch; flex-direction: column; width: 100%; }
+        .report-actions .btn, .report-export-actions .btn { width: 100%; min-height: 44px; }
+        .report-preview-header { align-items: flex-start !important; flex-direction: column; padding: 1rem !important; }
+        .report-preview-header > div:first-child .d-flex { align-items: flex-start !important; flex-direction: column; }
+        .report-preview-summary { width: 100%; justify-content: space-between; }
+        .report-preview-summary .text-end { text-align: left !important; }
+
+        .table-responsive:has(> .report-responsive-table) { overflow: visible; padding: .75rem !important; background: #f5f8f6; }
+        .report-responsive-table { display: block; min-width: 0 !important; }
+        .report-responsive-table thead { display: none; }
+        .report-responsive-table tbody { display: grid; gap: .75rem; }
+        .report-responsive-table tbody tr { display: block; overflow: hidden; border: 1px solid #e0e8e3; border-radius: 13px; background: #fff; box-shadow: 0 3px 12px rgba(24, 58, 37, .05); }
+        .report-responsive-table tbody td {
+            display: grid;
+            grid-template-columns: minmax(90px, 36%) minmax(0, 1fr);
+            align-items: center;
+            gap: .7rem;
+            width: 100%;
+            padding: .7rem .8rem !important;
+            text-align: right !important;
+            overflow-wrap: anywhere;
+        }
+        .report-responsive-table tbody td::before { content: attr(data-label); color: #7b8981; font-size: .62rem; font-weight: 800; text-align: left; text-transform: uppercase; }
+        .report-responsive-table tbody td > * { justify-self: end; max-width: 100%; }
+        .report-responsive-table tbody td[colspan] { display: block; text-align: center !important; }
+        .report-responsive-table tbody td[colspan]::before { display: none; }
+        .report-responsive-table .progress { width: min(150px, 100%) !important; }
+    }
+
     @media print {
         body * { visibility: hidden !important; }
         #report-preview, #report-preview * { visibility: visible !important; }

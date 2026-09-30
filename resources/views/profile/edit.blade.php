@@ -3,11 +3,11 @@
         {{ __('Account Settings') }}
     </x-slot>
 
-    <div class="container-fluid py-2">
+    <div class="container-fluid py-2 account-settings-page">
         <div class="row g-4">
             <!-- Left Side: Navigation/Context -->
             <div class="col-lg-4">
-                <div class="card border-0 shadow-sm rounded-4 p-4 sticky-top" style="top: 100px;">
+                <div class="account-summary-card card border-0 shadow-sm rounded-4 p-4 sticky-top" style="top: 100px;">
                     <div class="text-center mb-4">
                         <div class="rounded-circle bg-light d-flex align-items-center justify-content-center mx-auto mb-3"
                              style="width: 80px; height: 80px; color: var(--htc-green);">
@@ -59,4 +59,24 @@
             </div>
         </div>
     </div>
+
+    <style>
+        @media (max-width: 991.98px) {
+            .account-summary-card { position: static !important; }
+            .account-settings-page > .row { --bs-gutter-y: 1rem; }
+            .account-summary-card .list-group { flex-direction: row; gap: .5rem; }
+            .account-summary-card .list-group-item { flex: 1; margin-bottom: 0 !important; text-align: center; }
+        }
+        @media (max-width: 575.98px) {
+            .account-settings-page .card { padding: 1rem !important; }
+            .account-summary-card .list-group-item { min-height: 42px; display: flex; align-items: center; justify-content: center; }
+            .account-settings-page input,
+            .account-settings-page select { min-height: 44px; font-size: 16px !important; }
+            .profile-photo-row { align-items: flex-start !important; flex-direction: column; }
+            .profile-photo-row > .ms-4 { width: 100%; margin-top: 1rem; margin-left: 0 !important; }
+            .profile-form-action { align-items: stretch !important; flex-direction: column; }
+            .profile-form-action .btn { width: 100%; min-height: 44px; }
+            .profile-form-action p { margin-left: 0 !important; text-align: center; }
+        }
+    </style>
 </x-app-layout>

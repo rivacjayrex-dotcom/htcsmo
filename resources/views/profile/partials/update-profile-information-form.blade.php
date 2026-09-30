@@ -3,7 +3,7 @@
         @csrf
         @method('patch')
 
-        <div class="d-flex align-items-center mb-4">
+        <div class="profile-photo-row d-flex align-items-center mb-4">
             <div class="position-relative">
                 @if($user->profile_photo)
                     <img src="{{ asset('storage/' . $user->profile_photo) }}" class="rounded-circle shadow-sm border" style="width: 80px; height: 80px; object-fit: cover;" alt="{{ $user->name }} profile photo">
@@ -70,7 +70,7 @@
             </div>
         </div>
 
-        <div class="mt-4 d-flex align-items-center">
+        <div class="profile-form-action mt-4 d-flex align-items-center gap-3">
             <button type="submit" class="btn fw-bold px-4 py-2 text-white" style="background-color: var(--htc-green); border-radius: 10px;">
                 Save Changes
             </button>
