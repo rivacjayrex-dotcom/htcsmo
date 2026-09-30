@@ -79,7 +79,7 @@
                                     <button type="button" class="product-card" @click="openProduct(item)">
                                         <span class="product-visual"><i data-lucide="package"></i><em x-text="item.category"></em></span>
                                         <span class="product-body">
-                                            <small x-text="item.brand || 'HTC catalog'"></small><strong x-text="item.name"></strong><span class="product-spec" x-text="item.specs"></span>
+                                            <small x-text="brandCaption(item)"></small><strong x-text="item.name"></strong><span class="product-spec" x-text="item.specs"></span>
                                             <span class="product-meta"><b x-text="'₱' + formatMoney(item.price)"></b><em x-text="item.stock + ' ' + item.unit + ' available'"></em></span>
                                         </span>
                                     </button>
@@ -95,7 +95,7 @@
                                 <div class="col-md-7">
                                     <span class="badge bg-success-subtle text-success mb-2">SMO APPROVED</span>
                                     <h3 class="fw-bold mb-1" x-text="selectedItem?.name"></h3>
-                                    <div class="text-muted mb-3" x-text="selectedItem?.brand"></div>
+                                    <div class="text-muted mb-3" x-text="selectedItem?.options?.Brand?.length > 1 ? 'Choose your preferred brand and specifications' : selectedItem?.brand"></div>
                                     <h4 class="text-success fw-bold" x-text="'₱' + formatMoney(selectedItem?.price)"></h4>
                                     <p class="product-description" x-text="selectedItem?.specs"></p>
                                     <template x-for="(choices, label) in (selectedItem?.options || {})" :key="label">

@@ -29,12 +29,10 @@ class SupplyController extends Controller
     }
 
     // Save a new item to the database
-// Save a new item to the database
     public function store(Request $request, InventoryAlertService $alertService)
     {
         $validated = $request->validate([
             'item_name'       => 'required|string|max:255|unique:supplies,item_name',
-            'brand'           => 'required|string|max:100',
             'category'        => 'required|in:Cleaning Supplies,Construction Supplies,Drugs and Medicines,Maintenance Supplies,Medical Supplies,Non-Medical Supplies,Office Supplies',
             'requisition_tier'=> 'required|in:minor,major',
             'specifications'  => 'required|string|min:3',
@@ -50,6 +48,7 @@ class SupplyController extends Controller
         ]);
 
         $validated['configurable_options'] = $this->normalizeOptions($validated);
+        $validated['brand'] = $this->brandSummary($validated['configurable_options']);
         unset($validated['option_names'], $validated['option_values']);
 
         // Link the foreign key supply_category_id automatically
@@ -84,7 +83,6 @@ class SupplyController extends Controller
 
         $validated = $request->validate([
             'item_name'       => 'required|string|max:255|unique:supplies,item_name,' . $id,
-            'brand'           => 'required|string|max:100',
             'category'        => 'required|in:Cleaning Supplies,Construction Supplies,Drugs and Medicines,Maintenance Supplies,Medical Supplies,Non-Medical Supplies,Office Supplies',
             'requisition_tier'=> 'required|in:minor,major',
             'specifications'  => 'required|string|min:3',
@@ -100,6 +98,7 @@ class SupplyController extends Controller
         ]);
 
         $validated['configurable_options'] = $this->normalizeOptions($validated);
+        $validated['brand'] = $this->brandSummary($validated['configurable_options']);
         unset($validated['option_names'], $validated['option_values']);
 
         // Keep category foreign key synced
@@ -133,6 +132,9 @@ class SupplyController extends Controller
 
         foreach ($names as $index => $name) {
             $name = trim((string) $name);
+            if (strcasecmp($name, 'brand') === 0) {
+                $name = 'Brand';
+            }
             $choices = collect(explode(',', (string) ($values[$index] ?? '')))
                 ->map(fn ($choice) => trim($choice))
                 ->filter()
@@ -145,6 +147,28 @@ class SupplyController extends Controller
             }
         }
 
-        return $groups;
+        if (empty($groups['Brand'])) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'option_values' => 'Add at least one Brand under Requestor Choices.',
+            ]);
+        }
+
+        $brand = ['Brand' => $groups['Brand']];
+        unset($groups['Brand']);
+
+        return $brand + $groups;
+    }
+
+    private function brandSummary(array $options): string
+    {
+        $summary = collect($options['Brand'] ?? [])->implode(', ');
+
+        if (mb_strlen($summary) > 255) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'option_values' => 'The combined Brand choices must not exceed 255 characters.',
+            ]);
+        }
+
+        return $summary;
     }
 }

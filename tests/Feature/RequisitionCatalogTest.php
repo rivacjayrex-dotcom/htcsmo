@@ -16,7 +16,7 @@ class RequisitionCatalogTest extends TestCase
         $user = User::factory()->create();
         $supply = Supply::create([
             'item_name' => 'Bond Paper',
-            'brand' => 'Approved Brand',
+            'brand' => 'PaperOne, Double A',
             'category' => 'Office Supplies',
             'requisition_tier' => 'minor',
             'specifications' => '80 GSM',
@@ -33,7 +33,7 @@ class RequisitionCatalogTest extends TestCase
             'items' => [[
                 'supply_id' => $supply->id,
                 'qty' => 2,
-                'options' => ['Size' => 'A4', 'Color' => 'White'],
+                'options' => ['Brand' => 'PaperOne', 'Size' => 'A4', 'Color' => 'White'],
                 'price' => 1,
                 'name' => 'Forged name',
             ]],
@@ -45,7 +45,7 @@ class RequisitionCatalogTest extends TestCase
             'quantity' => 2,
             'unit_price' => 200,
             'subtotal' => 400,
-            'specifications' => '80 GSM | Size: A4; Color: White',
+            'specifications' => '80 GSM | Brand: PaperOne; Size: A4; Color: White',
         ]);
         $this->assertDatabaseHas('requisitions', [
             'user_id' => $user->id,

@@ -28,6 +28,29 @@ class Supply extends Model
     ];
 
     /**
+     * Choices presented after a requestor opens this catalog item.
+     * Brand is kept first so the experience reads Brand, Size, Color, etc.
+     */
+    public function requestOptions(): array
+    {
+        $options = $this->configurable_options ?? [];
+        $configuredBrands = collect($options['Brand'] ?? [])
+            ->map(fn ($brand) => trim((string) $brand))
+            ->filter();
+        $brands = $configuredBrands->isNotEmpty()
+            ? $configuredBrands
+            : collect(explode(',', (string) $this->brand))
+                ->map(fn ($brand) => trim($brand))
+                ->filter();
+
+        unset($options['Brand']);
+
+        return $brands->isEmpty()
+            ? $options
+            : ['Brand' => $brands->unique()->values()->all()] + $options;
+    }
+
+    /**
      * Category that classifies this supply item.
      */
     public function supplyCategory(): BelongsTo

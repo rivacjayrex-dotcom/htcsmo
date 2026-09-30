@@ -31,6 +31,36 @@ class InventoryWorkspaceTest extends TestCase
             ->assertSee($major->item_name);
     }
 
+    public function test_smo_registers_brands_as_requestor_choices_without_a_brand_field(): void
+    {
+        $smo = User::factory()->create(['role' => 'smo']);
+
+        $response = $this->actingAs($smo)->post(route('inventory.store'), [
+            'item_name' => 'Ballpoint Pen',
+            'category' => 'Office Supplies',
+            'requisition_tier' => 'minor',
+            'specifications' => 'Retractable writing pen',
+            'quantity' => 100,
+            'unit' => 'Piece(s)',
+            'unit_price' => 12,
+            'min_stock_level' => 20,
+            'option_names' => ['Brand', 'Ink Color', 'Tip Size'],
+            'option_values' => ['Panda, Pilot, HBW', 'Black, Blue, Red', '0.5 mm, 0.7 mm'],
+        ]);
+
+        $response->assertRedirect(route('inventory.index'))
+            ->assertSessionHasNoErrors();
+
+        $supply = Supply::where('item_name', 'Ballpoint Pen')->firstOrFail();
+
+        $this->assertSame('Panda, Pilot, HBW', $supply->brand);
+        $this->assertSame([
+            'Brand' => ['Panda', 'Pilot', 'HBW'],
+            'Ink Color' => ['Black', 'Blue', 'Red'],
+            'Tip Size' => ['0.5 mm', '0.7 mm'],
+        ], $supply->configurable_options);
+    }
+
     private function supply(string $name, string $tier, int $quantity, int $minimum, float $price = 100): Supply
     {
         return Supply::create([

@@ -34,15 +34,10 @@
                         <div class="card-body p-4 border-bottom">
                             <div class="nav-section-label mb-3 text-primary">I. Institutional Identity</div>
                             <div class="row g-3">
-                                <div class="col-md-6">
+                                <div class="col-12">
                                     <label class="form-label mini-label">Primary Item Name <span class="text-danger">*</span></label>
-                                    <input type="text" name="item_name" value="{{ old('item_name') }}" class="form-control border-0 bg-light py-2 shadow-none @error('item_name') is-invalid @enderror" placeholder="e.g. A4 Bond Paper" required>
+                                    <input type="text" name="item_name" value="{{ old('item_name') }}" class="form-control border-0 bg-light py-2 shadow-none @error('item_name') is-invalid @enderror" placeholder="e.g. Bond Paper or Ballpen" required>
                                     @error('item_name') <span class="text-danger small">{{ $message }}</span> @enderror
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label mini-label">Brand / Manufacturer <span class="text-danger">*</span></label>
-                                    <input type="text" name="brand" value="{{ old('brand') }}" class="form-control border-0 bg-light py-2 shadow-none @error('brand') is-invalid @enderror" placeholder="e.g. Hard Copy" required>
-                                    @error('brand') <span class="text-danger small">{{ $message }}</span> @enderror
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label mini-label">Institutional Category <span class="text-danger">*</span></label>
@@ -87,15 +82,15 @@
                             </div>
 
                             @php
-                                $oldNames = old('option_names', ['Size', 'Color']);
-                                $oldValues = old('option_values', ['', '']);
+                                $oldNames = old('option_names', ['Brand', 'Size', 'Color']);
+                                $oldValues = old('option_values', ['', '', '']);
                                 $optionRows = collect($oldNames)->map(fn ($name, $i) => ['name' => $name, 'values' => $oldValues[$i] ?? ''])->values();
                             @endphp
                             <div class="mt-4" x-data="{ rows: {{ Illuminate\Support\Js::from($optionRows) }} }">
                                 <div class="d-flex justify-content-between align-items-center mb-2">
                                     <div>
                                         <label class="form-label mini-label mb-0">Requestor Choices</label>
-                                        <div class="small text-muted">Add choices such as size, color, type, or capacity. Separate choices with commas.</div>
+                                        <div class="small text-muted">Brand is required. Separate every choice with a comma, such as Panda, Pilot, HBW.</div>
                                     </div>
                                     <button type="button" class="btn btn-sm btn-outline-success rounded-pill" @click="rows.length < 5 && rows.push({name: '', values: ''})">
                                         <i data-lucide="plus" style="width:14px"></i> Add option
@@ -104,13 +99,13 @@
                                 <template x-for="(row, index) in rows" :key="index">
                                     <div class="row g-2 mb-2">
                                         <div class="col-md-4">
-                                            <input type="text" name="option_names[]" x-model="row.name" class="form-control border-0 bg-white shadow-sm" placeholder="Option name (e.g. Size)">
+                                            <input type="text" name="option_names[]" x-model="row.name" :readonly="row.name === 'Brand'" :class="row.name === 'Brand' ? 'fw-bold text-success' : ''" class="form-control border-0 bg-white shadow-sm" placeholder="Option name (e.g. Size)">
                                         </div>
                                         <div class="col-md-7">
                                             <input type="text" name="option_values[]" x-model="row.values" class="form-control border-0 bg-white shadow-sm" placeholder="A4, Legal, Letter">
                                         </div>
                                         <div class="col-md-1 d-grid">
-                                            <button type="button" class="btn btn-light text-danger" @click="rows.splice(index, 1)" aria-label="Remove option"><i data-lucide="x" style="width:15px"></i></button>
+                                            <button type="button" class="btn btn-light text-danger" :disabled="row.name === 'Brand'" @click="rows.splice(index, 1)" aria-label="Remove option"><i data-lucide="x" style="width:15px"></i></button>
                                         </div>
                                     </div>
                                 </template>

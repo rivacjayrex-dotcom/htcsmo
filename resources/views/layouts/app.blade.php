@@ -1099,7 +1099,7 @@
                 'unit' => $s->unit,
                 'price' => (float) $s->unit_price,
                 'stock' => $s->quantity,
-                'options' => $s->configurable_options ?? [],
+                'options' => $s->requestOptions(),
             ])->values()) }};
             const previousRequest = {{ Illuminate\Support\Js::from([
                 'tier' => old('request_type'),
@@ -1177,6 +1177,10 @@
                 },
                 removeItem(index) { this.cart.splice(index, 1); },
                 optionSummary(options) { return Object.entries(options || {}).map(([label, value]) => `${label}: ${value}`).join(' · '); },
+                brandCaption(item) {
+                    const brands = item?.options?.Brand || [];
+                    return brands.length > 1 ? `${brands.length} brands available` : (brands[0] || item?.brand || 'HTC catalog');
+                },
                 formatMoney(value) { return Number(value || 0).toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2}); },
                 refreshIcons() { setTimeout(() => lucide.createIcons(), 30); },
                 resetModal() {

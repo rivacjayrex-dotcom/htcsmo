@@ -73,15 +73,10 @@
                             </div>
 
                             <div class="row g-4">
-                                <div class="col-md-6">
+                                <div class="col-12">
                                     <label class="form-label small fw-bold text-dark text-uppercase">Item Name <span class="text-danger">*</span></label>
                                     <input type="text" name="item_name" class="form-control border-0 bg-light py-2 rounded-3 shadow-none @error('item_name') is-invalid @enderror" value="{{ old('item_name', $item->item_name) }}" required>
                                     @error('item_name') <span class="text-danger small">{{ $message }}</span> @enderror
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label small fw-bold text-dark text-uppercase">Brand Name <span class="text-danger">*</span></label>
-                                    <input type="text" name="brand" class="form-control border-0 bg-light py-2 rounded-3 shadow-none @error('brand') is-invalid @enderror" value="{{ old('brand', $item->brand) }}" required>
-                                    @error('brand') <span class="text-danger small">{{ $message }}</span> @enderror
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label small fw-bold text-dark text-uppercase">Institutional Category <span class="text-danger">*</span></label>
@@ -128,7 +123,10 @@
                             @error('specifications') <span class="text-danger small">{{ $message }}</span> @enderror
 
                             @php
-                                $savedOptions = collect($item->configurable_options ?? [])->map(fn ($values, $name) => ['name' => $name, 'values' => implode(', ', $values)])->values();
+                                $savedOptions = collect($item->requestOptions())->map(fn ($values, $name) => ['name' => $name, 'values' => implode(', ', $values)])->values();
+                                if (! $savedOptions->contains(fn ($option) => $option['name'] === 'Brand')) {
+                                    $savedOptions->prepend(['name' => 'Brand', 'values' => '']);
+                                }
                                 $oldNames = old('option_names');
                                 $oldValues = old('option_values', []);
                                 $optionRows = $oldNames !== null
@@ -139,7 +137,7 @@
                                 <div class="d-flex justify-content-between align-items-center mb-2">
                                     <div>
                                         <label class="form-label mini-label mb-0">Requestor Choices</label>
-                                        <div class="small text-muted">Choices appear after a requestor clicks this item.</div>
+                                        <div class="small text-muted">Brand is required. These choices appear after a requestor clicks this item.</div>
                                     </div>
                                     <button type="button" class="btn btn-sm btn-outline-success rounded-pill" @click="rows.length < 5 && rows.push({name: '', values: ''})">
                                         <i data-lucide="plus" style="width:14px"></i> Add option
@@ -147,9 +145,9 @@
                                 </div>
                                 <template x-for="(row, index) in rows" :key="index">
                                     <div class="row g-2 mb-2">
-                                        <div class="col-md-4"><input type="text" name="option_names[]" x-model="row.name" class="form-control border-0 bg-light" placeholder="Option name"></div>
+                                        <div class="col-md-4"><input type="text" name="option_names[]" x-model="row.name" :readonly="row.name === 'Brand'" :class="row.name === 'Brand' ? 'fw-bold text-success' : ''" class="form-control border-0 bg-light" placeholder="Option name"></div>
                                         <div class="col-md-7"><input type="text" name="option_values[]" x-model="row.values" class="form-control border-0 bg-light" placeholder="Choice 1, Choice 2"></div>
-                                        <div class="col-md-1 d-grid"><button type="button" class="btn btn-light text-danger" @click="rows.splice(index, 1)" aria-label="Remove option"><i data-lucide="x" style="width:15px"></i></button></div>
+                                        <div class="col-md-1 d-grid"><button type="button" class="btn btn-light text-danger" :disabled="row.name === 'Brand'" @click="rows.splice(index, 1)" aria-label="Remove option"><i data-lucide="x" style="width:15px"></i></button></div>
                                     </div>
                                 </template>
                             </div>

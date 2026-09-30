@@ -140,11 +140,11 @@ class RequisitionController extends Controller
 
     private function validateSelectedOptions(Supply $supply, array $selected): array
     {
-        $configured = $supply->configurable_options ?? [];
+        $configured = $supply->requestOptions();
         $clean = [];
 
         foreach ($configured as $label => $choices) {
-            $value = $selected[$label] ?? null;
+            $value = $selected[$label] ?? (count($choices) === 1 ? $choices[0] : null);
             if (! is_string($value) || ! in_array($value, $choices, true)) {
                 throw ValidationException::withMessages([
                     'items' => "Please select a valid {$label} for {$supply->item_name}.",
