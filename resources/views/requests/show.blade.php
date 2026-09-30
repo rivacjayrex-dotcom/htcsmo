@@ -43,10 +43,12 @@
                         </div>
                     </div>
                     <hr class="my-4 opacity-50">
-                    <div class="px-2">
-                        <h6 class="info-label">General Remarks / Purpose</h6>
-                        <!-- We use the specific purpose column if available, else first item info -->
-                        <p class="text-dark small mb-0">{{ $request->remarks ?? 'Institutional procurement for departmental supplies.' }}</p>
+                    <div class="request-reason">
+                        <div class="request-reason-icon"><i data-lucide="message-square-text"></i></div>
+                        <div>
+                            <h6 class="info-label mb-1">Reason for Request</h6>
+                            <p class="text-dark mb-0">{{ $request->purpose ?: 'No reason was recorded for this requisition.' }}</p>
+                        </div>
                     </div>
                 </div>
 
@@ -239,6 +241,10 @@
         .info-label { font-size: 10px; font-weight: 800; text-transform: uppercase; color: #94a3b8; letter-spacing: 1px; margin-bottom: 5px; display: block;}
         .extra-small { font-size: 10px; }
         .activity-log-item .dot { width: 12px; height: 12px; border-radius: 50%; position: absolute; left: -7px; top: 5px; border: 2px solid white; }
+        .request-reason { display: flex; align-items: flex-start; gap: .9rem; padding: 1rem; border: 1px solid #dce9e1; border-radius: 14px; background: #f5faf7; }
+        .request-reason-icon { width: 36px; height: 36px; flex: 0 0 36px; display: grid; place-items: center; border-radius: 10px; background: #dff2e6; color: var(--htc-green); }
+        .request-reason-icon svg { width: 17px; height: 17px; }
+        .request-reason p { line-height: 1.65; white-space: pre-line; overflow-wrap: anywhere; }
         .btn-htc { background-color: var(--htc-green); color: white; font-weight: bold; }
         .btn-htc:hover { background-color: #0d2e16; color: white; transform: translateY(-1px); }
     </style>

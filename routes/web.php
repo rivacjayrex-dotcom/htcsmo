@@ -169,7 +169,7 @@ Route::get('/dashboard', function () {
     Route::get('/notifications', [RequestController::class, 'notifications'])->name('notifications');
 
     // Change the submission route to point to the new Requisition Controller
-    Route::post('/requisitions', [RequisitionController::class, 'store'])->name('requisitions.store');
+    Route::post('/requisitions', [RequisitionController::class, 'store'])->middleware('auth')->name('requisitions.store');
 
 
     Route::get('/requests/{id}/download', [RequestController::class, 'downloadPDF'])->name('requests.download');

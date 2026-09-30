@@ -443,6 +443,106 @@
         }
 
         .footer-note { font-size: 10px; font-weight: bold; margin-top: 20px; opacity: 0.5; }
+
+        /* Requisition marketplace */
+        .requisition-shell { border-radius: 22px !important; min-height: 680px; background: #fff; }
+        .requisition-header { padding: 1.4rem 2rem; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #e8eeeb; }
+        .requisition-eyebrow { color: var(--htc-green); font-size: .68rem; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+        .requisition-progress { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; padding-top: 1rem; padding-bottom: 1rem; background: #fbfcfb; border-bottom: 1px solid #edf1ef; }
+        .requisition-progress div { display: flex; align-items: center; gap: .55rem; color: #94a3b8; font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+        .requisition-progress div::after { content: ''; height: 2px; flex: 1; background: #e2e8f0; }
+        .requisition-progress div:last-child::after { display: none; }
+        .requisition-progress span { width: 24px; height: 24px; border-radius: 50%; display: inline-grid; place-items: center; background: #e2e8f0; color: #64748b; }
+        .requisition-progress .active { color: var(--htc-green); }
+        .requisition-progress .active span, .requisition-progress .done span { background: var(--htc-green); color: #fff; }
+        .requisition-progress .done::after { background: var(--htc-green); }
+        .tier-stage { min-height: 510px; background: radial-gradient(circle at 50% 0, #f0f8f3, #fff 52%); }
+        .tier-choice { min-height: 330px; border: 1px solid #dfe8e3; border-radius: 22px; background: #fff; padding: 2rem; display: flex; flex-direction: column; align-items: flex-start; text-align: left; transition: .2s ease; box-shadow: 0 12px 30px rgba(15, 45, 29, .05); }
+        .tier-choice:hover { transform: translateY(-5px); border-color: var(--htc-green); box-shadow: 0 20px 44px rgba(24, 91, 59, .12); }
+        .tier-choice .tier-icon { width: 58px; height: 58px; border-radius: 17px; display: grid; place-items: center; margin-bottom: 1.5rem; }
+        .tier-choice .tier-icon svg { width: 27px; height: 27px; }
+        .tier-minor .tier-icon { background: #e9f7ef; color: #137044; }
+        .tier-major .tier-icon { background: #fff5dd; color: #a16207; }
+        .tier-choice .tier-kicker { font-size: .68rem; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: #94a3b8; }
+        .tier-choice strong { display: block; color: #14251c; font-size: 1.35rem; margin: .35rem 0 .65rem; }
+        .tier-choice > span:not(.tier-icon):not(.tier-kicker) { color: #64748b; line-height: 1.65; }
+        .tier-choice small { margin-top: auto; padding-top: 1.25rem; border-top: 1px solid #edf1ef; width: 100%; color: #64748b; }
+        .requisition-workspace { min-height: 540px; }
+        .catalog-pane { padding: 1.5rem 1.75rem; background: #f7f9f8; max-height: 610px; overflow-y: auto; }
+        .catalog-toolbar { display: flex; align-items: center; gap: .75rem; }
+        .catalog-toolbar svg, .product-configurator .btn svg, .btn-htc svg { width: 15px; height: 15px; }
+        .tier-pill { padding: .45rem .8rem; border-radius: 999px; font-size: .68rem; font-weight: 800; text-transform: uppercase; white-space: nowrap; }
+        .tier-pill.minor { color: #137044; background: #e7f6ed; }
+        .tier-pill.major { color: #946200; background: #fff3d1; }
+        .catalog-search { margin-left: auto; flex: 1; max-width: 320px; height: 40px; display: flex; align-items: center; gap: .6rem; padding: 0 .85rem; border: 1px solid #dfe7e2; border-radius: 12px; background: #fff; }
+        .catalog-search svg { width: 16px; color: #94a3b8; }
+        .catalog-search input { width: 100%; border: 0; outline: 0; font-size: .82rem; background: transparent; }
+        .category-chips { display: flex; gap: .5rem; padding: 1.25rem 0; overflow-x: auto; }
+        .category-chips button { border: 1px solid #dfe7e2; background: #fff; color: #64748b; border-radius: 999px; padding: .45rem .8rem; font-size: .72rem; font-weight: 700; white-space: nowrap; }
+        .category-chips button.active { background: var(--htc-green); color: #fff; border-color: var(--htc-green); }
+        .catalog-heading { display: flex; align-items: end; justify-content: space-between; margin: .4rem 0 1rem; }
+        .catalog-notice { display: flex; align-items: center; gap: .55rem; margin: 1rem 0 0; padding: .7rem .85rem; border: 1px solid #bfe2ca; border-radius: 10px; background: #edf8f1; color: #17613b; font-size: .75rem; font-weight: 700; }
+        .catalog-notice svg { width: 16px; height: 16px; }
+        .catalog-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+        .product-card { padding: 0; overflow: hidden; border: 1px solid #e1e8e4; border-radius: 16px; background: #fff; text-align: left; transition: .2s ease; }
+        .product-card:hover { border-color: var(--htc-green); transform: translateY(-2px); box-shadow: 0 10px 24px rgba(24, 91, 59, .1); }
+        .product-visual { min-height: 105px; background: linear-gradient(135deg, #e7f2eb, #f9fbfa); display: grid; place-items: center; position: relative; color: var(--htc-green); }
+        .product-visual svg { width: 36px; height: 36px; }
+        .product-visual em { position: absolute; left: .75rem; bottom: .6rem; font-size: .62rem; font-style: normal; font-weight: 700; color: #5c7567; }
+        .product-body { display: flex; flex-direction: column; padding: 1rem; }
+        .product-body > small { color: #8b9b92; font-size: .65rem; text-transform: uppercase; letter-spacing: .06em; }
+        .product-body > strong { color: #15251c; margin: .2rem 0; font-size: .9rem; }
+        .product-spec { color: #718078; font-size: .72rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .product-meta { display: flex; justify-content: space-between; align-items: end; margin-top: 1rem; }
+        .product-meta b { color: var(--htc-green); font-size: 1rem; }
+        .product-meta em { color: #87958d; font-size: .62rem; font-style: normal; }
+        .empty-catalog, .cart-empty { min-height: 260px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: #94a3b8; gap: .5rem; }
+        .empty-catalog svg, .cart-empty svg { width: 40px; height: 40px; opacity: .45; }
+        .empty-catalog strong, .cart-empty strong { color: #526158; }
+        .product-configurator { padding: .5rem 0; }
+        .product-hero { height: 330px; border-radius: 20px; background: linear-gradient(145deg, #dceee3, #f5f9f6); color: var(--htc-green); display: flex; flex-direction: column; gap: 1rem; align-items: center; justify-content: center; }
+        .product-hero svg { width: 75px; height: 75px; }
+        .product-hero span { font-size: .72rem; font-weight: 800; text-transform: uppercase; }
+        .product-description { color: #6b7c72; font-size: .8rem; line-height: 1.6; }
+        .option-group { margin-top: 1.15rem; }
+        .option-group label { display: block; font-size: .72rem; font-weight: 800; margin-bottom: .55rem; color: #34473c; }
+        .option-group > div { display: flex; flex-wrap: wrap; gap: .5rem; }
+        .option-group button { padding: .5rem .8rem; border: 1px solid #d9e2dd; border-radius: 8px; background: #fff; color: #5a6c62; font-size: .74rem; }
+        .option-group button.active { border-color: var(--htc-green); color: var(--htc-green); background: #eff8f2; box-shadow: inset 0 0 0 1px var(--htc-green); }
+        .quantity-picker, .mini-quantity { display: flex; align-items: center; border: 1px solid #dce4df; border-radius: 9px; overflow: hidden; background: #fff; }
+        .quantity-picker button, .mini-quantity button { border: 0; background: #f5f7f6; color: #43544a; }
+        .quantity-picker button { width: 34px; height: 42px; }
+        .quantity-picker input { width: 48px; height: 42px; border: 0; text-align: center; font-weight: 700; }
+        .cart-pane { display: flex; flex-direction: column; max-height: 610px; background: #fff; border-left: 1px solid #e4ebe7; }
+        .cart-title { padding: 1.4rem; border-bottom: 1px solid #edf1ef; display: flex; align-items: center; justify-content: space-between; }
+        .cart-title > div { display: flex; align-items: center; gap: .65rem; }
+        .cart-title > span { color: #839088; font-size: .7rem; }
+        .cart-icon { width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; color: var(--htc-green); background: #eaf5ee; }
+        .cart-icon svg { width: 16px; }
+        .cart-items { padding: 1rem 1.35rem; flex: 1; overflow-y: auto; }
+        .cart-item { border-bottom: 1px solid #edf1ef; padding: .9rem 0; }
+        .cart-item strong { color: #26382e; font-size: .82rem; }
+        .cart-item small { display: block; color: #87958d; font-size: .67rem; margin-top: .2rem; }
+        .cart-item > div button { border: 0; background: transparent; color: #94a3b8; }
+        .cart-item > div button svg { width: 14px; height: 14px; }
+        .mini-quantity button { width: 25px; height: 25px; }
+        .mini-quantity span { min-width: 28px; text-align: center; font-size: .7rem; font-weight: 700; }
+        .cart-summary { padding: 1.25rem 1.4rem; background: #f8faf9; border-top: 1px solid #e4ebe7; }
+        .reason-field { display: block !important; margin-bottom: 1rem !important; color: inherit !important; }
+        .reason-field label { display: block; margin-bottom: .4rem; color: #34473c; font-size: .72rem; font-weight: 800; }
+        .reason-field textarea { display: block; width: 100%; resize: vertical; min-height: 74px; padding: .7rem .8rem; border: 1px solid #d7e1db; border-radius: 10px; background: #fff; color: #283a30; font: inherit; font-size: .75rem; line-height: 1.45; outline: none; transition: .2s ease; }
+        .reason-field textarea:focus { border-color: var(--htc-green); box-shadow: 0 0 0 3px rgba(24, 91, 59, .1); }
+        .reason-field textarea::placeholder { color: #a0aaa4; }
+        .reason-field > span { display: flex; justify-content: space-between; margin-top: .3rem; color: #94a3b8; font-size: .62rem; }
+        .reason-field em { font-style: normal; }
+        .cart-summary > div { display: flex; justify-content: space-between; align-items: center; margin-bottom: .65rem; color: #738178; font-size: .75rem; }
+        .cart-summary > div strong { color: #173d27; font-size: 1.25rem; }
+        .cart-summary p { font-size: .68rem; font-weight: 700; }
+        .cart-summary > small { display: flex; align-items: center; justify-content: center; gap: .35rem; color: #829087; font-size: .62rem; margin-top: .7rem; }
+        .cart-summary > small svg { width: 13px; }
+        [x-cloak] { display: none !important; }
+        @media (max-width: 991.98px) { .requisition-shell { min-height: auto; } .catalog-pane, .cart-pane { max-height: none; } .cart-pane { border-left: 0; border-top: 1px solid #e4ebe7; } }
+        @media (max-width: 575.98px) { .catalog-grid { grid-template-columns: 1fr; } .catalog-toolbar { flex-wrap: wrap; } .catalog-search { order: 3; max-width: none; flex-basis: 100%; } .requisition-progress { gap: .3rem; } .requisition-progress div { font-size: .58rem; } }
     </style>
 </head>
 <body>
@@ -599,7 +699,8 @@
         </main>
     </div>
 
-    <!-- GLOBAL REQUISITION ENGINE -->
+    @if(false)
+    <!-- LEGACY REQUISITION ENGINE -->
     <div class="modal fade" id="globalRequestModal" tabindex="-1" aria-hidden="true"
         x-data="cartSystem()"
         @hidden-bs-modal.window="resetModal()">
@@ -817,6 +918,10 @@
         </div>
     </div>
 
+    @endif
+
+    @include('layouts.partials.requisition-modal')
+
     <!-- LIVE TOAST NOTIFICATION SYSTEM -->
     <div x-data="{
             show: false,
@@ -881,72 +986,136 @@
 
         // Cart Engine
         function cartSystem() {
+            const catalog = {{ Illuminate\Support\Js::from($availableSupplies->map(fn ($s) => [
+                'id' => $s->id,
+                'name' => $s->item_name,
+                'brand' => $s->brand,
+                'category' => $s->category,
+                'tier' => $s->requisition_tier ?? 'minor',
+                'specs' => $s->specifications,
+                'unit' => $s->unit,
+                'price' => (float) $s->unit_price,
+                'stock' => $s->quantity,
+                'options' => $s->configurable_options ?? [],
+            ])->values()) }};
+            const previousRequest = {{ Illuminate\Support\Js::from([
+                'tier' => old('request_type'),
+                'purpose' => old('purpose', ''),
+                'items' => old('items', []),
+            ]) }};
+
             return {
-                tier: 'minor',
+                catalog,
+                tier: null,
                 view: 'selection',
-                manualMode: false,
+                search: '',
+                category: 'All',
+                selectedItem: null,
+                selectedOptions: {},
+                productQty: 1,
                 cart: [],
+                purpose: previousRequest.purpose || '',
+                notice: '',
+                noticeTimer: null,
 
-                setTier(t) {
-                    this.tier = t;
-                    this.view = 'form';
-                    this.cart = []; // Clear cart for fresh start
-                    this.manualMode = false;
-                    setTimeout(() => lucide.createIcons(), 50);
+                init() {
+                    if (!['minor', 'major'].includes(previousRequest.tier)) return;
+
+                    this.tier = previousRequest.tier;
+                    this.view = 'catalog';
+                    this.cart = (previousRequest.items || []).map((submitted) => {
+                        const item = this.catalog.find(catalogItem => catalogItem.id === Number(submitted.supply_id));
+                        if (!item || item.tier !== this.tier) return null;
+                        const options = submitted.options || {};
+                        return {...item, options, qty: Math.min(item.stock, Math.max(1, Number(submitted.qty) || 1)), key: item.id + ':' + JSON.stringify(options)};
+                    }).filter(Boolean);
+                    this.refreshIcons();
                 },
 
-                // ADD FROM OFFICIAL SMO REGISTRY
-                addItemFromInventory(jsonString) {
-                    if (!jsonString) return;
-                    const data = JSON.parse(jsonString);
-
-                    // If item already in cart, just increment quantity
-                    const existing = this.cart.find(i => i.item_id === data.id);
+                setTier(tier) {
+                    this.tier = tier;
+                    this.view = 'catalog';
+                    this.search = '';
+                    this.category = 'All';
+                    this.cart = [];
+                    this.refreshIcons();
+                },
+                backToTiers() {
+                    if (this.cart.length && !window.confirm('Changing the tier will clear the items in your cart. Continue?')) return;
+                    this.view = 'selection';
+                    this.cart = [];
+                    this.selectedItem = null;
+                    this.refreshIcons();
+                },
+                openProduct(item) {
+                    this.selectedItem = item;
+                    this.selectedOptions = Object.fromEntries(Object.entries(item.options || {})
+                        .filter(([, choices]) => choices.length === 1)
+                        .map(([label, choices]) => [label, choices[0]]));
+                    this.productQty = 1;
+                    this.view = 'product';
+                    this.refreshIcons();
+                },
+                addConfiguredItem() {
+                    if (!this.canAddProduct) return;
+                    const options = {...this.selectedOptions};
+                    const key = this.selectedItem.id + ':' + JSON.stringify(options);
+                    const existing = this.cart.find(item => item.key === key);
                     if (existing) {
-                        existing.qty++;
-                        return;
+                        existing.qty = Math.min(existing.stock, existing.qty + this.productQty);
+                    } else {
+                        this.cart.push({...this.selectedItem, key, options, qty: this.productQty});
                     }
-
-                    this.cart.push({
-                        item_id: data.id,
-                        name: data.name,
-                        specs: data.specs,
-                        qty: 1, // User can change this in the UI
-                        unit: data.unit,
-                        price: data.price,
-                        is_manual: false
-                    });
-                    setTimeout(() => lucide.createIcons(), 10);
+                    this.view = 'catalog';
+                    this.notice = `${this.selectedItem.name} was added to your requisition.`;
+                    window.clearTimeout(this.noticeTimer);
+                    this.noticeTimer = window.setTimeout(() => this.notice = '', 3500);
+                    this.refreshIcons();
                 },
-
-                // ADD CUSTOM ITEM
-                addItemManual() {
-                    this.cart.push({
-                        item_id: null,
-                        name: '',
-                        specs: '',
-                        qty: 1,
-                        unit: 'PC/PCS',
-                        price: 0,
-                        is_manual: true
-                    });
-                    setTimeout(() => lucide.createIcons(), 10);
-                },
-
                 removeItem(index) { this.cart.splice(index, 1); },
+                optionSummary(options) { return Object.entries(options || {}).map(([label, value]) => `${label}: ${value}`).join(' · '); },
+                formatMoney(value) { return Number(value || 0).toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2}); },
+                refreshIcons() { setTimeout(() => lucide.createIcons(), 30); },
+                resetModal() {
+                    this.tier = null;
+                    this.view = 'selection';
+                    this.cart = [];
+                    this.selectedItem = null;
+                    this.purpose = '';
+                    this.notice = '';
+                },
+                get tierLabel() { return this.tier === 'major' ? 'Major requisition' : 'Minor requisition'; },
+                get tierItems() { return this.catalog.filter(item => item.tier === this.tier); },
+                get categories() { return [...new Set(this.tierItems.map(item => item.category))].sort(); },
+                get filteredItems() {
+                    const term = this.search.trim().toLowerCase();
+                    return this.tierItems.filter(item => (this.category === 'All' || item.category === this.category)
+                        && (!term || `${item.name} ${item.brand || ''} ${item.specs || ''}`.toLowerCase().includes(term)));
+                },
+                get allOptionsSelected() {
+                    return this.selectedItem && Object.keys(this.selectedItem.options || {}).every(label => this.selectedOptions[label]);
+                },
+                get canAddProduct() { return this.allOptionsSelected && this.productQty >= 1 && this.productQty <= (this.selectedItem?.stock || 0); },
                 get grandTotal() { return this.cart.reduce((sum, item) => sum + (item.qty * item.price), 0); },
-                formatMoney(val) { return parseFloat(val || 0).toLocaleString(undefined, {minimumFractionDigits: 2}); },
-                resetModal() { this.view = 'selection'; this.cart = []; }
-            }
+                get cartQuantity() { return this.cart.reduce((sum, item) => sum + item.qty, 0); },
+                get purposeIsValid() { return this.purpose.trim().length >= 10; },
+                get canSubmit() { return this.cart.length > 0 && this.purposeIsValid && !(this.tier === 'minor' && this.grandTotal > 1000); },
+                get submitLabel() {
+                    if (!this.cart.length) return 'Add at least one item';
+                    if (!this.purposeIsValid) return 'Add a reason to continue';
+                    if (this.tier === 'minor' && this.grandTotal > 1000) return 'Minor limit exceeded';
+                    return 'Submit requisition →';
+                }
+            };
         }
-        // Modal Controls
-        const myModalEl = document.getElementById('globalRequestModal')
-            myModalEl.addEventListener('hidden.bs.modal', event => {
-                // This ensures if they open it again, it starts at the cards
-                const alpine = document.querySelector('[x-data]').__x.$data;
-                alpine.view = 'selection';
-                alpine.cart = [{ name: '', specs: '', qty: 1, unit: 'pc', price: 0 }];
-            })
+
+        document.getElementById('globalRequestModal')?.addEventListener('hidden.bs.modal', event => {
+            window.Alpine.$data(event.currentTarget).resetModal();
+        });
+
+        @if($errors->any() && old('request_type'))
+            window.setTimeout(() => bootstrap.Modal.getOrCreateInstance(document.getElementById('globalRequestModal')).show(), 100);
+        @endif
 
         function countUp(target, duration = 1000) {
             return {

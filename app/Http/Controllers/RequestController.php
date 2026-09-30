@@ -367,8 +367,10 @@ class RequestController extends Controller
 
             // Check and deduct items that exist in our inventory catalog
          foreach ($sr->items()->get() as $item) {
-             // Look for matching item name (case-insensitive)
-             $inventoryItem = Supply::where('item_name', 'LIKE', trim($item->item_name))->first();
+             // Prefer the immutable catalog link; keep the name fallback for legacy requests.
+             $inventoryItem = $item->supply_id
+                 ? Supply::find($item->supply_id)
+                 : Supply::where('item_name', 'LIKE', trim($item->item_name))->first();
 
              if ($inventoryItem) {
                  if ($inventoryItem->quantity < $item->quantity) {

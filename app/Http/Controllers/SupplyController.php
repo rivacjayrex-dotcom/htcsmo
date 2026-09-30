@@ -29,13 +29,21 @@ class SupplyController extends Controller
             'item_name'       => 'required|string|max:255|unique:supplies,item_name',
             'brand'           => 'required|string|max:100',
             'category'        => 'required|in:Cleaning Supplies,Construction Supplies,Drugs and Medicines,HDMI,Maintenance Supplies,Medical Supplies,Non-Medical Supplies,Office Supplies',
+            'requisition_tier'=> 'required|in:minor,major',
             'specifications'  => 'required|string|min:3',
             'quantity'        => 'required|integer|min:0',
             'unit'            => 'required|string|max:50',
             'unit_price'      => 'required|numeric|min:0.01',
             'min_stock_level' => 'required|integer|min:0',
             'model_number'    => 'nullable|string|max:100',
+            'option_names'    => 'nullable|array|max:5',
+            'option_names.*'  => ['nullable', 'string', 'max:50', 'regex:/^[A-Za-z0-9 _-]+$/'],
+            'option_values'   => 'nullable|array|max:5',
+            'option_values.*' => 'nullable|string|max:500',
         ]);
+
+        $validated['configurable_options'] = $this->normalizeOptions($validated);
+        unset($validated['option_names'], $validated['option_values']);
 
         // Link the foreign key supply_category_id automatically
         $categoryRecord = \App\Models\SupplyCategory::where('category_name', $validated['category'])->first();
@@ -68,13 +76,21 @@ class SupplyController extends Controller
             'item_name'       => 'required|string|max:255|unique:supplies,item_name,' . $id,
             'brand'           => 'required|string|max:100',
             'category'        => 'required|in:Cleaning Supplies,Construction Supplies,Drugs and Medicines,HDMI,Maintenance Supplies,Medical Supplies,Non-Medical Supplies,Office Supplies',
+            'requisition_tier'=> 'required|in:minor,major',
             'specifications'  => 'required|string|min:3',
             'quantity'        => 'required|integer|min:0',
             'unit'            => 'required|string|max:50',
             'unit_price'      => 'required|numeric|min:0.01',
             'min_stock_level' => 'required|integer|min:0',
             'model_number'    => 'nullable|string|max:100',
+            'option_names'    => 'nullable|array|max:5',
+            'option_names.*'  => ['nullable', 'string', 'max:50', 'regex:/^[A-Za-z0-9 _-]+$/'],
+            'option_values'   => 'nullable|array|max:5',
+            'option_values.*' => 'nullable|string|max:500',
         ]);
+
+        $validated['configurable_options'] = $this->normalizeOptions($validated);
+        unset($validated['option_names'], $validated['option_values']);
 
         // Keep category foreign key synced
         $categoryRecord = \App\Models\SupplyCategory::where('category_name', $validated['category'])->first();
@@ -96,5 +112,28 @@ class SupplyController extends Controller
         $item->delete();
 
         return redirect()->route('inventory.index')->with('success', 'Item has been removed from inventory.');
+    }
+
+    private function normalizeOptions(array $validated): array
+    {
+        $groups = [];
+        $names = $validated['option_names'] ?? [];
+        $values = $validated['option_values'] ?? [];
+
+        foreach ($names as $index => $name) {
+            $name = trim((string) $name);
+            $choices = collect(explode(',', (string) ($values[$index] ?? '')))
+                ->map(fn ($choice) => trim($choice))
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+
+            if ($name !== '' && $choices !== []) {
+                $groups[$name] = $choices;
+            }
+        }
+
+        return $groups;
     }
 }

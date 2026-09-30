@@ -26,7 +26,10 @@ class AppServiceProvider extends ServiceProvider
         // Share available supplies & unread notification count across all views safely
         View::composer('*', function ($view) {
             if (Auth::check()) {
-                $view->with('availableSupplies', Supply::where('quantity', '>', 0)->orderBy('item_name', 'asc')->get());
+                $view->with('availableSupplies', Supply::where('quantity', '>', 0)
+                    ->orderBy('requisition_tier')
+                    ->orderBy('item_name')
+                    ->get());
                 $view->with('unreadCount', Notification::where('user_id', Auth::id())->where('is_read', false)->count());
             } else {
                 $view->with('availableSupplies', collect());

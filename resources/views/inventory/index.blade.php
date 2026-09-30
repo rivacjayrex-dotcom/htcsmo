@@ -93,7 +93,7 @@
                     <thead class="bg-light text-muted small text-uppercase">
                         <tr>
                             <th class="ps-4 py-3">Item Details</th>
-                            <th class="py-3">Category</th>
+                            <th class="py-3">Category / Tier</th>
                             <th class="py-3">Specifications</th>
                             <th class="py-3 text-center">Stock Level</th>
                             <th class="py-3 text-end">Unit Cost</th>
@@ -110,6 +110,9 @@
                             <td>
                                 <span class="badge bg-light text-dark border px-2 py-1 rounded-pill" style="font-size: 10px;">
                                     {{ $item->category }}
+                                </span>
+                                <span class="badge {{ ($item->requisition_tier ?? 'minor') === 'major' ? 'bg-warning-subtle text-warning' : 'bg-success-subtle text-success' }} px-2 py-1 rounded-pill ms-1" style="font-size: 9px;">
+                                    {{ strtoupper($item->requisition_tier ?? 'minor') }}
                                 </span>
                             </td>
                             <td class="small text-muted text-truncate" style="max-width: 250px;">

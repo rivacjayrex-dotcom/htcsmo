@@ -121,6 +121,15 @@
                             </div>
                         </div>
 
+                        <!-- REQUESTOR'S STATED PURPOSE -->
+                        <div class="approval-purpose mb-4">
+                            <div class="approval-purpose-icon"><i data-lucide="message-square-text"></i></div>
+                            <div class="flex-grow-1">
+                                <small class="text-uppercase fw-bold">Reason for Request</small>
+                                <p class="mb-0" x-text="selectedReq.purpose || 'No reason was recorded for this requisition.'"></p>
+                            </div>
+                        </div>
+
                         <!-- DYNAMIC TIMELINE (Alpine Real-Time for all Signatories) -->
                         <div class="mb-4 px-2">
                             <div class="tracking-stepper">
@@ -284,6 +293,14 @@
             </div>
         </div>
     </div>
+
+    <style>
+        .approval-purpose { display: flex; align-items: flex-start; gap: .85rem; padding: 1rem; border: 1px solid #dce9e1; border-radius: 14px; background: #f5faf7; }
+        .approval-purpose-icon { width: 36px; height: 36px; flex: 0 0 36px; display: grid; place-items: center; border-radius: 10px; background: #dff2e6; color: var(--htc-green); }
+        .approval-purpose-icon svg { width: 17px; height: 17px; }
+        .approval-purpose small { display: block; margin-bottom: .25rem; color: #718078; font-size: 9px; letter-spacing: .08em; }
+        .approval-purpose p { color: #26382e; font-size: .82rem; line-height: 1.6; white-space: pre-line; overflow-wrap: anywhere; }
+    </style>
 
     <script>
         function approvalManager() {

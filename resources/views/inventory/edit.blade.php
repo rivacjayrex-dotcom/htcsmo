@@ -103,6 +103,14 @@
                                     @error('category') <span class="text-danger small">{{ $message }}</span> @enderror
                                 </div>
                                 <div class="col-md-6">
+                                    <label class="form-label small fw-bold text-dark text-uppercase">Requisition Tier <span class="text-danger">*</span></label>
+                                    <select name="requisition_tier" class="form-select border-0 bg-light py-2 rounded-3 shadow-none" required>
+                                        <option value="minor" {{ old('requisition_tier', $item->requisition_tier ?? 'minor') === 'minor' ? 'selected' : '' }}>Minor — routine supplies up to ₱1,000</option>
+                                        <option value="major" {{ old('requisition_tier', $item->requisition_tier) === 'major' ? 'selected' : '' }}>Major — equipment and high-value items</option>
+                                    </select>
+                                    <small class="text-muted">Requestors only see this item inside the selected tier.</small>
+                                </div>
+                                <div class="col-md-6">
                                     <label class="form-label small fw-bold text-dark text-uppercase">Model / Series #</label>
                                     <input type="text" name="model_number" class="form-control border-0 bg-light py-2 rounded-3 shadow-none" value="{{ old('model_number', $item->model_number) }}">
                                 </div>
@@ -119,6 +127,33 @@
                             </div>
                             <textarea name="specifications" class="form-control border-0 bg-white py-3 rounded-4 shadow-sm @error('specifications') is-invalid @enderror" rows="3" required>{{ old('specifications', $item->specifications) }}</textarea>
                             @error('specifications') <span class="text-danger small">{{ $message }}</span> @enderror
+
+                            @php
+                                $savedOptions = collect($item->configurable_options ?? [])->map(fn ($values, $name) => ['name' => $name, 'values' => implode(', ', $values)])->values();
+                                $oldNames = old('option_names');
+                                $oldValues = old('option_values', []);
+                                $optionRows = $oldNames !== null
+                                    ? collect($oldNames)->map(fn ($name, $i) => ['name' => $name, 'values' => $oldValues[$i] ?? ''])->values()
+                                    : $savedOptions;
+                            @endphp
+                            <div class="mt-4" x-data="{ rows: {{ Illuminate\Support\Js::from($optionRows) }} }">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <div>
+                                        <label class="form-label mini-label mb-0">Requestor Choices</label>
+                                        <div class="small text-muted">Choices appear after a requestor clicks this item.</div>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-success rounded-pill" @click="rows.length < 5 && rows.push({name: '', values: ''})">
+                                        <i data-lucide="plus" style="width:14px"></i> Add option
+                                    </button>
+                                </div>
+                                <template x-for="(row, index) in rows" :key="index">
+                                    <div class="row g-2 mb-2">
+                                        <div class="col-md-4"><input type="text" name="option_names[]" x-model="row.name" class="form-control border-0 bg-light" placeholder="Option name"></div>
+                                        <div class="col-md-7"><input type="text" name="option_values[]" x-model="row.values" class="form-control border-0 bg-light" placeholder="Choice 1, Choice 2"></div>
+                                        <div class="col-md-1 d-grid"><button type="button" class="btn btn-light text-danger" @click="rows.splice(index, 1)" aria-label="Remove option"><i data-lucide="x" style="width:15px"></i></button></div>
+                                    </div>
+                                </template>
+                            </div>
                         </div>
 
                         <!-- Section 3: Values & Parameters -->

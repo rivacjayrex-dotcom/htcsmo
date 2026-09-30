@@ -13,12 +13,19 @@ class Supply extends Model
         'brand',
         'model_number',
         'category',           // Keep for backwards-compatibility with views
+        'requisition_tier',
         'specifications',
+        'configurable_options',
         'physical_description',
         'quantity',
         'unit',
         'unit_price',
         'min_stock_level',
+    ];
+
+    protected $casts = [
+        'configurable_options' => 'array',
+        'unit_price' => 'decimal:2',
     ];
 
     /**
