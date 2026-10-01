@@ -8,7 +8,7 @@
 
             <!-- LEFT SIDE: CONTEXTUAL SIDEBAR (Col 4) -->
             <div class="col-lg-4 notification-context">
-                <div class="sticky-top" style="top: 100px;">
+                <div class="notification-context-panel">
 
                     @if(Auth::user()->role == 'smo')
                         <div class="notification-health-card mb-4 {{ $lowStockSupplies->isNotEmpty() ? 'has-alerts' : '' }}">
@@ -170,7 +170,6 @@
         .stock-alert-dot { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; background: #e39a1d; box-shadow: 0 0 0 4px rgba(227,154,29,.12); }.stock-alert-dot.out { background: #d23f48; box-shadow: 0 0 0 4px rgba(210,63,72,.12); }
         @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); } 100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); } }
         @media (max-width: 991.98px) {
-            .notification-context .sticky-top { position: static !important; }
             .notification-center-page .row.g-4 { --bs-gutter-y: 1rem; }
         }
         @media (max-width: 575.98px) {
