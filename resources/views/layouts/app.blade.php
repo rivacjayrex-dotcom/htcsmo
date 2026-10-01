@@ -1038,7 +1038,6 @@
                     <i data-lucide="menu"></i>
                 </button>
                 <div class="page-context">
-                    <span class="page-eyebrow">HTC Supply Management</span>
                     <div class="page-title">{{ $header ?? 'System Dashboard' }}</div>
                 </div>
 

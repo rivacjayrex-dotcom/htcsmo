@@ -5,6 +5,7 @@ use App\Http\Controllers\SupplyController;
 use App\Http\Controllers\RequestController;
 use App\Http\Controllers\RequisitionController;
 use App\Models\SupplyRequest;
+use App\Models\Supply;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
@@ -66,15 +67,41 @@ Route::get('/dashboard', function () {
     }
 
     // 3. SMO SPECIFIC LOGIC
-    $stats = ['total' => 0, 'pending' => 0, 'urgent' => 0, 'monthly_value' => 0];
+    $stats = ['total' => 0, 'pending' => 0, 'urgent' => 0, 'monthly_value' => 0, 'low_stock' => 0, 'out_of_stock' => 0];
     $recentActivity = [];
     $allStaffRequests = [];
+    $deadlineRequests = collect();
+    $lowStockSupplies = collect();
 
     if ($user->role == 'smo') {
         $stats['total'] = Requisition::count();
         $stats['pending'] = Requisition::whereNotIn('status', ['released', 'rejected'])->count();
-        $stats['urgent'] = Requisition::whereIn('status', ['approved_president', 'approved_vp'])
-            ->where('updated_at', '<=', now()->subDays(2))->count();
+        $stats['urgent'] = Requisition::where(function ($query) {
+            $query->where(function ($minor) {
+                $minor->where('request_type', 'minor')->where('status', 'approved_vp');
+            })->orWhere(function ($major) {
+                $major->where('request_type', 'major')->where('status', 'approved_president');
+            });
+        })->where('updated_at', '<=', now()->subDays(2))->count();
+        $deadlineRequests = Requisition::with(['items', 'user'])
+            ->where(function ($query) {
+                $query->where(function ($minor) {
+                    $minor->where('request_type', 'minor')->where('status', 'approved_vp');
+                })->orWhere(function ($major) {
+                    $major->where('request_type', 'major')->where('status', 'approved_president');
+                });
+            })
+            ->where('updated_at', '<=', now()->subDays(2))
+            ->oldest('updated_at')
+            ->take(4)
+            ->get();
+        $stats['low_stock'] = Supply::whereColumn('quantity', '<=', 'min_stock_level')->count();
+        $stats['out_of_stock'] = Supply::where('quantity', '<=', 0)->count();
+        $lowStockSupplies = Supply::whereColumn('quantity', '<=', 'min_stock_level')
+            ->orderByRaw('CASE WHEN quantity <= 0 THEN 0 ELSE 1 END')
+            ->orderByRaw('(min_stock_level - quantity) DESC')
+            ->take(4)
+            ->get();
         $stats['monthly_value'] = Requisition::where('status', 'released')
             ->whereMonth('updated_at', now()->month)->sum('grand_total');
 
@@ -85,8 +112,13 @@ Route::get('/dashboard', function () {
         // Filter by Status (Within Active Lifecycle)
         if (request('status')) {
             if (request('status') === 'near_deadline') {
-                $query->whereIn('status', ['approved_president', 'approved_vp'])
-                      ->where('updated_at', '<=', now()->subDays(2));
+                $query->where(function ($deadline) {
+                    $deadline->where(function ($minor) {
+                        $minor->where('request_type', 'minor')->where('status', 'approved_vp');
+                    })->orWhere(function ($major) {
+                        $major->where('request_type', 'major')->where('status', 'approved_president');
+                    });
+                })->where('updated_at', '<=', now()->subDays(2));
             } else {
                 $query->where('status', request('status'));
             }
@@ -117,7 +149,8 @@ Route::get('/dashboard', function () {
 
     return view('dashboard', compact(
         'activeCount', 'approvedLast24h', 'recentRequests',
-        'stats', 'allStaffRequests', 'recentActivity', 'approvalRequests'
+        'stats', 'allStaffRequests', 'recentActivity', 'approvalRequests',
+        'deadlineRequests', 'lowStockSupplies'
     ));
 })->middleware(['auth'])->name('dashboard');
 

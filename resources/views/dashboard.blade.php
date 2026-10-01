@@ -1,536 +1,330 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="d-flex align-items-center justify-content-between w-100">
-            <span class="text-white fw-bold tracking-wide" style="font-size: 1.1rem;">
-                {{ Auth::user()->role == 'smo' ? 'SMO COMMAND CENTER' : 'INSTITUTIONAL DASHBOARD' }}
-            </span>
-        </div>
-    </x-slot>
+    <x-slot name="header">{{ Auth::user()->role === 'smo' ? 'SMO Command Center' : 'Institutional Dashboard' }}</x-slot>
 
-    <div class="container-fluid py-3 dashboard-page">
+    @php
+        $isSmo = Auth::user()->role === 'smo';
+        $isApprover = in_array(Auth::user()->role, ['dept_head', 'vp_finance', 'vp_admin', 'provost', 'president']);
+        $firstName = explode(' ', trim(Auth::user()->name))[0] ?: Auth::user()->name;
+    @endphp
 
-        @if(Auth::user()->role == 'smo')
-            <!-- ============================================================== -->
-            <!-- SMO IN-CHARGE COMMAND CENTER (THESIS CHAPTER IV FIGURE 7.08)   -->
-            <!-- ============================================================== -->
-
-            <!-- ROW 1: INSTITUTIONAL METRICS STRIP -->
-            <div class="row g-3 mb-4">
-                <!-- 1. Total Requisitions -->
-                <div class="col-xl-3 col-md-6">
-                    <div class="card dashboard-metric border-0 shadow-sm rounded-4 p-4 bg-white h-100 border-start border-4 border-dark">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div>
-                                <span class="text-muted small fw-bold text-uppercase tracking-wider">Total Requisitions</span>
-                                <h2 class="fw-black text-dark mb-0 mt-2" x-data="countUp({{ $stats['total'] }})" x-text="current">0</h2>
-                            </div>
-                            <div class="p-3 bg-light text-dark rounded-3">
-                                <i data-lucide="database" style="width: 22px; height: 22px;"></i>
-                            </div>
-                        </div>
-                        <small class="text-muted d-block mt-3" style="font-size: 10px;">All-time cumulative requisitions</small>
-                    </div>
-                </div>
-
-                <!-- 2. Active in Pipeline -->
-                <div class="col-xl-3 col-md-6">
-                    <div class="card dashboard-metric border-0 shadow-sm rounded-4 p-4 bg-white h-100 border-start border-4 border-warning">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div>
-                                <span class="text-muted small fw-bold text-uppercase tracking-wider">Active Requisitions</span>
-                                <h2 class="fw-black text-warning mb-0 mt-2" x-data="countUp({{ $stats['pending'] }})" x-text="current">0</h2>
-                            </div>
-                            <div class="p-3 bg-warning-subtle text-warning rounded-3">
-                                <i data-lucide="clock" style="width: 22px; height: 22px;"></i>
-                            </div>
-                        </div>
-                        <small class="text-muted d-block mt-3" style="font-size: 10px;">Currently awaiting decisions or fulfillment</small>
-                    </div>
-                </div>
-
-                <!-- 3. CRITICAL 3-DAY SLA ALERT (High-visibility pulsing indicator) -->
-                <div class="col-xl-3 col-md-6">
-                    <div class="card dashboard-metric border-0 shadow-sm rounded-4 p-4 h-100 border-start border-4 {{ $stats['urgent'] > 0 ? 'border-danger bg-danger-subtle pulse-card' : 'border-secondary bg-white' }}">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div>
-                                <span class="{{ $stats['urgent'] > 0 ? 'text-danger fw-bold' : 'text-muted' }} small text-uppercase tracking-wider">
-                                    3-Day SLA Overdue / Warning
-                                </span>
-                                <h2 class="fw-black {{ $stats['urgent'] > 0 ? 'text-danger' : 'text-dark' }} mb-0 mt-2" x-data="countUp({{ $stats['urgent'] }})" x-text="current">0</h2>
-                            </div>
-                            <div class="p-3 {{ $stats['urgent'] > 0 ? 'bg-danger text-white' : 'bg-light text-muted' }} rounded-3">
-                                <i data-lucide="alert-triangle" style="width: 22px; height: 22px;"></i>
-                            </div>
-                        </div>
-                        <div class="mt-3">
-                            @if($stats['urgent'] > 0)
-                                <span class="badge bg-danger text-white rounded-pill px-2 py-1" style="font-size: 9px;">ACTION REQUIRED</span>
-                            @else
-                                <small class="text-muted" style="font-size: 10px;">No requests exceeding turnaround limit</small>
-                            @endif
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 4. Monthly Distribution Value -->
-                <div class="col-xl-3 col-md-6">
-                    <div class="card dashboard-metric border-0 shadow-sm rounded-4 p-4 bg-white h-100 border-start border-4 border-success">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div>
-                                <span class="text-muted small fw-bold text-uppercase tracking-wider">Disbursed This Month</span>
-                                <h2 class="fw-black text-success mb-0 mt-2">₱<span x-data="countUp({{ $stats['monthly_value'] }})" x-text="current.toLocaleString()">0</span></h2>
-                            </div>
-                            <div class="p-3 bg-success-subtle text-success rounded-3">
-                                <i data-lucide="trending-up" style="width: 22px; height: 22px;"></i>
-                            </div>
-                        </div>
-                        <small class="text-muted d-block mt-3" style="font-size: 10px;">Released institutional supply value</small>
-                    </div>
+    <div class="dashboard-page">
+        <section class="dashboard-hero">
+            <div class="dashboard-hero-copy">
+                <span class="dashboard-kicker">{{ $isSmo ? 'Inventory and fulfillment overview' : 'Your requisition workspace' }}</span>
+                <h2>{{ $isSmo ? 'Good day, '.$firstName.'.' : 'Welcome back, '.$firstName.'.' }}</h2>
+                <p>
+                    @if($isSmo)
+                        Monitor institutional demand, deadline risks, and requests ready for release.
+                    @else
+                        Track requests, review approvals, and submit supply needs from one place.
+                    @endif
+                </p>
+                <div class="dashboard-hero-meta">
+                    <span><i data-lucide="calendar-days"></i>{{ now()->format('l, F d, Y') }}</span>
+                    <span><i data-lucide="building-2"></i>{{ Auth::user()->department ?: 'Institutional Office' }}</span>
                 </div>
             </div>
 
-            <!-- ROW 2: MAIN QUEUE & MINI ACTION NOTIFICATION FEED -->
-            <div class="row g-4">
-                <!-- LEFT: INSTITUTIONAL QUEUE MANAGEMENT (8 Cols) -->
-                <div class="col-lg-8">
-                    <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
-                        <!-- HEADER & QUICK ACTIONS -->
-                        <div class="card-header bg-white border-0 p-4 pb-2">
-                            <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
-                                <div>
-                                    <h5 class="fw-bold mb-0 text-dark">Active Requisitions</h5>
-                                </div>
-                                <div class="d-flex align-items-center gap-2">
-                                    <a href="{{ route('admin.approvals') }}" class="btn btn-sm btn-htc dashboard-header-action rounded-pill px-3 fw-bold shadow-sm" style="font-size: 11px;">
-                                        <i data-lucide="package-check" class="me-1" style="width: 14px;"></i> Open Release Queue
-                                    </a>
-                                </div>
-                            </div>
+            <div class="dashboard-hero-actions">
+                @if($isSmo)
+                    <a href="{{ route('admin.approvals') }}" class="hero-btn primary"><i data-lucide="package-check"></i> Release queue</a>
+                    <a href="{{ route('inventory.index') }}" class="hero-btn secondary"><i data-lucide="boxes"></i> Manage stock</a>
+                @else
+                    <button type="button" class="hero-btn primary" data-bs-toggle="modal" data-bs-target="#globalRequestModal"><i data-lucide="plus"></i> New requisition</button>
+                    <a href="{{ route('requests.archive') }}" class="hero-btn secondary"><i data-lucide="archive"></i> View archive</a>
+                @endif
+            </div>
+        </section>
 
-                            <!-- ADVANCED MULTI-FILTER TOOLBAR -->
-                            <form action="{{ route('dashboard') }}" method="GET" class="row g-2 pb-3 border-bottom">
-                                <!-- Status Filter -->
-                                <!-- Status Filter (Active Requisitions Only) -->
-                                <div class="col-md-3 col-sm-6 col-12">
-                                    <select name="status" class="form-select form-select-sm border-0 bg-light rounded-3 shadow-none fw-semibold" onchange="this.form.submit()" style="font-size: 11px;">
-                                        <option value="">All Active Requisitions</option>
-                                        <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Pending Dept Head</option>
-                                        <option value="approved_dept" {{ request('status') == 'approved_dept' ? 'selected' : '' }}>Pending VP Review</option>
-                                        <option value="approved_vp" {{ request('status') == 'approved_vp' ? 'selected' : '' }}>Ready for SMO Release (Minor)</option>
-                                        <option value="approved_provost" {{ request('status') == 'approved_provost' ? 'selected' : '' }}>Pending President</option>
-                                        <option value="approved_president" {{ request('status') == 'approved_president' ? 'selected' : '' }}>Ready for SMO Release (Major)</option>
-                                        <option value="for_clarification" {{ request('status') == 'for_clarification' ? 'selected' : '' }}>⚠️ Office Clarification</option>
-                                        <option value="near_deadline" {{ request('status') == 'near_deadline' ? 'selected' : '' }}>🚨 Near Deadline / Overdue</option>
-                                    </select>
-                                </div>
-
-                                <!-- Dept Filter -->
-                                <div class="col-md-3 col-sm-6 col-12">
-                                    <select name="dept" class="form-select form-select-sm border-0 bg-light rounded-3 shadow-none fw-semibold" onchange="this.form.submit()" style="font-size: 11px;">
-                                        <option value="">All Departments</option>
-                                        <option value="CETE" {{ request('dept') == 'CETE' ? 'selected' : '' }}>CETE</option>
-                                        <option value="CTE" {{ request('dept') == 'CTE' ? 'selected' : '' }}>CTE</option>
-                                        <option value="CBMA" {{ request('dept') == 'CBMA' ? 'selected' : '' }}>CBMA</option>
-                                        <option value="CCJE" {{ request('dept') == 'CCJE' ? 'selected' : '' }}>CCJE</option>
-                                        <option value="CAS" {{ request('dept') == 'CAS' ? 'selected' : '' }}>CAS</option>
-                                    </select>
-                                </div>
-
-                                <!-- Date Range -->
-                                <div class="col-md-4 col-sm-8 col-12">
-                                    <div class="input-group input-group-sm">
-                                        <input type="date" name="date_from" value="{{ request('date_from') }}" class="form-control border-0 bg-light rounded-start-3" onchange="this.form.submit()" style="font-size: 10px;">
-                                        <input type="date" name="date_to" value="{{ request('date_to') }}" class="form-control border-0 bg-light rounded-end-3" onchange="this.form.submit()" style="font-size: 10px;">
-                                    </div>
-                                </div>
-
-                                <!-- Sort Order & Reset -->
-                                <div class="col-md-2 col-sm-4 col-12 text-end d-flex gap-1 justify-content-end">
-                                    <select name="order" class="form-select form-select-sm border-0 bg-light rounded-3 shadow-none" onchange="this.form.submit()" style="font-size: 10px;">
-                                        <option value="desc" {{ request('order') == 'desc' ? 'selected' : '' }}>Newest</option>
-                                        <option value="asc" {{ request('order') == 'asc' ? 'selected' : '' }}>Oldest</option>
-                                    </select>
-                                    @if(request()->anyFilled(['status', 'dept', 'date_from', 'date_to']))
-                                        <a href="{{ route('dashboard') }}" class="btn btn-sm btn-outline-danger border-0 p-1" title="Clear Filters">
-                                            <i data-lucide="x-circle" style="width: 16px;"></i>
-                                        </a>
-                                    @endif
-                                </div>
-                            </form>
+        @if($isSmo)
+            <section class="priority-watch" aria-label="Urgent operational warnings">
+                <article class="priority-panel deadline {{ $stats['urgent'] > 0 ? 'has-alerts' : 'is-clear' }}">
+                    <div class="priority-heading">
+                        <span class="priority-symbol"><i data-lucide="{{ $stats['urgent'] > 0 ? 'siren' : 'shield-check' }}"></i></span>
+                        <div>
+                            <span>Release deadline monitor</span>
+                            <h3>{{ $stats['urgent'] > 0 ? $stats['urgent'].' requests need immediate attention' : 'All release deadlines are healthy' }}</h3>
                         </div>
+                        <a href="{{ route('notifications') }}">View deadline center <i data-lucide="arrow-up-right"></i></a>
+                    </div>
+                    <div class="priority-list">
+                        @forelse($deadlineRequests as $deadlineRequest)
+                            @php
+                                $waitingDays = $deadlineRequest->updated_at->diffInDays(now());
+                                $deadlineState = $waitingDays >= 3 ? 'overdue' : 'near';
+                            @endphp
+                            <a href="{{ route('admin.approvals', ['request' => $deadlineRequest->id]) }}" class="priority-row">
+                                <span class="priority-state {{ $deadlineState }}">{{ $waitingDays >= 3 ? 'Overdue' : 'Near deadline' }}</span>
+                                <span class="priority-detail"><b>{{ $deadlineRequest->tracking_code }}</b><small>{{ $deadlineRequest->items->first()->item_name ?? 'Supply requisition' }} · {{ $deadlineRequest->user->department ?: 'General' }}</small></span>
+                                <span class="priority-value">Day {{ $waitingDays }}<i data-lucide="chevron-right"></i></span>
+                            </a>
+                        @empty
+                            <div class="priority-clear"><i data-lucide="circle-check-big"></i><span><b>No near or overdue releases</b><small>SMO fulfillment is currently within the three-day target.</small></span></div>
+                        @endforelse
+                    </div>
+                </article>
 
-                        <!-- REQUISITIONS TABLE -->
-                        <div class="table-responsive">
-                            <table class="table table-hover align-middle mb-0 responsive-dashboard-table" style="font-size: 0.86rem;">
-                                <thead class="bg-light text-muted uppercase" style="font-size: 9px;">
-                                    <tr>
-                                        <th class="ps-4 py-3">Control Tracking Code</th>
-                                        <th>Requestor</th>
-                                        <th>Primary Item</th>
-                                        <th class="text-center">Status</th>
-                                        <th class="pe-4 text-end">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @forelse($allStaffRequests as $req)
+                <article class="priority-panel stock {{ $stats['low_stock'] > 0 ? 'has-alerts' : 'is-clear' }}">
+                    <div class="priority-heading">
+                        <span class="priority-symbol"><i data-lucide="{{ $stats['low_stock'] > 0 ? 'package-minus' : 'package-check' }}"></i></span>
+                        <div>
+                            <span>Inventory warning</span>
+                            <h3>{{ $stats['low_stock'] > 0 ? $stats['low_stock'].' items require restocking' : 'Inventory thresholds are healthy' }}</h3>
+                        </div>
+                        <a href="{{ route('inventory.index') }}">Manage inventory <i data-lucide="arrow-up-right"></i></a>
+                    </div>
+                    <div class="priority-list">
+                        @forelse($lowStockSupplies as $stockItem)
+                            <a href="{{ route('inventory.edit', $stockItem->id) }}" class="priority-row">
+                                <span class="priority-state {{ $stockItem->quantity <= 0 ? 'overdue' : 'near' }}">{{ $stockItem->quantity <= 0 ? 'Out of stock' : 'Low stock' }}</span>
+                                <span class="priority-detail"><b>{{ $stockItem->item_name }}</b><small>{{ strtoupper($stockItem->requisition_tier ?? 'minor') }} · Minimum {{ $stockItem->min_stock_level }} {{ $stockItem->unit }}</small></span>
+                                <span class="priority-value">{{ $stockItem->quantity }} left<i data-lucide="chevron-right"></i></span>
+                            </a>
+                        @empty
+                            <div class="priority-clear"><i data-lucide="circle-check-big"></i><span><b>No low-stock items</b><small>Every inventory item is currently above its minimum level.</small></span></div>
+                        @endforelse
+                    </div>
+                </article>
+            </section>
+
+            <section class="dashboard-metric-grid four">
+                <article class="modern-metric neutral">
+                    <div class="metric-top"><span class="metric-icon"><i data-lucide="files"></i></span><span class="metric-trend">All time</span></div>
+                    <strong x-data="countUp({{ $stats['total'] }})" x-text="current">0</strong>
+                    <h3>Total requisitions</h3>
+                    <p>Every recorded institutional request.</p>
+                </article>
+                <article class="modern-metric amber">
+                    <div class="metric-top"><span class="metric-icon"><i data-lucide="workflow"></i></span><span class="metric-trend">In progress</span></div>
+                    <strong x-data="countUp({{ $stats['pending'] }})" x-text="current">0</strong>
+                    <h3>Active pipeline</h3>
+                    <p>Awaiting approval or fulfillment.</p>
+                </article>
+                <article class="modern-metric {{ $stats['urgent'] > 0 ? 'red urgent' : 'green' }}">
+                    <div class="metric-top"><span class="metric-icon"><i data-lucide="{{ $stats['urgent'] > 0 ? 'siren' : 'shield-check' }}"></i></span><span class="metric-trend">3-day SLA</span></div>
+                    <strong x-data="countUp({{ $stats['urgent'] }})" x-text="current">0</strong>
+                    <h3>{{ $stats['urgent'] > 0 ? 'Deadline risks' : 'SLA healthy' }}</h3>
+                    <p>{{ $stats['urgent'] > 0 ? 'Near-deadline or overdue releases.' : 'No requests require deadline action.' }}</p>
+                </article>
+                <article class="modern-metric green">
+                    <div class="metric-top"><span class="metric-icon"><i data-lucide="circle-dollar-sign"></i></span><span class="metric-trend">This month</span></div>
+                    <strong class="money">₱<span x-data="countUp({{ (float) $stats['monthly_value'] }})" x-text="Math.round(current).toLocaleString()">0</span></strong>
+                    <h3>Released value</h3>
+                    <p>Value of fulfilled institutional supplies.</p>
+                </article>
+            </section>
+
+            <div class="dashboard-layout">
+                <section class="dashboard-panel queue-panel">
+                    <div class="panel-heading">
+                        <div>
+                            <span class="panel-eyebrow">Operations</span>
+                            <h3>Active requisitions</h3>
+                            <p>Review the live institutional request pipeline.</p>
+                        </div>
+                        <a href="{{ route('admin.approvals') }}" class="panel-action"><i data-lucide="arrow-up-right"></i> Open queue</a>
+                    </div>
+
+                    <form action="{{ route('dashboard') }}" method="GET" class="dashboard-filter-bar">
+                        <label>
+                            <span>Status</span>
+                            <select name="status" onchange="this.form.submit()">
+                                <option value="">All active requests</option>
+                                <option value="pending" @selected(request('status') === 'pending')>Pending Department Head</option>
+                                <option value="approved_dept" @selected(request('status') === 'approved_dept')>Pending VP review</option>
+                                <option value="approved_vp" @selected(request('status') === 'approved_vp')>VP approved</option>
+                                <option value="approved_provost" @selected(request('status') === 'approved_provost')>Pending President</option>
+                                <option value="approved_president" @selected(request('status') === 'approved_president')>Ready for major release</option>
+                                <option value="for_clarification" @selected(request('status') === 'for_clarification')>Needs clarification</option>
+                                <option value="near_deadline" @selected(request('status') === 'near_deadline')>Near deadline / overdue</option>
+                            </select>
+                        </label>
+                        <label>
+                            <span>Department</span>
+                            <select name="dept" onchange="this.form.submit()">
+                                <option value="">All departments</option>
+                                @foreach(['CETE', 'CTE', 'CBMA', 'CCJE', 'CAS'] as $department)
+                                    <option value="{{ $department }}" @selected(request('dept') === $department)>{{ $department }}</option>
+                                @endforeach
+                            </select>
+                        </label>
+                        <label>
+                            <span>From</span>
+                            <input type="date" name="date_from" value="{{ request('date_from') }}" onchange="this.form.submit()">
+                        </label>
+                        <label>
+                            <span>To</span>
+                            <input type="date" name="date_to" value="{{ request('date_to') }}" onchange="this.form.submit()">
+                        </label>
+                        <label class="sort-filter">
+                            <span>Order</span>
+                            <select name="order" onchange="this.form.submit()">
+                                <option value="desc" @selected(request('order', 'desc') === 'desc')>Newest</option>
+                                <option value="asc" @selected(request('order') === 'asc')>Oldest</option>
+                            </select>
+                        </label>
+                        @if(request()->anyFilled(['status', 'dept', 'date_from', 'date_to', 'order']))
+                            <a href="{{ route('dashboard') }}" class="filter-reset" title="Clear filters"><i data-lucide="rotate-ccw"></i><span>Reset</span></a>
+                        @endif
+                    </form>
+
+                    <div class="table-responsive dashboard-table-wrap">
+                        <table class="table dashboard-table responsive-dashboard-table">
+                            <thead>
+                                <tr><th>Request</th><th>Requestor</th><th>Primary item</th><th>Status</th><th></th></tr>
+                            </thead>
+                            <tbody>
+                                @forelse($allStaffRequests as $req)
                                     @php
                                         $isOverdue = method_exists($req, 'isOverdue') && $req->isOverdue();
                                         $isNearDeadline = method_exists($req, 'isNearingDeadline') && $req->isNearingDeadline();
-
-                                        $statusClass = match($req->status) {
-                                            'released'           => 'bg-success text-white',
-                                            'rejected'           => 'bg-danger text-white',
-                                            'for_clarification'  => 'bg-warning text-dark border border-dark',
-                                            'approved_president' => 'bg-primary text-white',
-                                            default              => 'bg-light text-dark border'
+                                        $statusTone = match($req->status) {
+                                            'for_clarification' => 'warning',
+                                            'approved_vp', 'approved_president' => 'ready',
+                                            default => 'pending',
                                         };
                                     @endphp
                                     <tr class="{{ $isOverdue ? 'row-overdue' : ($isNearDeadline ? 'row-near-deadline' : '') }}">
-                                        <td class="ps-4" data-label="Control code">
-                                            <div class="font-monospace fw-bold text-dark" style="font-size: 11px;">
-                                                {{ $req->tracking_code }}
-                                            </div>
-                                            <small class="text-muted" style="font-size: 9px;">{{ $req->created_at->format('M d, Y') }}</small>
+                                        <td data-label="Request">
+                                            <div class="request-code">{{ $req->tracking_code }}</div>
+                                            <small>{{ $req->created_at->format('M d, Y') }}</small>
                                         </td>
                                         <td data-label="Requestor">
-                                            <div class="fw-bold text-dark">{{ $req->user->name }}</div>
-                                            <span class="badge bg-light text-dark border" style="font-size: 9px;">{{ $req->user->department }}</span>
+                                            <div class="person-cell"><span>{{ strtoupper(substr($req->user->name, 0, 1)) }}</span><div><b>{{ $req->user->name }}</b><small>{{ $req->user->department ?: 'General' }}</small></div></div>
                                         </td>
-                                        <td data-label="Primary item">
-                                            <div class="fw-semibold text-dark">{{ $req->items->first()->item_name ?? 'Supplies' }}</div>
-                                            @if($req->items->count() > 1)
-                                                <small class="text-primary fw-bold" style="font-size: 9px;">+{{ $req->items->count() - 1 }} additional item(s)</small>
-                                            @endif
+                                        <td data-label="Primary item"><b>{{ $req->items->first()->item_name ?? 'Supplies' }}</b>@if($req->items->count() > 1)<small>+{{ $req->items->count() - 1 }} more item(s)</small>@endif</td>
+                                        <td data-label="Status">
+                                            <span class="status-pill {{ $statusTone }}">{{ str_replace('_', ' ', $req->status) }}</span>
+                                            @if($isOverdue)<small class="deadline-text overdue">Overdue by SLA</small>@elseif($isNearDeadline)<small class="deadline-text near">Day 2 warning</small>@endif
                                         </td>
-                                        <td class="text-center" data-label="Status">
-                                            <span class="badge {{ $statusClass }} text-uppercase px-2 py-1 rounded-pill" style="font-size: 8px;">
-                                                {{ str_replace('_', ' ', $req->status) }}
-                                            </span>
-
-                                            <!-- 3-Day SLA Warning Badges -->
-                                            @if($isOverdue && !in_array($req->status, ['released', 'rejected']))
-                                                <div class="text-danger fw-black mt-1" style="font-size: 8px;">🚨 OVERDUE (>3 DAYS)</div>
-                                            @elseif($isNearDeadline && !in_array($req->status, ['released', 'rejected']))
-                                                <div class="text-warning fw-bold mt-1" style="font-size: 8px;">⏳ DAY 2 WARNING</div>
-                                            @endif
-                                        </td>
-                                        <td class="pe-4 text-end" data-label="Action">
-                                            <a href="{{ route('requests.show', $req->id) }}" class="btn btn-sm btn-light border rounded-pill px-3 shadow-none fw-bold" style="font-size: 10px;">
-                                                Track →
-                                            </a>
-                                        </td>
-                                    </tr>
-                                    @empty
-                                    <tr>
-                                        <td colspan="5" class="text-center py-5 text-muted small">No requisitions currently match your criteria.</td>
-                                    </tr>
-                                    @endforelse
-                                </tbody>
-                            </table>
-                        </div>
-                        @if($allStaffRequests->hasPages())
-                            <div class="p-3 border-top">
-                                {{ $allStaffRequests->links() }}
-                            </div>
-                        @endif
-                    </div>
-                </div>
-
-                <!-- RIGHT: SMO AUDIT & ALERT FEED (4 Cols) -->
-                <div class="col-lg-4">
-                    <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
-                        <div class="card-header bg-white border-0 p-4 pb-0 d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="fw-bold mb-0 text-dark">System Alerts & Logs</h6>
-                                <small class="text-muted">Real-time requisition notifications</small>
-                            </div>
-                            <a href="{{ route('notifications') }}" class="btn btn-sm btn-outline-success rounded-pill px-3 fw-bold" style="font-size: 10px;">
-                                View All
-                            </a>
-                        </div>
-                        <div class="card-body p-4">
-                            <div class="mini-alert-feed">
-                                @forelse($recentActivity as $activity)
-                                <div class="d-flex align-items-start mb-3 border-bottom pb-3">
-                                    <div class="p-2 rounded-3 bg-light me-3 text-{{ $activity->type }}">
-                                        <i data-lucide="{{ $activity->icon }}" style="width: 16px; height: 16px;"></i>
-                                    </div>
-                                    <div style="flex: 1;">
-                                        <div class="fw-bold text-dark small" style="line-height: 1.2;">{{ $activity->title }}</div>
-                                        <div class="text-muted mt-1" style="font-size: 10px; line-height: 1.3;">{{ Str::limit($activity->message, 80) }}</div>
-                                        <small class="text-muted d-block mt-1 font-monospace" style="font-size: 9px;">{{ $activity->created_at->diffForHumans() }}</small>
-                                    </div>
-                                </div>
-                                @empty
-                                <div class="text-center py-5 text-muted small">No recent alert activity.</div>
-                                @endforelse
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-        @else
-            <!-- ============================================================== -->
-            <!-- EMPLOYEE & FACULTY DASHBOARD VIEW                              -->
-            <!-- ============================================================== -->
-
-            <div class="dashboard-welcome d-flex justify-content-between align-items-center mb-4 gap-3">
-                <div>
-                    <h4 class="fw-black text-dark mb-0">GoodHoly! {{ Auth::user()->name }}!</h4>
-                    <p class="text-muted small mb-0">{{ Auth::user()->department }} Department • {{ Auth::user()->school_id }}</p>
-                </div>
-                <button type="button" class="btn btn-htc dashboard-primary-action px-4 py-2 rounded-pill fw-bold shadow-sm d-flex align-items-center justify-content-center" data-bs-toggle="modal" data-bs-target="#globalRequestModal">
-                    <i data-lucide="plus-circle" class="me-2" style="width: 16px;"></i> Initialize Requisition
-                </button>
-            </div>
-
-            @if(in_array(Auth::user()->role, ['dept_head', 'vp_finance', 'vp_admin', 'provost', 'president']))
-                <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white mb-4">
-                    <div class="card-header bg-white border-bottom p-4 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
-                        <div>
-                            <div class="d-flex align-items-center gap-2">
-                                <h6 class="m-0 fw-bold text-dark">Requests awaiting your approval</h6>
-                                <span class="badge rounded-pill bg-danger-subtle text-danger">{{ $approvalRequests->count() }}</span>
-                            </div>
-                            <small class="text-muted">Your five most recent requests at the current approval stage.</small>
-                        </div>
-                        <a href="{{ route('admin.approvals') }}" class="btn btn-sm btn-htc dashboard-header-action rounded-pill px-3 fw-bold">
-                            <i data-lucide="clipboard-check" class="me-1" style="width: 14px;"></i> Review all
-                        </a>
-                    </div>
-
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0 responsive-dashboard-table" style="font-size: 0.86rem;">
-                            <thead class="bg-light text-muted small text-uppercase">
-                                <tr>
-                                    <th class="ps-4 py-3">Control Code</th>
-                                    <th>Requestor</th>
-                                    <th>Requested items</th>
-                                    <th>Submitted</th>
-                                    <th class="pe-4 text-end">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse($approvalRequests as $approvalRequest)
-                                    <tr>
-                                        <td class="ps-4" data-label="Control code">
-                                            <span class="font-monospace fw-bold text-dark">{{ $approvalRequest->tracking_code }}</span>
-                                            <span class="badge {{ $approvalRequest->request_type === 'major' ? 'bg-primary' : 'bg-secondary' }} rounded-pill px-2 ms-1" style="font-size: 8px;">
-                                                {{ strtoupper($approvalRequest->request_type) }}
-                                            </span>
-                                        </td>
-                                        <td data-label="Requestor">
-                                            <div class="fw-bold text-dark">{{ $approvalRequest->user->name }}</div>
-                                            <small class="text-muted">{{ $approvalRequest->user->department ?? 'General' }}</small>
-                                        </td>
-                                        <td data-label="Requested items">
-                                            <div class="fw-semibold text-dark">{{ $approvalRequest->items->first()->item_name ?? 'Supplies' }}</div>
-                                            @if($approvalRequest->items->count() > 1)
-                                                <small class="text-muted">+{{ $approvalRequest->items->count() - 1 }} other item(s)</small>
-                                            @endif
-                                        </td>
-                                        <td class="text-muted small" data-label="Submitted">{{ $approvalRequest->created_at->format('M d, Y') }}</td>
-                                        <td class="pe-4 text-end" data-label="Action">
-                                            <a href="{{ route('admin.approvals') }}" class="btn btn-sm btn-light border rounded-pill px-3 shadow-none fw-bold" style="font-size: 10px;">
-                                                Review
-                                            </a>
-                                        </td>
+                                        <td data-label="Action"><a href="{{ route('requests.show', $req->id) }}" class="row-action" aria-label="View {{ $req->tracking_code }}"><i data-lucide="arrow-right"></i></a></td>
                                     </tr>
                                 @empty
-                                    <tr>
-                                        <td colspan="5" class="text-center py-4 text-muted small">
-                                            <i data-lucide="check-circle" style="width: 22px; height: 22px;" class="mb-1 opacity-50 d-block mx-auto"></i>
-                                            You are all caught up. No requests are waiting for your approval.
-                                        </td>
-                                    </tr>
+                                    <tr><td colspan="5"><div class="dashboard-empty"><i data-lucide="inbox"></i><strong>No matching requisitions</strong><span>Adjust the filters to see more requests.</span></div></td></tr>
                                 @endforelse
                             </tbody>
                         </table>
                     </div>
-                </div>
+                    @if($allStaffRequests->hasPages())<div class="panel-pagination">{{ $allStaffRequests->links() }}</div>@endif
+                </section>
+
+                <aside class="dashboard-panel activity-panel">
+                    <div class="panel-heading compact">
+                        <div><span class="panel-eyebrow">Live updates</span><h3>Alerts and activity</h3></div>
+                        <a href="{{ route('notifications') }}" class="icon-link" aria-label="View all notifications"><i data-lucide="arrow-up-right"></i></a>
+                    </div>
+                    <div class="activity-list">
+                        @forelse($recentActivity as $activity)
+                            <article class="activity-item">
+                                <span class="activity-icon {{ $activity->type }}"><i data-lucide="{{ $activity->icon ?: 'bell' }}"></i></span>
+                                <div><h4>{{ $activity->title }}</h4><p>{{ Str::limit($activity->message, 92) }}</p><time>{{ $activity->created_at->diffForHumans() }}</time></div>
+                            </article>
+                        @empty
+                            <div class="dashboard-empty small"><i data-lucide="bell-off"></i><strong>No recent alerts</strong><span>New system activity will appear here.</span></div>
+                        @endforelse
+                    </div>
+                    <a href="{{ route('notifications') }}" class="activity-footer">View notification center <i data-lucide="arrow-right"></i></a>
+                </aside>
+            </div>
+        @else
+            <section class="dashboard-metric-grid two">
+                <article class="modern-metric amber">
+                    <div class="metric-top"><span class="metric-icon"><i data-lucide="clock-3"></i></span><span class="metric-trend">In progress</span></div>
+                    <strong x-data="countUp({{ $activeCount }})" x-text="current">0</strong>
+                    <h3>My active requisitions</h3>
+                    <p>Requests moving through the approval workflow.</p>
+                </article>
+                <article class="modern-metric green">
+                    <div class="metric-top"><span class="metric-icon"><i data-lucide="badge-check"></i></span><span class="metric-trend">Last 24 hours</span></div>
+                    <strong x-data="countUp({{ $approvedLast24h }})" x-text="current">0</strong>
+                    <h3>Approved and ready</h3>
+                    <p>Requests recently approved or available for pickup.</p>
+                </article>
+            </section>
+
+            @if($isApprover)
+                <section class="dashboard-panel approval-panel">
+                    <div class="panel-heading">
+                        <div>
+                            <span class="panel-eyebrow">Decision queue</span>
+                            <h3>Waiting for your approval <em>{{ $approvalRequests->count() }}</em></h3>
+                            <p>Your most recent requests at the current approval stage.</p>
+                        </div>
+                        <a href="{{ route('admin.approvals') }}" class="panel-action"><i data-lucide="clipboard-check"></i> Review all</a>
+                    </div>
+                    <div class="table-responsive dashboard-table-wrap">
+                        <table class="table dashboard-table responsive-dashboard-table">
+                            <thead><tr><th>Request</th><th>Requestor</th><th>Requested item</th><th>Submitted</th><th></th></tr></thead>
+                            <tbody>
+                                @forelse($approvalRequests as $approvalRequest)
+                                    <tr>
+                                        <td data-label="Request"><div class="request-code">{{ $approvalRequest->tracking_code }}</div><span class="tier-pill {{ $approvalRequest->request_type }}">{{ $approvalRequest->request_type }}</span></td>
+                                        <td data-label="Requestor"><div class="person-cell"><span>{{ strtoupper(substr($approvalRequest->user->name, 0, 1)) }}</span><div><b>{{ $approvalRequest->user->name }}</b><small>{{ $approvalRequest->user->department ?: 'General' }}</small></div></div></td>
+                                        <td data-label="Requested item"><b>{{ $approvalRequest->items->first()->item_name ?? 'Supplies' }}</b>@if($approvalRequest->items->count() > 1)<small>+{{ $approvalRequest->items->count() - 1 }} more item(s)</small>@endif</td>
+                                        <td data-label="Submitted"><span class="table-date">{{ $approvalRequest->created_at->format('M d, Y') }}</span></td>
+                                        <td data-label="Action"><a href="{{ route('admin.approvals', ['request' => $approvalRequest->id]) }}" class="row-action" aria-label="Review {{ $approvalRequest->tracking_code }}"><i data-lucide="arrow-right"></i></a></td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="5"><div class="dashboard-empty"><i data-lucide="circle-check-big"></i><strong>You are all caught up</strong><span>No requests are waiting for your approval.</span></div></td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
             @endif
 
-            <!-- EMPLOYEE STAT METRICS -->
-            <div class="row g-4 mb-4">
-                <div class="col-md-6">
-                    <div class="card dashboard-metric border-0 shadow-sm p-4 rounded-4 bg-white border-start border-4 border-primary">
-                        <small class="text-uppercase fw-bold text-muted mb-2 d-block tracking-widest" style="font-size: 10px;">My Active Requisitions</small>
-                        <div class="d-flex justify-content-between align-items-center" x-data="countUp({{ $activeCount }})">
-                            <h2 class="display-6 fw-black m-0 text-dark" x-text="current">0</h2>
-                            <div class="p-3 rounded-circle bg-primary-subtle text-primary">
-                                <i data-lucide="clock" style="width: 24px; height: 24px;"></i>
-                            </div>
-                        </div>
-                        <small class="text-muted d-block mt-2" style="font-size: 10px;">Requests in verification, endorsement, or approval</small>
-                    </div>
+            <section class="dashboard-panel">
+                <div class="panel-heading">
+                    <div><span class="panel-eyebrow">Request tracking</span><h3>My procurement activity</h3><p>Follow every active request through its approval journey.</p></div>
+                    <a href="{{ route('requests.index') }}" class="panel-action subtle">View all requests <i data-lucide="arrow-right"></i></a>
                 </div>
-
-                <div class="col-md-6">
-                    <div class="card dashboard-metric border-0 shadow-sm p-4 rounded-4 bg-white border-start border-4 border-success">
-                        <small class="text-uppercase fw-bold text-muted mb-2 d-block tracking-widest" style="font-size: 10px;">Approved & Ready (Last 24h)</small>
-                        <div class="d-flex justify-content-between align-items-center" x-data="countUp({{ $approvedLast24h }})">
-                            <h2 class="display-6 fw-black m-0 text-success" x-text="current">0</h2>
-                            <div class="p-3 rounded-circle bg-success-subtle text-success">
-                                <i data-lucide="check-circle" style="width: 24px; height: 24px;"></i>
-                            </div>
-                        </div>
-                        <small class="text-muted d-block mt-2" style="font-size: 10px;">Requisitions ready for pickup at the SMO</small>
-                    </div>
-                </div>
-            </div>
-
-            <!-- MY IN-PROGRESS REQUISITIONS TABLE -->
-            <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
-                <div class="dashboard-section-header card-header bg-white border-bottom p-4 d-flex justify-content-between align-items-center gap-2">
-                    <div>
-                        <h6 class="m-0 fw-bold text-dark">My Active Procurement Activity</h6>
-                        <small class="text-muted">Real-time status tracking of your submitted requisitions</small>
-                    </div>
-                    <a href="{{ route('requests.index') }}" class="btn btn-sm btn-link text-success text-decoration-none fw-bold" style="font-size: 11px;">
-                        View Full History →
-                    </a>
-                </div>
-
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0 responsive-dashboard-table" style="font-size: 0.88rem;">
-                        <thead class="bg-light text-muted small text-uppercase">
-                            <tr>
-                                <th class="ps-4 py-3">Control Code</th>
-                                <th>Primary Item</th>
-                                <th>Submitted Date</th>
-                                <th class="text-center">Approval Status</th>
-                                <th class="pe-4 py-3 text-end">Action</th>
-                            </tr>
-                        </thead>
+                <div class="table-responsive dashboard-table-wrap">
+                    <table class="table dashboard-table responsive-dashboard-table">
+                        <thead><tr><th>Request</th><th>Primary item</th><th>Submitted</th><th>Status</th><th></th></tr></thead>
                         <tbody>
                             @forelse($recentRequests as $request)
-                            <tr>
-                                <td class="ps-4" data-label="Control code">
-                                    <span class="font-monospace fw-bold text-dark">{{ $request->tracking_code }}</span>
-                                    <span class="badge {{ $request->request_type == 'major' ? 'bg-primary' : 'bg-secondary' }} rounded-pill px-2 ms-1" style="font-size: 8px;">
-                                        {{ strtoupper($request->request_type) }}
-                                    </span>
-                                </td>
-                                <td data-label="Primary item">
-                                    <div class="fw-bold text-dark">{{ $request->items->first()->item_name ?? 'Supplies' }}</div>
-                                    @if($request->items->count() > 1)
-                                        <small class="text-muted">+{{ $request->items->count() - 1 }} other item(s)</small>
-                                    @endif
-                                </td>
-                                <td class="text-muted small" data-label="Submitted">{{ $request->created_at->format('M d, Y') }}</td>
-                                <td class="text-center" data-label="Status">
-                                    @php
-                                        $statusClass = match($request->status) {
-                                            'released'          => 'bg-success text-white',
-                                            'for_clarification' => 'bg-warning text-dark border border-warning',
-                                            'rejected'          => 'bg-danger text-white',
-                                            default             => 'bg-light text-dark border'
-                                        };
-                                    @endphp
-                                    <span class="badge {{ $statusClass }} text-uppercase px-3 py-1 rounded-pill" style="font-size: 9px;">
-                                        {{ str_replace('_', ' ', $request->status) }}
-                                    </span>
-                                </td>
-                                <td class="pe-4 text-end" data-label="Action">
-                                    <a href="{{ route('requests.show', $request->id) }}" class="btn btn-sm btn-light border rounded-pill px-3 shadow-none fw-bold" style="font-size: 10px;">
-                                        Track Order →
-                                    </a>
-                                </td>
-                            </tr>
+                                @php
+                                    $statusTone = match($request->status) {
+                                        'for_clarification' => 'warning',
+                                        'approved_vp', 'approved_president' => 'ready',
+                                        default => 'pending',
+                                    };
+                                @endphp
+                                <tr>
+                                    <td data-label="Request"><div class="request-code">{{ $request->tracking_code }}</div><span class="tier-pill {{ $request->request_type }}">{{ $request->request_type }}</span></td>
+                                    <td data-label="Primary item"><b>{{ $request->items->first()->item_name ?? 'Supplies' }}</b>@if($request->items->count() > 1)<small>+{{ $request->items->count() - 1 }} more item(s)</small>@endif</td>
+                                    <td data-label="Submitted"><span class="table-date">{{ $request->created_at->format('M d, Y') }}</span></td>
+                                    <td data-label="Status"><span class="status-pill {{ $statusTone }}">{{ str_replace('_', ' ', $request->status) }}</span></td>
+                                    <td data-label="Action"><a href="{{ route('requests.show', $request->id) }}" class="row-action" aria-label="Track {{ $request->tracking_code }}"><i data-lucide="arrow-right"></i></a></td>
+                                </tr>
                             @empty
-                            <tr>
-                                <td colspan="5" class="text-center py-5 text-muted">
-                                    <i data-lucide="package-open" style="width: 36px; height: 36px;" class="mb-2 opacity-25 d-block mx-auto"></i>
-                                    You have no active requisitions. Click <strong>"+ Initialize Requisition"</strong> above to make a request.
-                                </td>
-                            </tr>
+                                <tr><td colspan="5"><div class="dashboard-empty"><i data-lucide="package-open"></i><strong>No active requisitions</strong><span>Start a new requisition when your office needs supplies.</span><button type="button" data-bs-toggle="modal" data-bs-target="#globalRequestModal">Create requisition</button></div></td></tr>
                             @endforelse
                         </tbody>
                     </table>
                 </div>
-            </div>
+            </section>
         @endif
     </div>
 
     <style>
-        .btn-htc { background-color: var(--htc-green); color: white; border: none; }
-        .btn-htc:hover { background-color: #0d2e16; color: white; }
-        .row-near-deadline { background-color: rgba(253, 126, 20, 0.05) !important; border-left: 4px solid #fd7e14 !important; }
-        .row-overdue { background-color: rgba(220, 53, 69, 0.06) !important; border-left: 4px solid #dc3545 !important; }
-        .pulse-card { animation: pulseWarningCard 2.5s infinite; }
-        @keyframes pulseWarningCard {
-            0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.3); }
-            70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
-        }
-        .mini-alert-feed { max-height: 480px; overflow-y: auto; }
-
-        .dashboard-page .form-select,
-        .dashboard-page input[type="date"] { min-height: 36px; }
-
-        @media (max-width: 767.98px) {
-            .dashboard-page { padding-top: .35rem !important; }
-            .dashboard-page .row.g-4 { --bs-gutter-y: 1rem; }
-            .dashboard-welcome { align-items: flex-start !important; flex-direction: column; }
-            .dashboard-primary-action { width: 100%; min-height: 44px; }
-            .dashboard-metric { padding: 1.15rem !important; }
-            .dashboard-metric h2,
-            .dashboard-metric .display-6 { font-size: 1.8rem; }
-            .dashboard-metric .p-3 { padding: .75rem !important; }
-            .dashboard-page .card-header { padding: 1rem !important; }
-            .dashboard-page .card-header > .d-flex,
-            .dashboard-section-header { align-items: flex-start !important; flex-direction: column; }
-            .dashboard-header-action { width: 100%; min-height: 40px; display: inline-flex; align-items: center; justify-content: center; }
-            .dashboard-page form .form-select,
-            .dashboard-page form input[type="date"] { min-height: 42px; font-size: 12px !important; }
-            .dashboard-page form .col-12.text-end { justify-content: stretch !important; }
-            .dashboard-page form .col-12.text-end .form-select { flex: 1; }
-
-            .dashboard-page .table-responsive { overflow: visible; }
-            .dashboard-page .responsive-dashboard-table { display: block; min-width: 0; background: #f5f8f6; }
-            .responsive-dashboard-table thead { display: none; }
-            .responsive-dashboard-table tbody { display: grid; gap: .75rem; padding: .75rem; }
-            .responsive-dashboard-table tr { display: block; overflow: hidden; border: 1px solid #e2e8e4; border-radius: 14px; background: #fff; box-shadow: 0 3px 12px rgba(24, 58, 37, .05); }
-            .responsive-dashboard-table tbody tr:hover { background: #fff; }
-            .responsive-dashboard-table td {
-                display: grid;
-                grid-template-columns: minmax(88px, 35%) minmax(0, 1fr);
-                align-items: center;
-                gap: .75rem;
-                width: 100%;
-                padding: .7rem .85rem !important;
-                border-color: #edf1ee;
-                text-align: right !important;
-                overflow-wrap: anywhere;
-            }
-            .responsive-dashboard-table td::before {
-                content: attr(data-label);
-                color: #7b8981;
-                font-size: .65rem;
-                font-weight: 800;
-                letter-spacing: .04em;
-                text-align: left;
-                text-transform: uppercase;
-            }
-            .responsive-dashboard-table td > * { justify-self: end; }
-            .responsive-dashboard-table td > div { max-width: 100%; }
-            .responsive-dashboard-table td[colspan] { display: block; text-align: center !important; }
-            .responsive-dashboard-table td[colspan]::before { display: none; }
-            .responsive-dashboard-table .row-overdue,
-            .responsive-dashboard-table .row-near-deadline { border-left-width: 4px !important; }
-            .responsive-dashboard-table .btn { min-height: 36px; display: inline-flex; align-items: center; }
-            .mini-alert-feed { max-height: none; }
-        }
-
-        @media (max-width: 420px) {
-            .responsive-dashboard-table td { grid-template-columns: 82px minmax(0, 1fr); }
-            .dashboard-section-header > a,
-            .dashboard-page .card-header > a { width: 100%; text-align: center; }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-            .pulse-card { animation: none; }
-        }
+        .dashboard-page { padding: .25rem; color: #26372d; }
+        .dashboard-hero { position: relative; isolation: isolate; min-height: 210px; display: flex; align-items: center; justify-content: space-between; gap: 2rem; margin-bottom: 1rem; padding: 2rem 2.2rem; overflow: hidden; border: 1px solid rgba(255,255,255,.1); border-radius: 22px; color: #fff; background: radial-gradient(circle at 12% -60%, rgba(74,222,128,.28), transparent 24rem), radial-gradient(circle at 95% 130%, rgba(255,255,255,.13), transparent 18rem), linear-gradient(125deg, #052e16, #14532d 55%, #17713d); box-shadow: 0 18px 42px rgba(12,68,35,.2); }
+        .dashboard-hero::after { content: ''; position: absolute; z-index: -1; width: 220px; height: 220px; right: 24%; bottom: -170px; border: 34px solid rgba(255,255,255,.045); border-radius: 50%; }
+        .dashboard-hero-copy { max-width: 650px; }.dashboard-kicker, .panel-eyebrow { display: block; margin-bottom: .45rem; color: #8ee5aa; font-size: .62rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }.dashboard-hero h2 { margin: 0 0 .45rem; color: #fff; font-size: clamp(1.65rem, 3vw, 2.3rem); font-weight: 800; letter-spacing: -.035em; }.dashboard-hero p { max-width: 620px; margin: 0; color: rgba(239,251,243,.72); font-size: .78rem; line-height: 1.65; }.dashboard-hero-meta { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 1.25rem; }.dashboard-hero-meta span { display: flex; align-items: center; gap: .4rem; color: rgba(239,251,243,.68); font-size: .63rem; font-weight: 600; }.dashboard-hero-meta svg { width: 14px; height: 14px; color: #86dca2; }
+        .dashboard-hero-actions { min-width: 170px; display: flex; flex-direction: column; gap: .65rem; }.hero-btn { min-height: 43px; display: inline-flex; align-items: center; justify-content: center; gap: .55rem; padding: .65rem 1rem; border: 1px solid rgba(255,255,255,.2); border-radius: 11px; font-size: .7rem; font-weight: 800; text-decoration: none; transition: transform .18s ease, background-color .18s ease; }.hero-btn svg { width: 16px; height: 16px; }.hero-btn.primary { background: #fff; color: #14532d; box-shadow: 0 9px 22px rgba(1,25,10,.18); }.hero-btn.secondary { background: rgba(255,255,255,.09); color: #fff; }.hero-btn:hover { transform: translateY(-2px); }.hero-btn.primary:hover { background: #edfaf1; color: #10452a; }.hero-btn.secondary:hover { background: rgba(255,255,255,.16); color: #fff; }
+        .priority-watch { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .85rem; margin-bottom: 1rem; }.priority-panel { --alert: #287249; --alert-soft: #e8f5ed; overflow: hidden; border: 1px solid #cfe3d6; border-top: 4px solid var(--alert); border-radius: 17px; background: #fff; box-shadow: 0 10px 28px rgba(23,65,40,.07); }.priority-panel.deadline.has-alerts { --alert: #c23841; --alert-soft: #fde9ea; border-color: #efc3c6; background: linear-gradient(145deg,#fff 55%,#fff8f8); box-shadow: 0 10px 30px rgba(194,56,65,.1); }.priority-panel.stock.has-alerts { --alert: #c1790a; --alert-soft: #fff1d1; border-color: #edd49d; background: linear-gradient(145deg,#fff 55%,#fffbf2); box-shadow: 0 10px 30px rgba(193,121,10,.1); }.priority-heading { min-height: 76px; display: grid; grid-template-columns: 42px minmax(0,1fr) auto; align-items: center; gap: .7rem; padding: .85rem 1rem; border-bottom: 1px solid color-mix(in srgb, var(--alert) 18%, #e7ede9); }.priority-symbol { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 12px; background: var(--alert-soft); color: var(--alert); }.priority-symbol svg { width: 20px; height: 20px; }.priority-panel.has-alerts .priority-symbol { animation: alertBeat 2.2s ease-in-out infinite; }.priority-heading div > span { display: block; margin-bottom: .15rem; color: var(--alert); font-size: .53rem; font-weight: 900; letter-spacing: .09em; text-transform: uppercase; }.priority-heading h3 { margin: 0; color: #33463a; font-size: .78rem; font-weight: 800; }.priority-heading > a { display: inline-flex; align-items: center; gap: .3rem; color: var(--alert); font-size: .56rem; font-weight: 800; text-decoration: none; white-space: nowrap; }.priority-heading > a svg { width: 13px; }.priority-list { padding: .25rem .85rem .65rem; }.priority-row { display: grid; grid-template-columns: auto minmax(0,1fr) auto; align-items: center; gap: .65rem; padding: .65rem .15rem; border-bottom: 1px solid #ebf0ec; color: inherit; text-decoration: none; }.priority-row:last-child { border-bottom: 0; }.priority-row:hover .priority-detail b { color: var(--alert); }.priority-state { min-width: 67px; padding: .25rem .42rem; border-radius: 999px; font-size: .48rem; font-weight: 900; text-align: center; text-transform: uppercase; }.priority-state.overdue { background: #fde3e5; color: #b52d36; }.priority-state.near { background: #fff0ca; color: #966008; }.priority-detail { min-width: 0; }.priority-detail b, .priority-detail small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.priority-detail b { color: #394b40; font-size: .64rem; transition: color .18s ease; }.priority-detail small { margin-top: .12rem; color: #8a968e; font-size: .53rem; }.priority-value { display: flex; align-items: center; gap: .2rem; color: var(--alert); font-size: .57rem; font-weight: 900; white-space: nowrap; }.priority-value svg { width: 13px; }.priority-clear { min-height: 74px; display: flex; align-items: center; justify-content: center; gap: .65rem; padding: 1rem; }.priority-clear > svg { width: 25px; color: #328457; }.priority-clear b, .priority-clear small { display: block; }.priority-clear b { color: #3a5042; font-size: .64rem; }.priority-clear small { margin-top: .15rem; color: #89968e; font-size: .54rem; }
+        .dashboard-metric-grid { display: grid; gap: .85rem; margin-bottom: 1rem; }.dashboard-metric-grid.four { grid-template-columns: repeat(4, minmax(0,1fr)); }.dashboard-metric-grid.two { grid-template-columns: repeat(2, minmax(0,1fr)); }.modern-metric { --tone: #53665a; --soft: #eef3f0; position: relative; min-width: 0; padding: 1.15rem; overflow: hidden; border: 1px solid #dde7e1; border-radius: 17px; background: rgba(255,255,255,.96); box-shadow: 0 7px 22px rgba(22,65,39,.055); }.modern-metric::after { content: ''; position: absolute; width: 90px; height: 90px; top: -47px; right: -35px; border-radius: 50%; background: var(--soft); opacity: .75; }.modern-metric.amber { --tone: #a66809; --soft: #fff0cb; }.modern-metric.green { --tone: #167044; --soft: #dcf3e5; }.modern-metric.red { --tone: #b72f38; --soft: #fce0e2; }.metric-top { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: .5rem; }.metric-icon { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px; background: var(--soft); color: var(--tone); }.metric-icon svg { width: 18px; }.metric-trend { padding: .28rem .48rem; border-radius: 999px; background: #f3f6f4; color: #7a8980; font-size: .54rem; font-weight: 800; text-transform: uppercase; }.modern-metric > strong { display: block; margin-top: .9rem; color: var(--tone); font-size: 1.75rem; line-height: 1; letter-spacing: -.04em; }.modern-metric > strong.money { font-size: 1.45rem; }.modern-metric h3 { margin: .55rem 0 .15rem; color: #26382e; font-size: .76rem; font-weight: 800; }.modern-metric p { margin: 0; color: #839088; font-size: .6rem; line-height: 1.45; }.modern-metric.urgent { animation: metricPulse 2.8s ease-in-out infinite; }
+        .dashboard-layout { display: grid; grid-template-columns: minmax(0,2.1fr) minmax(280px,.9fr); gap: 1rem; align-items: start; }.dashboard-panel { overflow: hidden; margin-bottom: 1rem; border: 1px solid #dfe8e2; border-radius: 18px; background: rgba(255,255,255,.97); box-shadow: 0 8px 26px rgba(23,65,40,.06); }.panel-heading { min-height: 88px; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.15rem 1.25rem; border-bottom: 1px solid #e5ece7; }.panel-heading.compact { min-height: 76px; }.panel-heading .panel-eyebrow { margin-bottom: .25rem; color: #37845a; }.panel-heading h3 { margin: 0; color: #24372c; font-size: .95rem; font-weight: 800; }.panel-heading h3 em { display: inline-grid; min-width: 23px; height: 23px; margin-left: .35rem; place-items: center; border-radius: 999px; background: #fce4e5; color: #b72f38; font-size: .62rem; font-style: normal; }.panel-heading p { margin: .2rem 0 0; color: #86928b; font-size: .63rem; }.panel-action { min-height: 36px; display: inline-flex; align-items: center; justify-content: center; gap: .4rem; padding: .5rem .7rem; border: 1px solid #1b7548; border-radius: 9px; background: #1b7548; color: #fff; font-size: .62rem; font-weight: 800; text-decoration: none; white-space: nowrap; }.panel-action.subtle { border-color: #d4e2d9; background: #f6faf7; color: #2d6e49; }.panel-action:hover { color: #fff; background: #125a36; }.panel-action.subtle:hover { color: #1b5d3b; background: #eaf5ed; }.panel-action svg { width: 14px; }.icon-link, .row-action { display: inline-grid; place-items: center; border: 1px solid #dce6df; border-radius: 9px; color: #376c4d; background: #f8fbf9; }.icon-link { width: 34px; height: 34px; }.icon-link svg, .row-action svg { width: 14px; }
+        .dashboard-filter-bar { display: grid; grid-template-columns: 1.45fr 1fr .9fr .9fr .75fr auto; gap: .55rem; align-items: end; padding: .8rem 1rem; border-bottom: 1px solid #e7ede9; background: #fafcfb; }.dashboard-filter-bar label { min-width: 0; }.dashboard-filter-bar label > span { display: block; margin: 0 0 .3rem .15rem; color: #78867d; font-size: .52rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }.dashboard-filter-bar :is(select,input) { width: 100%; min-height: 36px; padding: .42rem .55rem; border: 1px solid #dae5de; border-radius: 8px; outline: 0; color: #46584d; background-color: #fff; font-size: .62rem; }.dashboard-filter-bar :is(select,input):focus { border-color: #31865a; box-shadow: 0 0 0 3px rgba(34,126,76,.1); }.filter-reset { min-height: 36px; display: inline-flex; align-items: center; gap: .3rem; padding: .4rem .55rem; border: 1px solid #efd1d3; border-radius: 8px; color: #af3d44; background: #fff7f7; font-size: .58rem; font-weight: 800; text-decoration: none; }.filter-reset svg { width: 13px; }
+        .dashboard-table-wrap { border: 0 !important; border-radius: 0 !important; }.dashboard-table { margin: 0; font-size: .7rem; }.dashboard-table thead th { padding: .75rem 1rem !important; background: #f5f8f6 !important; color: #859189 !important; font-size: .54rem !important; }.dashboard-table tbody td { padding: .82rem 1rem !important; }.dashboard-table td > b { display: block; color: #35483d; font-size: .68rem; }.dashboard-table td > small { display: block; margin-top: .18rem; color: #8b978f; font-size: .57rem; }.request-code { color: #294c37; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .65rem; font-weight: 800; }.person-cell { display: flex; align-items: center; gap: .55rem; }.person-cell > span { width: 30px; height: 30px; flex: 0 0 30px; display: grid; place-items: center; border-radius: 9px; background: #e9f4ed; color: #216b42; font-size: .62rem; font-weight: 800; }.person-cell b, .person-cell small { display: block; }.person-cell b { color: #35473c; font-size: .66rem; }.person-cell small { margin-top: .1rem; color: #8b978f; font-size: .55rem; }.status-pill, .tier-pill { display: inline-block; padding: .3rem .5rem; border-radius: 999px; font-size: .51rem; font-weight: 800; letter-spacing: .025em; text-transform: uppercase; white-space: nowrap; }.status-pill.pending { background: #eef2ef; color: #5e6d64; }.status-pill.ready { background: #def3e6; color: #17683f; }.status-pill.warning { background: #fff0c9; color: #8b5a08; }.tier-pill { margin-top: .3rem; }.tier-pill.minor { background: #e5f4ea; color: #236d45; }.tier-pill.major { background: #fff0cf; color: #8c5a09; }.deadline-text { font-weight: 800; }.deadline-text.overdue { color: #ba3038 !important; }.deadline-text.near { color: #a86a0a !important; }.row-overdue { box-shadow: inset 3px 0 #d3434b; }.row-near-deadline { box-shadow: inset 3px 0 #e5a120; }.row-action { width: 32px; height: 32px; margin-left: auto; }.row-action:hover, .icon-link:hover { border-color: #207547; color: #fff; background: #207547; }.table-date { color: #718078; font-size: .62rem; }.panel-pagination { padding: .75rem 1rem; border-top: 1px solid #e6ece8; }
+        .activity-panel { margin-bottom: 0; }.activity-list { padding: .3rem 1.05rem; }.activity-item { display: grid; grid-template-columns: 38px minmax(0,1fr); gap: .75rem; padding: 1rem .15rem; border-bottom: 1px solid #e9efeb; }.activity-item:last-child { border-bottom: 0; }.activity-icon { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 11px; background: #edf4ef; color: #397250; }.activity-icon.warning { background: #fff2d3; color: #a3690c; }.activity-icon.danger { background: #fde6e8; color: #b53038; }.activity-icon.success { background: #e1f3e7; color: #1d7145; }.activity-icon svg { width: 17px; }.activity-item h4 { margin: .05rem 0 .2rem; color: #34473c; font-size: .68rem; font-weight: 800; }.activity-item p { margin: 0; color: #7f8c84; font-size: .59rem; line-height: 1.5; }.activity-item time { display: block; margin-top: .35rem; color: #a0aaa4; font-size: .52rem; }.activity-footer { min-height: 44px; display: flex; align-items: center; justify-content: center; gap: .4rem; border-top: 1px solid #e6ede8; color: #2e754c; background: #f8fbf9; font-size: .6rem; font-weight: 800; text-decoration: none; }.activity-footer svg { width: 13px; }.approval-panel { margin-bottom: 1rem; }
+        .dashboard-empty { min-height: 190px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1.5rem; text-align: center; }.dashboard-empty.small { min-height: 280px; }.dashboard-empty svg { width: 34px; height: 34px; margin-bottom: .6rem; color: #9caf9f; }.dashboard-empty strong { color: #43564a; font-size: .72rem; }.dashboard-empty span { margin-top: .2rem; color: #8a968e; font-size: .61rem; }.dashboard-empty button { margin-top: .8rem; padding: .45rem .7rem; border: 0; border-radius: 8px; background: #1b7045; color: #fff; font-size: .6rem; font-weight: 800; }
+        @keyframes metricPulse { 0%,100% { box-shadow: 0 7px 22px rgba(183,47,56,.06); } 50% { box-shadow: 0 8px 26px rgba(183,47,56,.18); } }
+        @keyframes alertBeat { 0%,100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+        @media (max-width: 1199.98px) { .dashboard-metric-grid.four { grid-template-columns: repeat(2,minmax(0,1fr)); }.dashboard-layout { grid-template-columns: 1fr; }.activity-panel { margin-bottom: 1rem; }.dashboard-filter-bar { grid-template-columns: repeat(3,minmax(0,1fr)); }.filter-reset { justify-content: center; } }
+        @media (max-width: 767.98px) { .dashboard-page { padding: 0; }.dashboard-hero { min-height: auto; align-items: stretch; flex-direction: column; padding: 1.35rem; border-radius: 17px; }.dashboard-hero-actions { width: 100%; display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); }.priority-watch { grid-template-columns: 1fr; }.priority-heading { grid-template-columns: 42px minmax(0,1fr); }.priority-heading > a { grid-column: 1 / -1; min-height: 34px; justify-content: center; border-radius: 8px; background: var(--alert-soft); }.dashboard-metric-grid.four, .dashboard-metric-grid.two { grid-template-columns: repeat(2,minmax(0,1fr)); }.modern-metric { padding: 1rem; }.modern-metric > strong { font-size: 1.5rem; }.dashboard-filter-bar { grid-template-columns: repeat(2,minmax(0,1fr)); }.sort-filter, .filter-reset { grid-column: auto; }.panel-heading { align-items: flex-start; flex-direction: column; padding: 1rem; }.panel-action { width: 100%; }.dashboard-page .table-responsive { overflow: visible; }.dashboard-page .responsive-dashboard-table { display: block; min-width: 0; background: #f5f8f6; }.responsive-dashboard-table thead { display: none; }.responsive-dashboard-table tbody { display: grid; gap: .75rem; padding: .75rem; }.responsive-dashboard-table tr { display: block; overflow: hidden; border: 1px solid #e0e9e3; border-radius: 13px; background: #fff; box-shadow: 0 3px 12px rgba(24,58,37,.05); }.responsive-dashboard-table td { display: grid; grid-template-columns: minmax(85px,32%) minmax(0,1fr); align-items: center; gap: .65rem; width: 100%; padding: .7rem .8rem !important; border-color: #edf1ee; text-align: right; overflow-wrap: anywhere; }.responsive-dashboard-table td::before { content: attr(data-label); color: #819087; font-size: .55rem; font-weight: 800; text-align: left; text-transform: uppercase; }.responsive-dashboard-table td > * { justify-self: end; }.responsive-dashboard-table td[colspan] { display: block; text-align: center; }.responsive-dashboard-table td[colspan]::before { display: none; }.person-cell { text-align: left; }.dashboard-table td > small { text-align: right; }.row-action { margin-left: auto; }.dashboard-empty { min-height: 150px; }.activity-list { padding-inline: .8rem; } }
+        @media (max-width: 480px) { .dashboard-hero-actions, .dashboard-metric-grid.four, .dashboard-metric-grid.two { grid-template-columns: 1fr; }.dashboard-hero-meta { flex-direction: column; gap: .45rem; }.dashboard-filter-bar { grid-template-columns: 1fr; }.filter-reset { width: 100%; justify-content: center; }.responsive-dashboard-table td { grid-template-columns: 78px minmax(0,1fr); } }
+        @media (prefers-reduced-motion: reduce) { .modern-metric.urgent, .priority-panel.has-alerts .priority-symbol { animation: none; } }
     </style>
 </x-app-layout>
