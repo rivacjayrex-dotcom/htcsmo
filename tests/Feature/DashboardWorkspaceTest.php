@@ -54,7 +54,20 @@ class DashboardWorkspaceTest extends TestCase
             ->assertSee('Release deadline monitor')
             ->assertSee($deadlineRequest->tracking_number)
             ->assertSee('Inventory warning')
-            ->assertSee('Low Stock Bond Paper');
+            ->assertSee('Low Stock Bond Paper')
+            ->assertSeeInOrder([
+                'Overview',
+                'Notifications',
+                'Requisitions',
+                'Inventory & Fulfillment',
+                'Release Queue',
+                'Manage Inventory',
+                'Insights',
+                'Reports & Analytics',
+                'Administration',
+                'Access Requests',
+                'Manage Personnel',
+            ], false);
     }
 
     public function test_employee_sees_personal_metrics_and_request_tracking(): void
@@ -78,6 +91,7 @@ class DashboardWorkspaceTest extends TestCase
             ->assertSee('New requisition')
             ->assertSee('My active requisitions')
             ->assertSee('My procurement activity')
-            ->assertSee($request->tracking_number);
+            ->assertSee($request->tracking_number)
+            ->assertSeeInOrder(['Overview', 'Notifications', 'Requisitions', 'Active Requests', 'Request Archive']);
     }
 }

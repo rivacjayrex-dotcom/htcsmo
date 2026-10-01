@@ -27,7 +27,7 @@
             --sidebar-width: 250px;
         }
 
-        html { font-size: 13px; } /* Standard for professional dashboards */
+        html { font-size: 14px; } /* Standard for professional dashboards */
 
         body {
             background:
@@ -85,12 +85,14 @@
         }
 
         .nav-section-label { font-size: 0.66rem; font-weight: 800; color: rgba(225, 242, 232, .58); text-transform: uppercase; letter-spacing: 1.15px; margin: 1.5rem 0 0.75rem 0.75rem; }
+        .sidebar .flex-grow-1 > .nav-section-label:first-child { margin-top: .75rem; }
         .nav-link-custom { position: relative; display: flex; align-items: center; padding: 0.65rem 0.85rem; color: rgba(246, 252, 248, .78); text-decoration: none; border: 1px solid transparent; border-radius: 12px; margin-bottom: 4px; font-weight: 600; font-size: 0.85rem; transition: background-color .2s ease, border-color .2s ease, color .2s ease, transform .2s ease; }
         .nav-link-custom:hover { background-color: rgba(255, 255, 255, .1); border-color: rgba(255, 255, 255, .08); color: #fff; transform: translateX(3px); }
         .nav-link-custom.active { background-color: rgba(255, 255, 255, .17); border-color: rgba(255, 255, 255, .2); color: #fff; box-shadow: 0 7px 18px rgba(5, 33, 19, .18); }
         .nav-link-custom.active::before { content: ''; position: absolute; top: 22%; bottom: 22%; left: -1px; width: 3px; border-radius: 0 5px 5px 0; background: #f5cf61; }
         .nav-link-custom:focus-visible, .btn-new-request:focus-visible, .sidebar-close:focus-visible { outline: 3px solid rgba(245, 207, 97, .7); outline-offset: 2px; }
         .nav-link-custom [data-lucide] { width: 16px; height: 16px; margin-right: 12px; stroke-width: 2.5px; }
+        .sidebar-count { min-width: 21px; height: 21px; display: inline-grid; margin-left: auto; padding: 0 .35rem; place-items: center; border: 1px solid rgba(255,255,255,.2); border-radius: 999px; color: #fff; background: #c73a43; font-size: .55rem; font-weight: 900; box-shadow: 0 4px 10px rgba(77,10,15,.2); }
 
         /* Main Content & Top Bar */
         .main-content { margin-left: var(--sidebar-width); width: calc(100% - var(--sidebar-width)); }
@@ -703,7 +705,7 @@
         }
 
         @media (max-width: 575.98px) {
-            html { font-size: 13px; }
+            html { font-size: 15px; }
             .brand-section { padding-bottom: 1rem; }
             .brand-logo { width: 39px; height: 39px; }
             .top-bar .dropdown > button { padding: .25rem !important; }
@@ -964,67 +966,63 @@
             </div>
 
             <div class="flex-grow-1">
-                <div class="nav-section-label">General</div>
+                @php
+                    $sidebarRole = Auth::user()->role;
+                    $isApprovalRole = in_array($sidebarRole, ['dept_head', 'vp_finance', 'vp_admin', 'provost', 'president']);
+                    $canManagePersonnel = in_array($sidebarRole, ['dept_head', 'vp_admin', 'provost', 'president', 'smo']);
+                @endphp
+
+                <div class="nav-section-label">Overview</div>
                 <a href="{{ route('dashboard') }}" class="nav-link-custom {{ request()->routeIs('dashboard') ? 'active' : '' }}">
-                    <i data-lucide="layout-dashboard"></i> Home
+                    <i data-lucide="layout-dashboard"></i> Dashboard
+                </a>
+                <a href="{{ route('notifications') }}" class="nav-link-custom {{ request()->routeIs('notifications') ? 'active' : '' }}">
+                    <i data-lucide="bell"></i>
+                    <span>Notifications</span>
+                    @if(isset($unreadCount) && $unreadCount > 0)
+                        <span class="sidebar-count">{{ $unreadCount > 99 ? '99+' : $unreadCount }}</span>
+                    @endif
                 </a>
 
-                <!-- 1. ACTIVE IN-PROGRESS REQUESTS (All Users) -->
+                <div class="nav-section-label">Requisitions</div>
                 <a href="{{ route('requests.index') }}" class="nav-link-custom {{ request()->routeIs('requests.index') ? 'active' : '' }}">
                     <i data-lucide="clipboard-list"></i> Active Requests
                 </a>
-
-                <!-- 2. REQUISITION ARCHIVE / HISTORY (All Users) -->
                 <a href="{{ route('requests.archive') }}" class="nav-link-custom {{ request()->routeIs('requests.archive') ? 'active' : '' }}">
-                    <i data-lucide="archive"></i> Requisition Archive
+                    <i data-lucide="archive"></i> Request Archive
                 </a>
 
-                <a href="{{ route('notifications') }}" class="nav-link-custom {{ request()->routeIs('notifications') ? 'active' : '' }}">
-                    <div class="d-flex justify-content-between align-items-center w-100">
-                        <div><i data-lucide="bell"></i> Notifications</div>
-                        @if(isset($unreadCount) && $unreadCount > 0)
-                            <span class="badge rounded-pill bg-danger" style="font-size: 10px;">{{ $unreadCount }}</span>
-                        @endif
-                    </div>
-                </a>
-
-                @if(Auth::user()->role == 'smo')
-                    <div class="nav-section-label">Institutional Reports</div>
-
-                    <a href="{{ route('admin.reports.index') }}" class="nav-link-custom {{ request()->routeIs('admin.reports.*') ? 'active' : '' }}">
-                        <i data-lucide="bar-chart-3"></i> Reports & Analytics
-                    </a>
-                @endif
-
-                @if(in_array(Auth::user()->role, ['dept_head', 'vp_finance', 'vp_admin', 'provost', 'president']))
-                    <div class="nav-section-label">Management</div>
+                @if($isApprovalRole)
+                    <div class="nav-section-label">Approval Workflow</div>
                     <a href="{{ route('admin.approvals') }}" class="nav-link-custom {{ request()->routeIs('admin.approvals') ? 'active' : '' }}">
-                        <i data-lucide="user-check"></i> Pending Approvals
-                    </a>
-                    @if(in_array(Auth::user()->role, ['dept_head', 'vp_admin', 'provost', 'president']))
-                        <a href="{{ route('admin.users.manage') }}" class="nav-link-custom {{ request()->routeIs('admin.users.manage') ? 'active' : '' }}">
-                            <i data-lucide="users"></i> Manage Personnel
-                        </a>
-                    @endif
-                @endif
-
-                @if(Auth::user()->role == 'smo')
-                    <div class="nav-section-label">System Administration</div>
-                    <a href="{{ route('admin.users.pending') }}" class="nav-link-custom {{ request()->routeIs('admin.users.pending') ? 'active' : '' }}">
-                        <i data-lucide="user-plus"></i> Access Requests
-                    </a>
-                    <a href="{{ route('admin.users.manage') }}" class="nav-link-custom {{ request()->routeIs('admin.users.manage') ? 'active' : '' }}">
-                        <i data-lucide="users"></i> Manage Personnel
+                        <i data-lucide="clipboard-check"></i> Pending Approvals
                     </a>
                 @endif
 
-                @if(Auth::user()->role == 'smo')
-                    <div class="nav-section-label">Inventory & Logistics</div>
+                @if($sidebarRole === 'smo')
+                    <div class="nav-section-label">Inventory & Fulfillment</div>
                     <a href="{{ route('admin.approvals') }}" class="nav-link-custom {{ request()->routeIs('admin.approvals') ? 'active' : '' }}">
-                        <i data-lucide="truck"></i> Release Queue
+                        <i data-lucide="package-check"></i> Release Queue
                     </a>
                     <a href="{{ route('inventory.index') }}" class="nav-link-custom {{ request()->routeIs('inventory.*') ? 'active' : '' }}">
-                        <i data-lucide="package"></i> Manage Stock
+                        <i data-lucide="boxes"></i> Manage Inventory
+                    </a>
+
+                    <div class="nav-section-label">Insights</div>
+                    <a href="{{ route('admin.reports.index') }}" class="nav-link-custom {{ request()->routeIs('admin.reports.*') ? 'active' : '' }}">
+                        <i data-lucide="chart-no-axes-combined"></i> Reports & Analytics
+                    </a>
+                @endif
+
+                @if($canManagePersonnel)
+                    <div class="nav-section-label">Administration</div>
+                    @if($sidebarRole === 'smo')
+                        <a href="{{ route('admin.users.pending') }}" class="nav-link-custom {{ request()->routeIs('admin.users.pending') ? 'active' : '' }}">
+                            <i data-lucide="user-round-check"></i> Access Requests
+                        </a>
+                    @endif
+                    <a href="{{ route('admin.users.manage') }}" class="nav-link-custom {{ request()->routeIs('admin.users.manage') ? 'active' : '' }}">
+                        <i data-lucide="users-round"></i> Manage Personnel
                     </a>
                 @endif
             </div>
