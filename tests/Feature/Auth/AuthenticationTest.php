@@ -3,7 +3,9 @@
 namespace Tests\Feature\Auth;
 
 use App\Models\User;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
 class AuthenticationTest extends TestCase
@@ -40,6 +42,34 @@ class AuthenticationTest extends TestCase
         ]);
 
         $this->assertGuest();
+    }
+
+    public function test_password_reset_requests_use_a_neutral_response_and_email_registered_users(): void
+    {
+        Notification::fake();
+        $user = User::factory()->create();
+        $confirmation = 'If an account with that email exists, we have sent a password reset link.';
+
+        $knownEmailResponse = $this->post(route('password.email'), ['email' => $user->email]);
+        $unknownEmailResponse = $this->post(route('password.email'), ['email' => 'unknown@example.com']);
+
+        $knownEmailResponse->assertRedirect()->assertSessionHas('status', $confirmation);
+        $unknownEmailResponse->assertRedirect()->assertSessionHas('status', $confirmation);
+        Notification::assertSentTo($user, ResetPassword::class);
+        Notification::assertCount(1);
+    }
+
+    public function test_password_recovery_screens_render_with_the_auth_layout(): void
+    {
+        $this->get(route('password.request'))
+            ->assertOk()
+            ->assertSee('Reset your password')
+            ->assertSee('auth-brand-panel', false);
+
+        $this->get(route('password.reset', ['token' => 'test-token', 'email' => 'user@example.com']))
+            ->assertOk()
+            ->assertSee('Choose a new password')
+            ->assertSee('auth-brand-panel', false);
     }
 
     public function test_unapproved_users_are_redirected_to_the_approval_pending_screen(): void

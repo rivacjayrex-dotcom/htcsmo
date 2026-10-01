@@ -5,6 +5,7 @@ namespace Tests\Feature\Auth;
 use App\Models\User;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
@@ -56,16 +57,19 @@ class PasswordResetTest extends TestCase
         $this->post('/forgot-password', ['email' => $user->email]);
 
         Notification::assertSentTo($user, ResetPassword::class, function ($notification) use ($user) {
+            $newPassword = 'updated-password-123';
             $response = $this->post('/reset-password', [
                 'token' => $notification->token,
                 'email' => $user->email,
-                'password' => 'password',
-                'password_confirmation' => 'password',
+                'password' => $newPassword,
+                'password_confirmation' => $newPassword,
             ]);
 
             $response
                 ->assertSessionHasNoErrors()
                 ->assertRedirect(route('login'));
+
+            $this->assertTrue(Hash::check($newPassword, $user->fresh()->password));
 
             return true;
         });
