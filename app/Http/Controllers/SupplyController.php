@@ -10,6 +10,32 @@ use Illuminate\Http\Request;
 
 class SupplyController extends Controller
 {
+    public function requisitionCatalog()
+    {
+        $supplies = Supply::query()
+            ->select([
+                'id', 'item_name', 'brand', 'category', 'requisition_tier',
+                'specifications', 'unit', 'unit_price', 'quantity', 'configurable_options',
+            ])
+            ->where('quantity', '>', 0)
+            ->orderBy('requisition_tier')
+            ->orderBy('item_name')
+            ->get();
+
+        return response()->json($supplies->map(fn (Supply $supply) => [
+            'id' => $supply->id,
+            'name' => $supply->item_name,
+            'brand' => $supply->brand,
+            'category' => $supply->category,
+            'tier' => $supply->requisition_tier ?? 'minor',
+            'specs' => $supply->specifications,
+            'unit' => $supply->unit,
+            'price' => (float) $supply->unit_price,
+            'stock' => $supply->quantity,
+            'options' => $supply->requestOptions(),
+        ])->values());
+    }
+
     // List all inventory items
     public function index(Request $request, InventoryForecastService $forecastService)
     {

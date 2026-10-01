@@ -204,6 +204,9 @@ Route::get('/dashboard', function () {
 
     // Change the submission route to point to the new Requisition Controller
     Route::post('/requisitions', [RequisitionController::class, 'store'])->middleware('auth')->name('requisitions.store');
+    Route::get('/api/requisition-catalog', [SupplyController::class, 'requisitionCatalog'])
+        ->middleware('auth')
+        ->name('api.requisition-catalog');
 
 
     Route::get('/requests/{id}/download', [RequestController::class, 'downloadPDF'])->name('requests.download');

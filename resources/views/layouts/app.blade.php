@@ -1964,17 +1964,6 @@
                                 <label class="mini-label mb-2"><i data-lucide="search" class="me-1" style="width:10px"></i> Select Institutional Stock</label>
                                 <select class="form-select border-0 bg-light py-2 fw-bold" @change="addItemFromInventory($event.target.value); $event.target.value = ''">
                                     <option value="">Search for items (e.g. Bond Paper, Ink)...</option>
-                                    @foreach($availableSupplies as $s)
-                                        <option value="{{ json_encode([
-                                            'id' => $s->id,
-                                            'name' => $s->item_name,
-                                            'specs' => collect([$s->brand, $s->specifications])->filter()->join(' — '),
-                                            'unit' => $s->unit,
-                                            'price' => $s->unit_price
-                                        ]) }}">
-                                            {{ $s->item_name }} ({{ $s->brand }}) — ₱{{ number_format($s->unit_price, 2) }}
-                                        </option>
-                                    @endforeach
                                 </select>
                                 <small class="text-muted mt-2 d-block" style="font-size: 9px;">Official items have pre-validated prices and specifications.</small>
                             </div>
@@ -2310,18 +2299,6 @@
 
         // Cart Engine
         function cartSystem() {
-            const catalog = {{ Illuminate\Support\Js::from($availableSupplies->map(fn ($s) => [
-                'id' => $s->id,
-                'name' => $s->item_name,
-                'brand' => $s->brand,
-                'category' => $s->category,
-                'tier' => $s->requisition_tier ?? 'minor',
-                'specs' => $s->specifications,
-                'unit' => $s->unit,
-                'price' => (float) $s->unit_price,
-                'stock' => $s->quantity,
-                'options' => $s->requestOptions(),
-            ])->values()) }};
             const previousRequest = {{ Illuminate\Support\Js::from([
                 'tier' => old('request_type'),
                 'purpose' => old('purpose', ''),
@@ -2329,7 +2306,10 @@
             ]) }};
 
             return {
-                catalog,
+                catalog: [],
+                catalogLoaded: false,
+                catalogLoading: false,
+                catalogError: '',
                 tier: null,
                 view: 'selection',
                 search: '',
@@ -2347,6 +2327,36 @@
 
                     this.tier = previousRequest.tier;
                     this.view = 'catalog';
+                },
+
+                async loadCatalog() {
+                    if (this.catalogLoaded || this.catalogLoading) return;
+
+                    this.catalogLoading = true;
+                    this.catalogError = '';
+                    try {
+                        const response = await fetch(@json(route('api.requisition-catalog')), {
+                            headers: {'Accept': 'application/json'},
+                            credentials: 'same-origin',
+                        });
+                        if (!response.ok) throw new Error('Catalog request failed.');
+
+                        const catalog = await response.json();
+                        if (!Array.isArray(catalog)) throw new Error('Invalid catalog response.');
+
+                        this.catalog = catalog;
+                        this.catalogLoaded = true;
+                        this.restorePreviousRequest(previousRequest);
+                    } catch (error) {
+                        this.catalogError = 'Could not load supplies. Please try again.';
+                    } finally {
+                        this.catalogLoading = false;
+                    }
+                },
+
+                restorePreviousRequest(previousRequest) {
+                    if (!['minor', 'major'].includes(previousRequest.tier)) return;
+
                     this.cart = (previousRequest.items || []).map((submitted) => {
                         const item = this.catalog.find(catalogItem => catalogItem.id === Number(submitted.supply_id));
                         if (!item || item.tier !== this.tier) return null;
@@ -2354,6 +2364,10 @@
                         return {...item, options, qty: Math.min(item.stock, Math.max(1, Number(submitted.qty) || 1)), key: item.id + ':' + JSON.stringify(options)};
                     }).filter(Boolean);
                     this.refreshIcons();
+                },
+
+                catalogCount(tier) {
+                    return this.catalog.filter(item => item.tier === tier).length;
                 },
 
                 setTier(tier) {
@@ -2437,7 +2451,11 @@
             };
         }
 
-        document.getElementById('globalRequestModal')?.addEventListener('hidden.bs.modal', event => {
+        const requisitionModal = document.getElementById('globalRequestModal');
+        requisitionModal?.addEventListener('show.bs.modal', event => {
+            window.Alpine.$data(event.currentTarget).loadCatalog();
+        });
+        requisitionModal?.addEventListener('hidden.bs.modal', event => {
             window.Alpine.$data(event.currentTarget).resetModal();
         });
 

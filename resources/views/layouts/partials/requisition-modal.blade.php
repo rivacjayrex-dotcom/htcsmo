@@ -17,6 +17,14 @@
                 <div :class="cart.length ? 'active' : ''"><span>3</span> Review &amp; explain</div>
             </div>
 
+            <div x-show="catalogLoading" class="alert alert-light border mx-4 mt-3 mb-0" role="status">
+                <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Loading supplies...
+            </div>
+            <div x-show="catalogError" class="alert alert-danger d-flex justify-content-between align-items-center mx-4 mt-3 mb-0" role="alert">
+                <span x-text="catalogError"></span>
+                <button type="button" class="btn btn-sm btn-outline-danger ms-3" @click="loadCatalog()">Retry</button>
+            </div>
+
             <div x-show="view === 'selection'" x-transition class="tier-stage p-4 p-lg-5">
                 <div class="text-center mb-4">
                     <h5 class="fw-bold mb-1">What type of request are you making?</h5>
@@ -29,7 +37,7 @@
                             <span class="tier-kicker">Routine purchases</span>
                             <strong>Minor requisition</strong>
                             <span>Office and daily-use supplies totaling up to ₱1,000.</span>
-                            <small>{{ $availableSupplies->where('requisition_tier', 'minor')->count() }} items available · Dept Head → VP Finance</small>
+                            <small><span x-text="catalogCount('minor') + ' items available'"></span> · Dept Head → VP Finance</small>
                         </button>
                     </div>
                     <div class="col-md-5">
@@ -38,7 +46,7 @@
                             <span class="tier-kicker">Planned purchases</span>
                             <strong>Major requisition</strong>
                             <span>Equipment, high-value assets, and approved bulk items.</span>
-                            <small>{{ $availableSupplies->where('requisition_tier', 'major')->count() }} items available · Full approval chain</small>
+                            <small><span x-text="catalogCount('major') + ' items available'"></span> · Full approval chain</small>
                         </button>
                     </div>
                 </div>
@@ -85,7 +93,7 @@
                                     </button>
                                 </template>
                             </div>
-                            <div x-show="filteredItems.length === 0" class="empty-catalog"><i data-lucide="package-search"></i><strong>No matching items</strong><span>Try another search or category. Only SMO-listed items appear here.</span></div>
+                            <div x-show="!catalogLoading && !catalogError && filteredItems.length === 0" class="empty-catalog"><i data-lucide="package-search"></i><strong>No matching items</strong><span>Try another search or category. Only SMO-listed items appear here.</span></div>
                             <button type="button" x-show="cart.length" x-transition class="mobile-cart-jump" @click="$refs.cartPane.scrollIntoView({behavior: 'smooth', block: 'start'})">
                                 <span><i data-lucide="shopping-cart"></i> Review requisition</span>
                                 <strong x-text="cartQuantity + ' item' + (cartQuantity === 1 ? '' : 's')"></strong>
