@@ -44,7 +44,7 @@
                                         {{ $req->items->first()->item_name ?? 'Multiple Items / Detail' }}...
                                     </h6>
                                     <p class="text-muted mb-3" style="font-size: 11px;">This requisition requires immediate release.</p>
-                                    <a href="{{ route('admin.approvals') }}" class="btn btn-danger btn-sm w-100 fw-bold rounded-3">Process Now</a>
+                                    <a href="{{ route('admin.approvals', ['request' => $req->id]) }}" class="btn btn-danger btn-sm w-100 fw-bold rounded-3">Process Now</a>
                                 </div>
                             </div>
                         @empty

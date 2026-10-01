@@ -186,6 +186,13 @@ class RequestController extends Controller
 
         $pendingRequests = $query->latest()->get();
 
+        // A notification can deep-link to one request, but only when that
+        // request is already visible in the signed-in user's authorized queue.
+        $focusedRequestId = request()->integer('request');
+        $focusedRequest = $focusedRequestId > 0
+            ? $pendingRequests->firstWhere('id', $focusedRequestId)
+            : null;
+
         // Dedicated list for requests placed on hold / for clarification
         $clarificationRequests = Requisition::with([
                 'items',
@@ -214,10 +221,10 @@ class RequestController extends Controller
             $pendingMinor = $pendingRequests->where('request_type', 'minor');
             $pendingMajor = $pendingRequests->where('request_type', 'major');
 
-            return view('admin.approvals', compact('pendingMinor', 'pendingMajor', 'clarificationRequests'));
+            return view('admin.approvals', compact('pendingMinor', 'pendingMajor', 'clarificationRequests', 'focusedRequest'));
         }
 
-        return view('admin.approvals', compact('pendingRequests', 'clarificationRequests'));
+        return view('admin.approvals', compact('pendingRequests', 'clarificationRequests', 'focusedRequest'));
     }
 
     /**
@@ -515,8 +522,16 @@ class RequestController extends Controller
         // 1. Data for SMO (Critical Deadlines)
         $criticalRequests = ($user->role == 'smo')
             ? Requisition::with('items')
-                ->whereIn('status', ['approved_president', 'approved_vp'])
-                ->where('updated_at', '<=', now()->subDays(2))->get()
+                ->where(function ($query) {
+                    $query->where(function ($minor) {
+                        $minor->where('request_type', 'minor')->where('status', 'approved_vp');
+                    })->orWhere(function ($major) {
+                        $major->where('request_type', 'major')->where('status', 'approved_president');
+                    });
+                })
+                ->where('updated_at', '<=', now()->subDays(2))
+                ->oldest('updated_at')
+                ->get()
             : [];
         $lowStockSupplies = $user->role === 'smo'
             ? Supply::whereColumn('quantity', '<=', 'min_stock_level')

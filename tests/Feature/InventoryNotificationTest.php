@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Notification;
+use App\Models\Requisition;
 use App\Models\Supply;
 use App\Models\User;
 use App\Services\InventoryAlertService;
@@ -46,6 +47,41 @@ class InventoryNotificationTest extends TestCase
             ->assertOk()
             ->assertJsonPath('notification.id', $new->id)
             ->assertJsonPath('latest_id', $new->id);
+    }
+
+    public function test_critical_deadline_links_open_the_exact_release_ready_request(): void
+    {
+        $smo = User::factory()->create(['role' => 'smo']);
+        $requestor = User::factory()->create(['role' => 'employee']);
+
+        $readyMinor = Requisition::create([
+            'user_id' => $requestor->id,
+            'request_type' => 'minor',
+            'status' => 'approved_vp',
+            'grand_total' => 500,
+            'updated_at' => now()->subDays(3),
+        ]);
+        $readyMinor->forceFill(['updated_at' => now()->subDays(3)])->saveQuietly();
+        $unfinishedMajor = Requisition::create([
+            'user_id' => $requestor->id,
+            'request_type' => 'major',
+            'status' => 'approved_vp',
+            'grand_total' => 25000,
+            'updated_at' => now()->subDays(3),
+        ]);
+        $unfinishedMajor->forceFill(['updated_at' => now()->subDays(3)])->saveQuietly();
+
+        $notifications = $this->actingAs($smo)->get(route('notifications'));
+
+        $notifications->assertOk()
+            ->assertSee(route('admin.approvals', ['request' => $readyMinor->id]), false)
+            ->assertDontSee(route('admin.approvals', ['request' => $unfinishedMajor->id]), false);
+
+        $this->actingAs($smo)
+            ->get(route('admin.approvals', ['request' => $readyMinor->id]))
+            ->assertOk()
+            ->assertSee('const focusedApprovalRequest =', false)
+            ->assertSee('data-focused-request-id="'.$readyMinor->id.'"', false);
     }
 
     private function supply(int $quantity): Supply

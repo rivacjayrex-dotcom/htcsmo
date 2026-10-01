@@ -3,7 +3,9 @@
         {{ Auth::user()->role == 'smo' ? __('Release Queue') : __('Pending Request Approvals') }}
     </x-slot>
 
-    <div class="container-fluid py-2 approval-workspace" x-data="approvalManager()">
+    <div class="container-fluid py-2 approval-workspace"
+         x-data="approvalManager()"
+         @if($focusedRequest) data-focused-request-id="{{ $focusedRequest->id }}" @endif>
         <!-- ALERTS -->
         @if(session('success'))
             <div class="alert alert-success border-0 shadow-sm mb-4 rounded-4 d-flex align-items-center">
@@ -303,6 +305,8 @@
     </style>
 
     <script>
+        const focusedApprovalRequest = {{ Illuminate\Support\Js::from($focusedRequest?->toArray()) }};
+
         function approvalManager() {
             return {
                 selectedReq: {},
@@ -310,6 +314,24 @@
                 requestorName: '',
                 requestorDept: '',
                 questioningRole: null,
+
+                init() {
+                    if (!focusedApprovalRequest) return;
+
+                    this.$nextTick(() => {
+                        if (focusedApprovalRequest.request_type === 'major') {
+                            const majorTab = document.getElementById('major-tab');
+                            if (majorTab) bootstrap.Tab.getOrCreateInstance(majorTab).show();
+                        }
+
+                        this.openDetails(
+                            focusedApprovalRequest,
+                            focusedApprovalRequest.items || [],
+                            focusedApprovalRequest.user?.name || 'Requestor',
+                            focusedApprovalRequest.user?.department || 'General'
+                        );
+                    });
+                },
 
                 openDetails(req, items, name, dept) {
                     this.selectedReq = req;
