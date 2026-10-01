@@ -1,110 +1,112 @@
-<div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
+<div class="card request-history-card">
     <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0 workflow-responsive-table" style="font-size: 0.85rem;">
-            <thead class="bg-light text-muted small text-uppercase">
+        <table class="table workflow-responsive-table request-history-table">
+            <thead>
                 <tr>
-                    <th class="ps-4 py-3" style="width: 80px;">Req #</th>
-
-                    <!-- Only SMO sees who made the request -->
-                    @if(Auth::user()->role == 'smo')
-                        <th class="py-3">Requestor / Dept</th>
-                    @endif
-
-                    <th class="py-3">Primary Item</th>
-                    <th class="py-3 text-center">Tier</th>
-                    <th class="py-3 text-end">Grand Total</th>
-                    <th class="py-3 text-center">Status</th>
-                    <th class="pe-4 py-3 text-end" style="min-width: 140px;">Action</th>
+                    <th>Request</th>
+                    @if(Auth::user()->role === 'smo')<th>Requestor</th>@endif
+                    <th>Requested item</th>
+                    <th>Tier</th>
+                    <th class="text-end">Value</th>
+                    <th>Status</th>
+                    <th class="text-end">Actions</th>
                 </tr>
             </thead>
             <tbody>
                 @forelse($requisitions as $req)
-                <tr>
-                    <td class="ps-4 text-muted fw-mono small fw-bold" data-label="Request">{{ $req->tracking_code }}</td>
+                    @php
+                        $isOverdue = method_exists($req, 'isOverdue') && $req->isOverdue();
+                        $isNear = method_exists($req, 'isNearingDeadline') && $req->isNearingDeadline();
+                        $statusTone = match($req->status) {
+                            'released' => 'released',
+                            'rejected' => 'rejected',
+                            'for_clarification' => 'clarification',
+                            'approved_vp', 'approved_president' => 'ready',
+                            default => 'progress',
+                        };
+                        $stageLabel = match($req->status) {
+                            'pending' => 'Department review',
+                            'approved_dept' => $req->request_type === 'minor' ? 'VP Finance review' : 'VP Administration review',
+                            'approved_vp' => $req->request_type === 'minor' ? 'Ready for SMO release' : 'Provost review',
+                            'approved_provost' => 'Presidential review',
+                            'approved_president' => 'Ready for SMO release',
+                            'for_clarification' => 'Requestor clarification required',
+                            'released' => 'Released and completed',
+                            'rejected' => 'Request disapproved',
+                            default => str_replace('_', ' ', $req->status),
+                        };
+                    @endphp
+                    <tr class="{{ $isOverdue ? 'request-overdue' : ($isNear ? 'request-near' : '') }}">
+                        <td data-label="Request">
+                            <div class="history-request-code">{{ $req->tracking_code }}</div>
+                            <small><i data-lucide="calendar"></i>{{ $req->created_at->format('M d, Y') }}</small>
+                        </td>
 
-                    @if(Auth::user()->role == 'smo')
-                    <td data-label="Requestor">
-                        <div class="fw-bold text-dark">{{ $req->user->name }}</div>
-                        <div class="text-muted" style="font-size: 10px;">{{ $req->user->department ?? 'General' }}</div>
-                    </td>
-                    @endif
-
-                    <td data-label="Primary item">
-                        <div class="fw-bold text-dark">{{ $req->items->first()->item_name ?? 'N/A' }}</div>
-                        @if($req->items->count() > 1)
-                            <small class="text-primary fw-bold" style="font-size: 10px;">+ {{ $req->items->count() - 1 }} other items</small>
+                        @if(Auth::user()->role === 'smo')
+                            <td data-label="Requestor">
+                                <div class="request-person"><span>{{ strtoupper(substr($req->user->name, 0, 1)) }}</span><div><b>{{ $req->user->name }}</b><small>{{ $req->user->department ?: 'General' }}</small></div></div>
+                            </td>
                         @endif
-                    </td>
 
-                    <!-- 1. TIER COLUMN (Minor vs Major) -->
-                    <td class="text-center" data-label="Tier">
-                        <span class="badge {{ $req->request_type == 'major' ? 'bg-primary' : 'bg-secondary' }} text-uppercase px-2 py-1 rounded-pill" style="font-size: 9px;">
-                            {{ $req->request_type }}
-                        </span>
-                    </td>
+                        <td data-label="Requested item">
+                            <div class="history-item">
+                                <span><i data-lucide="package"></i></span>
+                                <div>
+                                    <b>{{ $req->items->first()->item_name ?? 'Supply requisition' }}</b>
+                                    <small>
+                                        {{ $req->items->count() }} item line{{ $req->items->count() === 1 ? '' : 's' }}
+                                        @if($req->items->count() > 1)
+                                            · +{{ $req->items->count() - 1 }} more
+                                        @endif
+                                    </small>
+                                </div>
+                            </div>
+                        </td>
 
-                    <!-- 2. GRAND TOTAL COLUMN -->
-                    <td class="text-end fw-bold text-dark" data-label="Total">₱{{ number_format($req->grand_total, 2) }}</td>
-
-                    <!-- 3. STATUS COLUMN (With 3-day SLA Warning) -->
-                    <td class="text-center" data-label="Status">
-                        @php
-                            $statusColor = match($req->status) {
-                                'released'           => 'bg-success text-white',
-                                'rejected'           => 'bg-danger text-white',
-                                'pending'            => 'bg-secondary text-white',
-                                'approved_president' => 'bg-success text-white',
-                                default              => 'bg-warning-subtle text-dark border border-warning'
-                            };
-
-                            // Overdue or nearing deadline indicator for unreleased items
-                            $isOverdue = method_exists($req, 'isOverdue') && $req->isOverdue();
-                            $isNear = method_exists($req, 'isNearingDeadline') && $req->isNearingDeadline();
-                        @endphp
-
-                        <span class="badge {{ $statusColor }} text-uppercase px-2 py-1 rounded-pill" style="font-size: 9px;">
-                            {{ str_replace('_', ' ', $req->status) }}
-                        </span>
-
-                        @if($isOverdue && !in_array($req->status, ['released', 'rejected']))
-                            <div class="text-danger fw-bold mt-1" style="font-size: 9px;">⚠️ Overdue (>3d)</div>
-                        @elseif($isNear && !in_array($req->status, ['released', 'rejected']))
-                            <div class="text-warning fw-bold mt-1" style="font-size: 9px;">⏳ Day 2 Alert</div>
-                        @endif
-                    </td>
-
-                    <!-- 4. ACTIONS COLUMN (Details, Edit, Delete) -->
-                    <td class="pe-4 text-end" data-label="Action">
-                        <div class="workflow-actions d-inline-flex gap-1 align-items-center">
-                            <a href="{{ route('requests.show', $req->id) }}" class="btn btn-sm btn-light border rounded-pill px-3 shadow-none fw-bold" style="font-size: 10px;">
-                                Details →
-                            </a>
-
-                            <!-- If user owns it and it's still pending, allow Edit & Delete -->
-                            @if(Auth::id() == $req->user_id && $req->status == 'pending')
-                                <a href="{{ route('requisitions.edit', $req->id) }}" class="btn btn-sm btn-outline-secondary rounded-pill px-2 py-1" title="Edit Request" style="font-size: 10px;">
-                                    Edit
-                                </a>
-
-                                <form action="{{ route('requisitions.destroy', $req->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to cancel and delete this requisition?');">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-2 py-1" title="Cancel Request" style="font-size: 10px;">
-                                        ✕
-                                    </button>
-                                </form>
+                        <td data-label="Tier"><span class="history-tier {{ $req->request_type }}">{{ $req->request_type }}</span></td>
+                        <td class="text-end" data-label="Value"><strong class="history-value">₱{{ number_format($req->grand_total, 2) }}</strong></td>
+                        <td data-label="Status">
+                            <span class="history-status {{ $statusTone }}">{{ str_replace('_', ' ', $req->status) }}</span>
+                            <small class="history-stage">{{ $stageLabel }}</small>
+                            @if($isOverdue && !in_array($req->status, ['released', 'rejected']))
+                                <span class="history-deadline overdue"><i data-lucide="siren"></i> Overdue</span>
+                            @elseif($isNear && !in_array($req->status, ['released', 'rejected']))
+                                <span class="history-deadline near"><i data-lucide="clock-alert"></i> Day 2 warning</span>
                             @endif
-                        </div>
-                    </td>
-                </tr>
+                        </td>
+                        <td class="text-end" data-label="Actions">
+                            <div class="request-actions">
+                                <a href="{{ route('requests.show', $req->id) }}" class="history-action details" title="View request details"><i data-lucide="arrow-up-right"></i><span>Details</span></a>
+                                @if($type === 'active' && Auth::id() === $req->user_id && $req->status === 'pending')
+                                    <a href="{{ route('requisitions.edit', $req->id) }}" class="history-action edit" title="Edit pending request"><i data-lucide="pencil"></i></a>
+                                    <form action="{{ route('requisitions.destroy', $req->id) }}" method="POST" onsubmit="return confirm('Cancel and delete this pending requisition?');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="history-action cancel" title="Cancel pending request"><i data-lucide="trash-2"></i></button>
+                                    </form>
+                                @endif
+                            </div>
+                        </td>
+                    </tr>
                 @empty
-                <tr>
-                    <td colspan="{{ Auth::user()->role == 'smo' ? '7' : '6' }}" class="text-center py-5 text-muted">
-                        No requisition records found.
-                    </td>
-                </tr>
+                    <tr>
+                        <td colspan="{{ Auth::user()->role === 'smo' ? '7' : '6' }}">
+                            <div class="request-empty">
+                                <span><i data-lucide="{{ $type === 'active' ? 'inbox' : 'archive' }}"></i></span>
+                                <strong>{{ $type === 'active' ? 'No active requisitions found' : 'No archived requisitions found' }}</strong>
+                                <p>{{ request()->hasAny(['search', 'status', 'dept', 'date_from', 'date_to']) ? 'Try changing or clearing the current filters.' : ($type === 'active' ? 'New requests will appear here after submission.' : 'Completed and rejected requests will appear here.') }}</p>
+                                @if($type === 'active' && !request()->hasAny(['search', 'status', 'dept', 'date_from', 'date_to']))
+                                    <button type="button" data-bs-toggle="modal" data-bs-target="#globalRequestModal">Create requisition</button>
+                                @endif
+                            </div>
+                        </td>
+                    </tr>
                 @endforelse
             </tbody>
         </table>
     </div>
 </div>
+
+<style>
+    .request-history-table { margin: 0; font-size: .69rem; }.request-history-table thead th { padding: .78rem 1rem !important; background: #f4f8f5 !important; color: #839088 !important; font-size: .53rem !important; font-weight: 900 !important; }.request-history-table tbody td { padding: .85rem 1rem !important; }.history-request-code { color: #294c37; font-family: ui-monospace,SFMono-Regular,Menlo,monospace; font-size: .64rem; font-weight: 900; }.request-history-table td > small { display: flex; align-items: center; gap: .28rem; margin-top: .22rem; color: #909b94; font-size: .54rem; }.request-history-table td > small svg { width: 11px; height: 11px; }.request-person,.history-item { display: flex; align-items: center; gap: .55rem; }.request-person > span,.history-item > span { width: 32px; height: 32px; flex: 0 0 32px; display: grid; place-items: center; border-radius: 9px; background: #e8f4ec; color: #216b42; font-size: .61rem; font-weight: 900; }.history-item > span { background: #f1f4f2; color: #687a6f; }.history-item svg { width: 15px; }.request-person b,.request-person small,.history-item b,.history-item small { display: block; }.request-person b,.history-item b { color: #35473c; font-size: .65rem; }.request-person small,.history-item small { margin-top: .1rem; color: #8b978f; font-size: .53rem; }.history-tier,.history-status { display: inline-block; padding: .3rem .5rem; border-radius: 999px; font-size: .49rem; font-weight: 900; letter-spacing: .035em; text-transform: uppercase; white-space: nowrap; }.history-tier.minor { background: #e3f3e9; color: #226b44; }.history-tier.major { background: #fff0cd; color: #8f5c08; }.history-value { color: #33473a; font-size: .66rem; white-space: nowrap; }.history-status.progress { background: #edf2ef; color: #5a6b61; }.history-status.ready,.history-status.released { background: #ddf2e5; color: #17683f; }.history-status.clarification { background: #fff0c9; color: #8d5b08; }.history-status.rejected { background: #fde3e5; color: #b22e36; }.history-stage { display: block!important; color: #8b978f!important; line-height: 1.3; }.history-deadline { display: inline-flex; align-items: center; gap: .25rem; margin-top: .3rem; font-size: .5rem; font-weight: 900; text-transform: uppercase; }.history-deadline svg { width: 11px; }.history-deadline.overdue { color: #b82f38; }.history-deadline.near { color: #a56808; }.request-overdue { box-shadow: inset 3px 0 #d33e47; }.request-near { box-shadow: inset 3px 0 #e1a021; }.request-actions { display: inline-flex; align-items: center; justify-content: flex-end; gap: .3rem; }.request-actions form { margin: 0; }.history-action { min-height: 32px; display: inline-flex; align-items: center; justify-content: center; gap: .3rem; padding: .4rem .5rem; border: 1px solid #dbe5df; border-radius: 8px; color: #52665a; background: #fff; font-size: .55rem; font-weight: 800; text-decoration: none; }.history-action svg { width: 13px; height: 13px; }.history-action.details { color: #236c45; background: #f2f8f4; }.history-action.edit:hover { border-color: #9bae9f; color: #314b3a; background: #f1f5f2; }.history-action.cancel { color: #b33840; background: #fff8f8; }.history-action:hover { border-color: #237149; color: #fff; background: #237149; }
+</style>

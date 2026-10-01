@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\View;
 use App\Models\Supply;
 use App\Models\Notification;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Pagination\Paginator;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -23,6 +24,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // The application uses Bootstrap; this prevents Laravel's default
+        // Tailwind paginator markup from rendering oversized, unstyled arrows.
+        Paginator::useBootstrapFive();
+
         // These values are consumed by the authenticated shell and its included
         // partials. Scoping the composer prevents the same queries from running
         // again for every nested Blade view on a page.

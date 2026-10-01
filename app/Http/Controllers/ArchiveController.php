@@ -30,7 +30,7 @@ class ArchiveController extends Controller
                 break;
         }
 
-        $archives = $query->latest('updated_at')->paginate(15);
+        $archives = $query->latest('updated_at')->paginate(15)->withQueryString();
 
         // Statistics for the top cards
         $stats = [

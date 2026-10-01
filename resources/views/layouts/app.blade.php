@@ -158,9 +158,15 @@
         .main-content-inner .nav-pills .nav-link.active { background: linear-gradient(135deg, #17633e, #218a55); color: #fff; box-shadow: 0 5px 13px rgba(24, 91, 59, .18); }
         .main-content-inner .list-group-item { border-color: #e5ece7; color: #4d5f54; }
         .main-content-inner .list-group-item-action:hover { background: #eef7f1; color: #185b3b; }
-        .main-content-inner .pagination { gap: .25rem; }
-        .main-content-inner .page-link { min-width: 34px; border-color: #dce6df; border-radius: 8px !important; color: #286343; text-align: center; }
-        .main-content-inner .active > .page-link { border-color: #185b3b; background: #185b3b; color: #fff; }
+        .main-content-inner nav.d-flex.justify-items-center { width: 100%; align-items: center; gap: 1rem; }
+        .main-content-inner nav.d-flex.justify-items-center p { margin: 0; color: #7b8981 !important; font-size: .62rem; }
+        .main-content-inner .pagination { flex-wrap: wrap; gap: .25rem; margin: 0; }
+        .main-content-inner .page-item { margin: 0; }
+        .main-content-inner .page-link { min-width: 34px; min-height: 34px; display: inline-flex; align-items: center; justify-content: center; padding: .4rem .65rem; border: 1px solid #dce6df; border-radius: 8px !important; color: #286343; background: #fff; font-size: .66rem; font-weight: 700; line-height: 1; text-align: center; box-shadow: none; }
+        .main-content-inner .page-link:hover { border-color: #76a88a; color: #155d38; background: #edf7f0; }
+        .main-content-inner .page-link:focus { border-color: #2e8255; box-shadow: 0 0 0 3px rgba(31, 125, 75, .12); }
+        .main-content-inner .page-item.active > .page-link { border-color: #185b3b; background: linear-gradient(135deg, #185b3b, #218a55); color: #fff; box-shadow: 0 5px 12px rgba(24, 91, 59, .2); }
+        .main-content-inner .page-item.disabled > .page-link { border-color: #e8ede9; color: #a8b1ab; background: #f6f8f7; opacity: .75; }
 
         .modal-backdrop.show { opacity: .58; backdrop-filter: blur(3px); }
         .modal-content { border: 1px solid rgba(24, 91, 59, .11) !important; border-radius: 18px !important; box-shadow: 0 24px 65px rgba(8, 42, 23, .22) !important; }
@@ -712,6 +718,10 @@
             .main-content-inner h2 { font-size: 1.35rem; }
             .main-content-inner .card-body { padding: 1rem; }
             .main-content-inner .table { min-width: 680px; }
+            .main-content-inner nav.d-flex.justify-items-center { display: block !important; }
+            .main-content-inner nav.d-flex.justify-items-center .pagination { width: 100%; flex-wrap: nowrap; justify-content: space-between; }
+            .main-content-inner nav.d-flex.justify-items-center .page-item { flex: 1; }
+            .main-content-inner nav.d-flex.justify-items-center .page-link { width: 100%; min-height: 40px; }
             .modal-dialog { width: calc(100% - 1rem); margin: .5rem; }
             .modal-content { max-height: calc(100dvh - 1rem); }
             .requisition-header { padding: 1rem; }
@@ -1023,11 +1033,6 @@
                 <button type="button" class="btn btn-new-request w-100 shadow-sm" data-bs-toggle="modal" data-bs-target="#globalRequestModal">
                     + NEW REQUISITION
                 </button>
-
-                <!-- Document ID or Version Note (Optional extra detail) -->
-                <div class="text-center mt-2">
-                    <small class="text-muted" style="font-size: 9px; opacity: 0.5;">v1.0.80 Alpha</small>
-                </div>
             </div>
         </aside>
 

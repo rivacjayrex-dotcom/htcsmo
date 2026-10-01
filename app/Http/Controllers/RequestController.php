@@ -76,16 +76,44 @@ class RequestController extends Controller
     {
         $user = Auth::user();
 
-        // 1. Base Query for ACTIVE ONLY
-        $query = Requisition::with(['items', 'user'])
+        $scopeQuery = Requisition::query()
             ->whereNotIn('status', ['released', 'rejected']);
 
-        // 2. Privacy: Non-SMO only sees their own
         if ($user->role !== 'smo') {
-            $query->where('user_id', $user->id);
+            $scopeQuery->where('user_id', $user->id);
         }
 
-        // 3. Filters
+        $requestStats = [
+            'total' => (clone $scopeQuery)->count(),
+            'pending' => (clone $scopeQuery)->where('status', 'pending')->count(),
+            'clarification' => (clone $scopeQuery)->where('status', 'for_clarification')->count(),
+            'ready' => (clone $scopeQuery)->where(function ($ready) {
+                $ready->where(function ($minor) {
+                    $minor->where('request_type', 'minor')->where('status', 'approved_vp');
+                })->orWhere(function ($major) {
+                    $major->where('request_type', 'major')->where('status', 'approved_president');
+                });
+            })->count(),
+            'deadline' => (clone $scopeQuery)->where(function ($ready) {
+                $ready->where(function ($minor) {
+                    $minor->where('request_type', 'minor')->where('status', 'approved_vp');
+                })->orWhere(function ($major) {
+                    $major->where('request_type', 'major')->where('status', 'approved_president');
+                });
+            })->where('updated_at', '<=', now()->subDays(2))->count(),
+        ];
+
+        $query = (clone $scopeQuery)->with(['items', 'user']);
+
+        if ($request->filled('search')) {
+            $search = trim((string) $request->search);
+            $query->where(function ($matches) use ($search) {
+                $matches->where('tracking_number', 'like', "%{$search}%")
+                    ->orWhere('purpose', 'like', "%{$search}%")
+                    ->orWhereHas('items', fn ($items) => $items->where('item_name', 'like', "%{$search}%"))
+                    ->orWhereHas('user', fn ($users) => $users->where('name', 'like', "%{$search}%"));
+            });
+        }
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
@@ -99,11 +127,13 @@ class RequestController extends Controller
             $query->whereDate('created_at', '<=', $request->date_to);
         }
 
-        // 4. Sorting
-        $order = $request->get('order', 'desc');
-        $activeRequests = $query->orderBy('created_at', $order)->paginate(15);
+        $order = $request->get('order') === 'asc' ? 'asc' : 'desc';
+        $activeRequests = $query->orderBy('created_at', $order)->paginate(15)->withQueryString();
+        $departments = $user->role === 'smo'
+            ? User::whereNotNull('department')->where('department', '<>', '')->distinct()->orderBy('department')->pluck('department')
+            : collect();
 
-        return view('requests.index', compact('activeRequests'));
+        return view('requests.index', compact('activeRequests', 'requestStats', 'departments'));
     }
 
     /**
