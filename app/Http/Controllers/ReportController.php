@@ -99,9 +99,9 @@ class ReportController extends Controller
         if ($request->boolean('download_pdf')) {
             $pdf = Pdf::loadView('admin.reports.pdf_template', [
                 ...$report,
-                'filters' => $request->all(),
+                ...$this->pdfContext($report, $request),
                 'generatedBy' => Auth::user()->name,
-                'generatedDate' => now()->format('F d, Y • h:i A'),
+                'generatedDate' => now()->format('F d, Y - h:i A'),
             ])->setPaper('a4', 'landscape');
 
             return $pdf->download('HTC_SMO_'.$report['reportType'].'_'.date('Ymd_His').'.pdf');
@@ -175,29 +175,45 @@ class ReportController extends Controller
         $this->applyDateRange($query, 'created_at', $dateFrom, $dateTo);
 
         $records = $query->latest('created_at')->get();
-        $rows = $records->map(fn (Requisition $requisition) => [
-            'tracking' => $requisition->tracking_code,
-            'date' => $requisition->created_at->format('Y-m-d'),
-            'requestor' => $requisition->user?->name ?? 'Unknown',
-            'department' => $requisition->user?->department ?? 'Unassigned',
-            'tier' => strtoupper($requisition->request_type),
-            'items' => $requisition->items->pluck('item_name')->join(', '),
-            'status' => str_replace('_', ' ', $requisition->status),
-            'total' => (float) $requisition->grand_total,
-        ]);
+        // One row per line item prevents specifications, quantities, and prices
+        // from being hidden inside a comma-separated requisition summary.
+        $rows = $records->flatMap(function (Requisition $requisition) {
+            $items = $requisition->items->isEmpty() ? collect([null]) : $requisition->items;
+
+            return $items->map(fn ($item) => [
+                'tracking' => $requisition->tracking_code,
+                'submitted' => $requisition->created_at->format('Y-m-d H:i'),
+                'requestor' => $requisition->user?->name ?? 'Unknown',
+                'department' => $requisition->user?->department ?? 'Unassigned',
+                'tier' => strtoupper($requisition->request_type),
+                'purpose' => $requisition->purpose ?: 'Not specified',
+                'item' => $item?->item_name ?? 'No line item',
+                'specifications' => $item?->specifications ?: 'Not specified',
+                'quantity' => (int) ($item?->quantity ?? 0),
+                'unit' => $item?->unit ?: '-',
+                'unit_price' => (float) ($item?->unit_price ?? 0),
+                'line_total' => (float) ($item?->subtotal ?? 0),
+                'status' => ucwords(str_replace('_', ' ', $requisition->status)),
+            ]);
+        })->values();
 
         return $this->reportResult(
             'Requisition Transactions',
             $rows,
             [
                 $this->column('tracking', 'Tracking No.'),
-                $this->column('date', 'Date'),
+                $this->column('submitted', 'Submitted'),
                 $this->column('requestor', 'Requestor'),
                 $this->column('department', 'Department'),
                 $this->column('tier', 'Tier'),
-                $this->column('items', 'Items'),
+                $this->column('purpose', 'Purpose'),
+                $this->column('item', 'Item'),
+                $this->column('specifications', 'Specifications'),
+                $this->column('quantity', 'Qty', 'number'),
+                $this->column('unit', 'Unit'),
+                $this->column('unit_price', 'Unit Price', 'money'),
+                $this->column('line_total', 'Line Total', 'money'),
                 $this->column('status', 'Status'),
-                $this->column('total', 'Total Amount', 'money'),
             ],
             'Total Requested Value',
             $records->sum('grand_total'),
@@ -221,8 +237,11 @@ class ReportController extends Controller
         $records = $query->orderBy('category')->orderBy('item_name')->get();
         $rows = $records->map(fn (Supply $supply) => [
             'item' => $supply->item_name,
-            'brand' => $supply->brand ?: '—',
+            'brand' => $supply->brand ?: '-',
+            'model' => $supply->model_number ?: '-',
             'category' => $supply->category,
+            'tier' => strtoupper($supply->requisition_tier ?: 'minor'),
+            'specifications' => $supply->specifications ?: 'Not specified',
             'stock' => $supply->quantity,
             'unit' => $supply->unit,
             'minimum' => $supply->min_stock_level,
@@ -237,7 +256,10 @@ class ReportController extends Controller
             [
                 $this->column('item', 'Item'),
                 $this->column('brand', 'Brand'),
+                $this->column('model', 'Model No.'),
                 $this->column('category', 'Category'),
+                $this->column('tier', 'Tier'),
+                $this->column('specifications', 'Specifications'),
                 $this->column('stock', 'Stock', 'number'),
                 $this->column('unit', 'Unit'),
                 $this->column('minimum', 'Minimum', 'number'),
@@ -345,12 +367,15 @@ class ReportController extends Controller
     {
         $query = RequisitionItem::join('requisitions', 'requisition_items.requisition_id', '=', 'requisitions.id')
             ->join('users', 'requisitions.user_id', '=', 'users.id')
+            ->leftJoin('supplies', 'requisition_items.supply_id', '=', 'supplies.id')
             ->select(
                 'requisition_items.item_name',
                 'requisition_items.unit',
+                DB::raw("COALESCE(supplies.category, 'Uncategorized') as category"),
                 DB::raw('COUNT(DISTINCT requisitions.id) as request_count'),
                 DB::raw('SUM(requisition_items.quantity) as total_quantity'),
                 DB::raw('SUM(requisition_items.subtotal) as total_cost'),
+                DB::raw('AVG(requisition_items.unit_price) as average_unit_price'),
             )
             ->where('requisitions.status', 'released');
 
@@ -361,15 +386,17 @@ class ReportController extends Controller
         $this->applyDateRange($query, 'requisitions.updated_at', $dateFrom, $dateTo);
 
         $records = $query
-            ->groupBy('requisition_items.item_name', 'requisition_items.unit')
+            ->groupBy('requisition_items.item_name', 'requisition_items.unit', 'supplies.category')
             ->orderByDesc('total_quantity')
             ->get();
 
         $rows = $records->map(fn ($item) => [
             'item' => $item->item_name,
+            'category' => $item->category,
             'requests' => (int) $item->request_count,
             'quantity' => (int) $item->total_quantity,
             'unit' => $item->unit,
+            'average_price' => (float) $item->average_unit_price,
             'cost' => (float) $item->total_cost,
         ]);
 
@@ -378,9 +405,11 @@ class ReportController extends Controller
             $rows,
             [
                 $this->column('item', 'Item'),
+                $this->column('category', 'Category'),
                 $this->column('requests', 'Requisitions', 'number'),
                 $this->column('quantity', 'Quantity Distributed', 'number'),
                 $this->column('unit', 'Unit'),
+                $this->column('average_price', 'Average Unit Price', 'money'),
                 $this->column('cost', 'Distributed Value', 'money'),
             ],
             'Total Distributed Value',
@@ -391,7 +420,7 @@ class ReportController extends Controller
 
     private function approvalAuditReport(Request $request, ?Carbon $dateFrom, ?Carbon $dateTo): array
     {
-        $query = ApprovalLog::with(['requisition.user']);
+        $query = ApprovalLog::with(['requisition.user', 'digitalSignature']);
 
         if ($request->filled('role')) {
             $query->where('role', $request->role);
@@ -405,12 +434,19 @@ class ReportController extends Controller
         $records = $query->latest()->get();
         $rows = $records->map(fn (ApprovalLog $log) => [
             'date' => $log->created_at->format('Y-m-d H:i'),
-            'tracking' => $log->requisition?->tracking_code ?? '—',
+            'tracking' => $log->requisition?->tracking_code ?? '-',
             'requestor' => $log->requisition?->user?->name ?? 'Unknown',
             'department' => $log->requisition?->user?->department ?? 'Unassigned',
             'role' => strtoupper(str_replace('_', ' ', $log->role)),
             'action' => $log->action,
-            'remarks' => $log->remarks ?: '—',
+            'remarks' => $log->remarks ?: '-',
+            'signer' => $log->digitalSignature?->signer_name ?? 'Not digitally signed',
+            'signed_at' => $log->digitalSignature?->signed_at
+                ? Carbon::parse($log->digitalSignature->signed_at)->format('Y-m-d H:i')
+                : '-',
+            'verification' => $log->digitalSignature?->signature_token
+                ? strtoupper(substr($log->digitalSignature->signature_token, 0, 12))
+                : '-',
         ]);
 
         return $this->reportResult(
@@ -424,6 +460,9 @@ class ReportController extends Controller
                 $this->column('role', 'Acting Role'),
                 $this->column('action', 'Action'),
                 $this->column('remarks', 'Remarks'),
+                $this->column('signer', 'Digital Signer'),
+                $this->column('signed_at', 'Signed At'),
+                $this->column('verification', 'Verification Ref.'),
             ],
             'Recorded Approval Actions',
             $rows->count(),
@@ -452,8 +491,8 @@ class ReportController extends Controller
             'change' => (int) $log->quantity_change,
             'balance' => (int) $log->balance_after,
             'officer' => $log->user?->name ?? 'Unknown',
-            'tracking' => $log->requisition?->tracking_code ?? '—',
-            'remarks' => $log->remarks ?: '—',
+            'tracking' => $log->requisition?->tracking_code ?? '-',
+            'remarks' => $log->remarks ?: '-',
         ]);
 
         return $this->reportResult(
@@ -492,11 +531,12 @@ class ReportController extends Controller
         $rows = $records->map(fn (UserActivityLog $log) => [
             'date' => Carbon::parse($log->created_at)->format('Y-m-d H:i'),
             'user' => $log->user?->name ?? 'Deleted user',
-            'school_id' => $log->user?->school_id ?? '—',
+            'school_id' => $log->user?->school_id ?? '-',
             'department' => $log->user?->department ?? 'Unassigned',
             'role' => strtoupper(str_replace('_', ' ', $log->user?->role ?? 'unknown')),
             'action' => $log->action,
             'ip' => $log->ip_address,
+            'device' => $log->user_agent ?: '-',
         ]);
 
         return $this->reportResult(
@@ -510,6 +550,7 @@ class ReportController extends Controller
                 $this->column('role', 'Role'),
                 $this->column('action', 'Activity'),
                 $this->column('ip', 'IP Address'),
+                $this->column('device', 'Browser / Device'),
             ],
             'Recorded User Activities',
             $rows->count(),
@@ -539,6 +580,196 @@ class ReportController extends Controller
     private function column(string $key, string $label, string $type = 'text'): array
     {
         return compact('key', 'label', 'type');
+    }
+
+    /**
+     * Add the document-control, categorization, and interpretation data used by
+     * the PDF. Keeping this separate from the tabular result also keeps CSV
+     * exports clean and machine-readable.
+     *
+     * @param  array<string, mixed>  $report
+     * @return array<string, mixed>
+     */
+    private function pdfContext(array $report, Request $request): array
+    {
+        $type = $report['reportType'];
+        $rows = $report['rows'];
+
+        $definitions = [
+            'requisitions' => [
+                'purpose' => 'Provides a line-by-line register of submitted requisitions, including requestor, purpose, item specifications, quantities, pricing, and current workflow status.',
+                'basis' => 'Requisition submission date',
+                'source' => 'Requisitions, requisition line items, and requestor account records. Amounts represent submitted values and may include requests that were not released.',
+                'group' => ['status', 'Workflow Status', 'line_total', 'Line Value', 'money'],
+            ],
+            'inventory' => [
+                'purpose' => 'Documents the current catalog, stock position, reorder threshold, pricing, and recorded asset value for every matching supply item.',
+                'basis' => 'Current inventory snapshot',
+                'source' => 'Live supply catalog balances at generation time. Historical stock levels are available in the Inventory Movement Ledger.',
+                'group' => ['category', 'Supply Category', 'asset_value', 'Asset Value', 'money'],
+            ],
+            'dept_spending' => [
+                'purpose' => 'Summarizes released requisition value, transaction volume, and participation by requesting department.',
+                'basis' => 'Requisition release date',
+                'source' => 'Released requisitions joined to the requestor department. Rejected and unreleased requests are excluded.',
+                'group' => ['department', 'Department', 'total', 'Spending', 'money'],
+            ],
+            'users' => [
+                'purpose' => 'Lists personnel accounts and their institutional identifiers, departments, roles, approval state, and registration dates.',
+                'basis' => 'Account registration date',
+                'source' => 'User account registry. Passwords, reset tokens, and other authentication secrets are never included.',
+                'group' => ['role', 'Personnel Role', null, null, 'number'],
+            ],
+            'item_consumption' => [
+                'purpose' => 'Aggregates released quantities and costs by item and category to support consumption review and purchasing decisions.',
+                'basis' => 'Requisition release date',
+                'source' => 'Line items from released requisitions. Catalog category is shown when the line item remains linked to a supply record.',
+                'group' => ['category', 'Supply Category', 'cost', 'Distributed Value', 'money'],
+            ],
+            'approval_audit' => [
+                'purpose' => 'Presents the complete decision trail for requisitions, including acting role, remarks, signer identity, signing time, and verification reference.',
+                'basis' => 'Approval action date',
+                'source' => 'Approval logs and linked digital-signature records. The displayed verification reference is the first 12 characters of the stored SHA-256 token.',
+                'group' => ['role', 'Acting Role', null, null, 'number'],
+            ],
+            'inventory_movements' => [
+                'purpose' => 'Provides an auditable ledger of releases, restocks, and manual adjustments with resulting balances and responsible officers.',
+                'basis' => 'Inventory transaction date',
+                'source' => 'Immutable inventory transaction logs. Quantity change is signed: positive adds stock and negative removes stock.',
+                'group' => ['type', 'Transaction Type', 'change', 'Net Quantity Change', 'number'],
+            ],
+            'user_activity' => [
+                'purpose' => 'Records user security and application activity with account, department, role, network address, and client information.',
+                'basis' => 'Activity timestamp',
+                'source' => 'User activity audit logs. This confidential report may contain IP addresses and browser/device identifiers.',
+                'group' => ['role', 'Personnel Role', null, null, 'number'],
+            ],
+        ];
+
+        $definition = $definitions[$type];
+        [$groupKey, $groupLabel, $valueKey, $valueLabel, $valueType] = $definition['group'];
+
+        $breakdown = $rows
+            ->groupBy(fn (array $row) => filled($row[$groupKey] ?? null) ? (string) $row[$groupKey] : 'Unassigned')
+            ->map(function (Collection $groupRows, string $label) use ($valueKey, $valueLabel, $valueType) {
+                return [
+                    'label' => $label,
+                    'records' => $groupRows->count(),
+                    'valueLabel' => $valueLabel,
+                    'value' => $valueKey ? $groupRows->sum($valueKey) : null,
+                    'type' => $valueType,
+                ];
+            })
+            ->sortByDesc(fn (array $group) => $group['value'] ?? $group['records'])
+            ->values();
+
+        return [
+            'purpose' => $definition['purpose'],
+            'reportBasis' => $definition['basis'],
+            'sourceNote' => $definition['source'],
+            'classification' => $type === 'user_activity' ? 'Confidential - Internal Use' : 'Internal Administrative Use',
+            'reportReference' => 'HTC-SMO-'.strtoupper(str_replace('_', '-', $type)).'-'.now()->format('Ymd-His'),
+            'dataAsOf' => now()->format('F d, Y - h:i A'),
+            'appliedFilters' => $this->appliedFilterSummary($request),
+            'metrics' => $this->reportMetrics($type, $rows, $report),
+            'breakdownTitle' => $groupLabel,
+            'breakdown' => $breakdown,
+            'notes' => $this->reportNotes($type, $rows, $report),
+        ];
+    }
+
+    /** @return array<int, array{label: string, value: mixed, type: string}> */
+    private function reportMetrics(string $type, Collection $rows, array $report): array
+    {
+        $metrics = match ($type) {
+            'requisitions' => [
+                ['label' => 'Requisitions', 'value' => $rows->pluck('tracking')->unique()->count(), 'type' => 'number'],
+                ['label' => 'Line Items', 'value' => $rows->count(), 'type' => 'number'],
+                ['label' => 'Units Requested', 'value' => $rows->sum('quantity'), 'type' => 'number'],
+            ],
+            'inventory' => [
+                ['label' => 'Catalog Items', 'value' => $rows->count(), 'type' => 'number'],
+                ['label' => 'Units on Hand', 'value' => $rows->sum('stock'), 'type' => 'number'],
+                ['label' => 'Low / Out of Stock', 'value' => $rows->whereIn('health', ['Low stock', 'Out of stock'])->count(), 'type' => 'number'],
+            ],
+            'dept_spending' => [
+                ['label' => 'Departments', 'value' => $rows->count(), 'type' => 'number'],
+                ['label' => 'Released Requests', 'value' => $rows->sum('requests'), 'type' => 'number'],
+                ['label' => 'Active Requestors', 'value' => $rows->sum('requestors'), 'type' => 'number'],
+            ],
+            'users' => [
+                ['label' => 'Accounts', 'value' => $rows->count(), 'type' => 'number'],
+                ['label' => 'Approved', 'value' => $rows->where('status', 'Approved')->count(), 'type' => 'number'],
+                ['label' => 'Pending', 'value' => $rows->where('status', 'Pending')->count(), 'type' => 'number'],
+            ],
+            'item_consumption' => [
+                ['label' => 'Distinct Item Groups', 'value' => $rows->count(), 'type' => 'number'],
+                ['label' => 'Units Distributed', 'value' => $rows->sum('quantity'), 'type' => 'number'],
+                ['label' => 'Requisition Links', 'value' => $rows->sum('requests'), 'type' => 'number'],
+            ],
+            'approval_audit' => [
+                ['label' => 'Approval Actions', 'value' => $rows->count(), 'type' => 'number'],
+                ['label' => 'Digitally Signed', 'value' => $rows->where('verification', '!=', '-')->count(), 'type' => 'number'],
+                ['label' => 'Unsigned Actions', 'value' => $rows->where('verification', '-')->count(), 'type' => 'number'],
+            ],
+            'inventory_movements' => [
+                ['label' => 'Transactions', 'value' => $rows->count(), 'type' => 'number'],
+                ['label' => 'Stock Added', 'value' => $rows->where('change', '>', 0)->sum('change'), 'type' => 'number'],
+                ['label' => 'Stock Removed', 'value' => abs($rows->where('change', '<', 0)->sum('change')), 'type' => 'number'],
+            ],
+            default => [
+                ['label' => 'Activities', 'value' => $rows->count(), 'type' => 'number'],
+                ['label' => 'Distinct Users', 'value' => $rows->pluck('user')->unique()->count(), 'type' => 'number'],
+                ['label' => 'Distinct IP Addresses', 'value' => $rows->pluck('ip')->filter()->unique()->count(), 'type' => 'number'],
+            ],
+        };
+
+        $metrics[] = [
+            'label' => $report['summaryLabel'],
+            'value' => $report['summaryValue'],
+            'type' => $report['summaryType'],
+        ];
+
+        return $metrics;
+    }
+
+    /** @return array<int, string> */
+    private function reportNotes(string $type, Collection $rows, array $report): array
+    {
+        $notes = [
+            'The detailed table contains '.number_format($rows->count()).' matching row(s) after the selected period and filters were applied.',
+            $report['summaryLabel'].' is '.($report['summaryType'] === 'money'
+                ? 'PHP '.number_format((float) $report['summaryValue'], 2)
+                : number_format((float) $report['summaryValue']).'.'),
+        ];
+
+        $notes[] = match ($type) {
+            'requisitions' => 'Each item is printed on its own row; the same tracking number may therefore appear more than once.',
+            'inventory' => 'Stock health is based on the current quantity compared with the configured minimum stock level.',
+            'dept_spending', 'item_consumption' => 'Only released requisitions contribute to expenditure and distribution figures.',
+            'approval_audit' => 'Actions without a digital signature remain visible and are explicitly identified as unsigned.',
+            'inventory_movements' => 'Review the signed quantity change together with the balance after each transaction.',
+            'user_activity' => 'Handle this report according to institutional privacy and access-control policies.',
+            default => 'Account status reflects the approval state recorded when this report was generated.',
+        };
+
+        return $notes;
+    }
+
+    private function appliedFilterSummary(Request $request): string
+    {
+        $labels = [
+            'dept' => 'Department', 'tier' => 'Tier', 'status' => 'Status',
+            'role' => 'Role', 'account_status' => 'Account Status',
+            'category' => 'Category', 'stock_filter' => 'Stock Health',
+            'transaction_type' => 'Transaction Type',
+        ];
+
+        return collect($labels)
+            ->filter(fn (string $label, string $key) => $request->filled($key))
+            ->map(fn (string $label, string $key) => $label.': '.ucwords(str_replace('_', ' ', (string) $request->input($key))))
+            ->values()
+            ->join('; ');
     }
 
     private function applyDateRange(Builder|QueryBuilder $query, string $column, ?Carbon $dateFrom, ?Carbon $dateTo): void

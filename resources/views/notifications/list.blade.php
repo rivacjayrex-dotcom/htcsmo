@@ -51,17 +51,116 @@
 </div>
 
 <style>
-    .notification-feed-item { position: relative; padding: 1.25rem 1.5rem; border-bottom: 1px solid #edf1ef; background: #fff; transition: .2s; }
-    .notification-feed-item:hover { background: #fafcfb; }.notification-feed-item.unread { background: #f7fbf8; }.notification-feed-item.type-warning { border-left: 3px solid #e4a128; }.notification-feed-item.type-danger { border-left: 3px solid #d4434c; }.notification-feed-item.type-success { border-left: 3px solid #27804f; }
-    .notification-feed-icon { width: 42px; height: 42px; flex: 0 0 42px; display: grid; place-items: center; margin-right: .85rem; border-radius: 12px; color: #397253; background: #e8f4ec; }.notification-feed-icon svg { width: 19px; }.type-warning .notification-feed-icon { color: #9a650c; background: #fff0cf; }.type-danger .notification-feed-icon { color: #b52d36; background: #fde9ea; }.type-success .notification-feed-icon { color: #17643d; background: #e4f4ea; }
-    .unread-dot { display: inline-block; width: 7px; height: 7px; margin-right: .45rem; border-radius: 50%; background: #dc3545; vertical-align: 1px; }.notification-action { color: var(--htc-green); font-size: .68rem; font-weight: 800; text-decoration: none; }
+    .notification-feed-item {
+        position: relative;
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid #edf1ef;
+        background: #fff;
+        transition: .2s;
+    }
+
+    .notification-feed-item:hover {
+        background: #fafcfb;
+    }
+
+    .notification-feed-item.unread {
+        background: #f7fbf8;
+    }
+
+    .notification-feed-item.type-warning {
+        border-left: 3px solid #e4a128;
+    }
+
+    .notification-feed-item.type-danger {
+        border-left: 3px solid #d4434c;
+    }
+
+    .notification-feed-item.type-success {
+        border-left: 3px solid #27804f;
+    }
+
+    .notification-feed-icon {
+        width: 42px;
+        height: 42px;
+        flex: 0 0 42px;
+        display: grid;
+        place-items: center;
+        margin-right: .85rem;
+        border-radius: 12px;
+        color: #397253;
+        background: #e8f4ec;
+    }
+
+    .notification-feed-icon svg {
+        width: 19px;
+    }
+
+    .type-warning .notification-feed-icon {
+        color: #9a650c;
+        background: #fff0cf;
+    }
+
+    .type-danger .notification-feed-icon {
+        color: #b52d36;
+        background: #fde9ea;
+    }
+
+    .type-success .notification-feed-icon {
+        color: #17643d;
+        background: #e4f4ea;
+    }
+
+    .unread-dot {
+        display: inline-block;
+        width: 7px;
+        height: 7px;
+        margin-right: .45rem;
+        border-radius: 50%;
+        background: #dc3545;
+        vertical-align: 1px;
+    }
+
+    .notification-action {
+        color: var(--htc-green);
+        font-size: .68rem;
+        font-weight: 800;
+        text-decoration: none;
+    }
+
     @media (max-width: 575.98px) {
-        .notification-feed-item { padding: 1rem; }
-        .notification-feed-icon { width: 36px; height: 36px; flex-basis: 36px; margin-right: .65rem; }
-        .notification-feed-content { min-width: 0; }
-        .notification-feed-heading { align-items: flex-start !important; flex-direction: column; }
-        .notification-feed-heading h6 { overflow-wrap: anywhere; }
-        .notification-feed-item .btn { width: 100%; min-height: 40px; }
-        .notification-action { display: inline-flex; min-height: 38px; align-items: center; }
+        .notification-feed-item {
+            padding: 1rem;
+        }
+
+        .notification-feed-icon {
+            width: 36px;
+            height: 36px;
+            flex-basis: 36px;
+            margin-right: .65rem;
+        }
+
+        .notification-feed-content {
+            min-width: 0;
+        }
+
+        .notification-feed-heading {
+            align-items: flex-start !important;
+            flex-direction: column;
+        }
+
+        .notification-feed-heading h6 {
+            overflow-wrap: anywhere;
+        }
+
+        .notification-feed-item .btn {
+            width: 100%;
+            min-height: 40px;
+        }
+
+        .notification-action {
+            display: inline-flex;
+            min-height: 38px;
+            align-items: center;
+        }
     }
 </style>

@@ -17,6 +17,10 @@ class DigitalSignature extends Model
         'signed_at',
     ];
 
+    protected $casts = [
+        'signed_at' => 'datetime',
+    ];
+
     /**
      * Get the approval log associated with this digital signature.
      */

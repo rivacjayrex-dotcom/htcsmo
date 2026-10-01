@@ -159,28 +159,157 @@
     </div>
 
     <style>
-        .nav-tabs .nav-link { color: #94a3b8; transition: all 0.3s; border-bottom: 2px solid transparent !important; }
-        .nav-tabs .nav-link.active { color: var(--htc-green) !important; border-bottom: 2px solid var(--htc-green) !important; background: transparent; }
-        .animate-pulse { animation: pulse-red 2s infinite; }
-        .notification-health-card { padding: 1.15rem; border: 1px solid #dce8e0; border-radius: 16px; background: #fff; box-shadow: 0 8px 24px rgba(24,55,36,.06); }
-        .notification-health-card.has-alerts { border-color: #efd7a2; background: linear-gradient(145deg, #fffaf0, #fff); }
-        .notification-kicker { color: #8a978f; font-size: .6rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
-        .health-icon { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 11px; color: #9d680d; background: #fff0cf; }.health-icon svg { width: 18px; }
-        .stock-alert-row { display: flex; align-items: center; gap: .65rem; padding: .65rem 0; border-bottom: 1px solid rgba(218, 203, 169, .45); color: inherit; text-decoration: none; }.stock-alert-row:hover { color: var(--htc-green); }.stock-alert-row > span:nth-child(2) { display: flex; flex: 1; min-width: 0; flex-direction: column; }.stock-alert-row strong { overflow: hidden; font-size: .72rem; text-overflow: ellipsis; white-space: nowrap; }.stock-alert-row small { color: #8c9891; font-size: .62rem; }.stock-alert-row > svg { width: 14px; color: #9ba69f; }
-        .stock-alert-dot { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; background: #e39a1d; box-shadow: 0 0 0 4px rgba(227,154,29,.12); }.stock-alert-dot.out { background: #d23f48; box-shadow: 0 0 0 4px rgba(210,63,72,.12); }
-        @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); } 100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); } }
+        .nav-tabs .nav-link {
+            color: #94a3b8;
+            transition: all 0.3s;
+            border-bottom: 2px solid transparent !important;
+        }
+
+        .nav-tabs .nav-link.active {
+            color: var(--htc-green) !important;
+            border-bottom: 2px solid var(--htc-green) !important;
+            background: transparent;
+        }
+
+        .animate-pulse {
+            animation: pulse-red 2s infinite;
+        }
+
+        .notification-health-card {
+            padding: 1.15rem;
+            border: 1px solid #dce8e0;
+            border-radius: 16px;
+            background: #fff;
+            box-shadow: 0 8px 24px rgba(24,55,36,.06);
+        }
+
+        .notification-health-card.has-alerts {
+            border-color: #efd7a2;
+            background: linear-gradient(145deg, #fffaf0, #fff);
+        }
+
+        .notification-kicker {
+            color: #8a978f;
+            font-size: .6rem;
+            font-weight: 800;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+        }
+
+        .health-icon {
+            width: 38px;
+            height: 38px;
+            display: grid;
+            place-items: center;
+            border-radius: 11px;
+            color: #9d680d;
+            background: #fff0cf;
+        }
+
+        .health-icon svg {
+            width: 18px;
+        }
+
+        .stock-alert-row {
+            display: flex;
+            align-items: center;
+            gap: .65rem;
+            padding: .65rem 0;
+            border-bottom: 1px solid rgba(218, 203, 169, .45);
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .stock-alert-row:hover {
+            color: var(--htc-green);
+        }
+
+        .stock-alert-row > span:nth-child(2) {
+            display: flex;
+            flex: 1;
+            min-width: 0;
+            flex-direction: column;
+        }
+
+        .stock-alert-row strong {
+            overflow: hidden;
+            font-size: .72rem;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .stock-alert-row small {
+            color: #8c9891;
+            font-size: .62rem;
+        }
+
+        .stock-alert-row > svg {
+            width: 14px;
+            color: #9ba69f;
+        }
+
+        .stock-alert-dot {
+            width: 8px;
+            height: 8px;
+            flex: 0 0 8px;
+            border-radius: 50%;
+            background: #e39a1d;
+            box-shadow: 0 0 0 4px rgba(227,154,29,.12);
+        }
+
+        .stock-alert-dot.out {
+            background: #d23f48;
+            box-shadow: 0 0 0 4px rgba(210,63,72,.12);
+        }
+
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+        }
+
         @media (max-width: 991.98px) {
-            .notification-center-page .row.g-4 { --bs-gutter-y: 1rem; }
+            .notification-center-page .row.g-4 {
+                --bs-gutter-y: 1rem;
+            }
         }
+
         @media (max-width: 575.98px) {
-            .notification-center-page .card-header { padding: 1rem !important; }
-            #noteTabs { margin-right: -1rem; margin-left: -1rem; padding: 0 1rem; overflow-x: auto; scrollbar-width: none; }
-            #noteTabs::-webkit-scrollbar { display: none; }
-            #noteTabs .nav-item { flex: 0 0 auto; }
-            #noteTabs .nav-link { min-height: 42px; white-space: nowrap; }
-            .notification-health-card { margin-bottom: 1rem !important; }
+            .notification-center-page .card-header {
+                padding: 1rem !important;
+            }
+
+            #noteTabs {
+                margin-right: -1rem;
+                margin-left: -1rem;
+                padding: 0 1rem;
+                overflow-x: auto;
+                scrollbar-width: none;
+            }
+
+            #noteTabs::-webkit-scrollbar {
+                display: none;
+            }
+
+            #noteTabs .nav-item {
+                flex: 0 0 auto;
+            }
+
+            #noteTabs .nav-link {
+                min-height: 42px;
+                white-space: nowrap;
+            }
+
+            .notification-health-card {
+                margin-bottom: 1rem !important;
+            }
         }
-        @media (prefers-reduced-motion: reduce) { .animate-pulse { animation: none; } }
+
+        @media (prefers-reduced-motion: reduce) {
+            .animate-pulse {
+                animation: none;
+            }
+        }
     </style>
 
     <script>

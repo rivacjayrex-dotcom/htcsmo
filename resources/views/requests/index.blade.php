@@ -2,18 +2,6 @@
     <x-slot name="header">{{ __('Active Requisitions') }}</x-slot>
 
     <div class="request-workspace">
-        <section class="request-hero">
-            <div>
-                <span class="request-eyebrow">Live procurement tracking</span>
-                <h2>{{ Auth::user()->role === 'smo' ? 'Institutional request pipeline' : 'Your active requisitions' }}</h2>
-                <p>{{ Auth::user()->role === 'smo' ? 'Monitor every request moving through institutional approval and fulfillment.' : 'Follow each request from submission through approval and SMO release.' }}</p>
-            </div>
-            <div class="request-hero-actions">
-                <button type="button" data-bs-toggle="modal" data-bs-target="#globalRequestModal"><i data-lucide="plus"></i> New requisition</button>
-                <a href="{{ route('requests.archive') }}"><i data-lucide="archive"></i> Open archive</a>
-            </div>
-        </section>
-
         <section class="request-metrics">
             <article class="request-metric total"><span><i data-lucide="layers-3"></i></span><div><strong>{{ $requestStats['total'] }}</strong><h3>All active</h3><p>Currently in the pipeline</p></div></article>
             <article class="request-metric pending"><span><i data-lucide="clock-3"></i></span><div><strong>{{ $requestStats['pending'] }}</strong><h3>New submissions</h3><p>Awaiting first review</p></div></article>

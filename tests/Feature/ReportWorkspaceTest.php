@@ -59,18 +59,29 @@ class ReportWorkspaceTest extends TestCase
         }
     }
 
-    public function test_pdf_export_still_works_from_the_unified_workspace(): void
+    public function test_every_report_type_can_be_exported_as_a_pdf(): void
     {
         $smo = User::factory()->create(['role' => 'smo']);
 
-        $this
-            ->actingAs($smo)
-            ->get(route('admin.reports.index', [
-                'report_type' => 'requisitions',
-                'download_pdf' => 1,
-            ]))
-            ->assertOk()
-            ->assertHeader('content-type', 'application/pdf');
+        foreach ([
+            'requisitions',
+            'inventory',
+            'dept_spending',
+            'users',
+            'item_consumption',
+            'approval_audit',
+            'inventory_movements',
+            'user_activity',
+        ] as $reportType) {
+            $this
+                ->actingAs($smo)
+                ->get(route('admin.reports.index', [
+                    'report_type' => $reportType,
+                    'download_pdf' => 1,
+                ]))
+                ->assertOk()
+                ->assertHeader('content-type', 'application/pdf');
+        }
     }
 
     public function test_excel_compatible_csv_export_works(): void

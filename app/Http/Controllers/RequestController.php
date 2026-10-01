@@ -594,8 +594,9 @@ class RequestController extends Controller
     public function downloadPDF($id)
     {
         $request = Requisition::with(['user', 'items', 'logs.digitalSignature'])->findOrFail($id);
-        $pdf = Pdf::loadView('requests.pdf', compact('request'));
-        return $pdf->download('HTC-Requisition-'.$request->id.'.pdf');
+        $pdf = Pdf::loadView('requests.pdf', compact('request'))->setPaper('a4', 'portrait');
+
+        return $pdf->download('HTC-Requisition-'.$request->tracking_code.'.pdf');
     }
 
     private function sendAlert($userId, $title, $message, $icon = 'bell', $type = 'info')
