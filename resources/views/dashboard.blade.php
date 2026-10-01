@@ -118,11 +118,9 @@
                 <section class="dashboard-panel queue-panel">
                     <div class="panel-heading">
                         <div>
-                            <span class="panel-eyebrow">Operations</span>
                             <h3>Active requisitions</h3>
-                            <p>Review the live institutional request pipeline.</p>
                         </div>
-                        <a href="{{ route('admin.approvals') }}" class="panel-action"><i data-lucide="arrow-up-right"></i> Open queue</a>
+                        <a href="{{ route('admin.approvals') }}" class="panel-action"><i data-lucide="arrow-up-right"></i> View All</a>
                     </div>
 
                     <form action="{{ route('dashboard') }}" method="GET" class="dashboard-filter-bar">

@@ -18,6 +18,7 @@
         request()->routeIs('admin.archive') => 'Institutional Archive',
         request()->routeIs('profile.edit') => 'Account Settings',
         request()->routeIs('login') => 'Sign In',
+        request()->routeIs('approval.pending') => 'Approval Pending',
         request()->routeIs('register') => 'Create Account',
         request()->routeIs('password.request') => 'Forgot Password',
         request()->routeIs('password.reset') => 'Reset Password',

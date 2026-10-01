@@ -24,7 +24,9 @@ class AuthenticatedSessionController extends Controller
      */
     public function store(LoginRequest $request): RedirectResponse
     {
-        $request->authenticate();
+        if (! $request->authenticate()) {
+            return redirect()->route('approval.pending');
+        }
 
         $request->session()->regenerate();
 

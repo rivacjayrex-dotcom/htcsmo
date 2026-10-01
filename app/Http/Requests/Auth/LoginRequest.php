@@ -36,7 +36,7 @@ class LoginRequest extends FormRequest
     /**
      * Attempt to authenticate the request's credentials.
      */
-    public function authenticate(): void
+    public function authenticate(): bool
     {
         $this->ensureIsNotRateLimited();
 
@@ -56,9 +56,7 @@ class LoginRequest extends FormRequest
 
         if ($user && ! $user->is_approved) {
             Auth::logout();
-            throw ValidationException::withMessages([
-                'login' => 'Your account is pending approval from the Supply Management Office.',
-            ]);
+            return false;
         }
 
         // 3. If everything is correct, log the user in
@@ -74,6 +72,8 @@ class LoginRequest extends FormRequest
             'user_agent' => $this->userAgent(),
             'created_at' => now(),
         ]);
+
+        return true;
     }
 
     /**

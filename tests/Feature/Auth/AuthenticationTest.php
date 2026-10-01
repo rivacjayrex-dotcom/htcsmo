@@ -42,6 +42,23 @@ class AuthenticationTest extends TestCase
         $this->assertGuest();
     }
 
+    public function test_unapproved_users_are_redirected_to_the_approval_pending_screen(): void
+    {
+        $user = User::factory()->create(['is_approved' => false]);
+
+        $response = $this->post('/login', [
+            'login' => $user->username,
+            'password' => 'password',
+        ]);
+
+        $this->assertGuest();
+        $response->assertRedirect(route('approval.pending'));
+
+        $this->get(route('approval.pending'))
+            ->assertOk()
+            ->assertSee('Your account is awaiting approval');
+    }
+
     public function test_users_can_logout(): void
     {
         $user = User::factory()->create();
