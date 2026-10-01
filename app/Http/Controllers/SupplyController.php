@@ -5,21 +5,45 @@ namespace App\Http\Controllers;
 use App\Models\Supply;
 use App\Services\InventoryForecastService;
 use App\Services\InventoryAlertService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 
 class SupplyController extends Controller
 {
     // List all inventory items
-    public function index(InventoryForecastService $forecastService)
+    public function index(Request $request, InventoryForecastService $forecastService)
     {
-        // Operational priority: out of stock, low stock, then healthy stock.
-        $supplies = Supply::orderByRaw('CASE WHEN quantity <= 0 THEN 0 WHEN quantity <= min_stock_level THEN 1 ELSE 2 END')
-            ->orderBy('item_name')
-            ->get();
+        $period = in_array($request->query('forecast_period'), ['monthly', 'quarterly'], true)
+            ? $request->query('forecast_period')
+            : 'monthly';
 
-        $forecast = $forecastService->build($supplies);
+        // Operational priority: out of stock, low stock, then healthy stock.
+        $supplies = $this->orderedSupplies();
+
+        $forecast = $forecastService->build($supplies, period: $period);
 
         return view('inventory.index', compact('supplies', 'forecast'));
+    }
+
+    /**
+     * Generate the SMO purchasing forecast as a printable PDF report.
+     */
+    public function forecastReport(Request $request, InventoryForecastService $forecastService)
+    {
+        $validated = $request->validate([
+            'period' => ['required', 'in:monthly,quarterly'],
+        ]);
+        $forecast = $forecastService->build($this->orderedSupplies(), period: $validated['period']);
+
+        $pdf = Pdf::loadView('inventory.forecast-report', [
+            'forecast' => $forecast,
+            'generatedBy' => $request->user()->name,
+            'generatedAt' => now(),
+        ])->setPaper('a4', 'landscape');
+
+        return $pdf->download(
+            'HTC_Inventory_Forecast_'.ucfirst($validated['period']).'_'.now()->format('Ymd_His').'.pdf'
+        );
     }
 
     // Show the form to add a new item
@@ -170,5 +194,12 @@ class SupplyController extends Controller
         }
 
         return $summary;
+    }
+
+    private function orderedSupplies()
+    {
+        return Supply::orderByRaw('CASE WHEN quantity <= 0 THEN 0 WHEN quantity <= min_stock_level THEN 1 ELSE 2 END')
+            ->orderBy('item_name')
+            ->get();
     }
 }

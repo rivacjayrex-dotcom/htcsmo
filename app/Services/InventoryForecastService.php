@@ -9,12 +9,17 @@ use Illuminate\Support\Collection;
 class InventoryForecastService
 {
     /**
-     * Build a one-month-ahead demand forecast from the last 24 months of releases.
+     * Build an upcoming monthly or three-month forecast from 24 months of releases.
      */
-    public function build(Collection $supplies, ?Carbon $asOf = null): array
+    public function build(Collection $supplies, ?Carbon $asOf = null, string $period = 'monthly'): array
     {
+        $period = $period === 'quarterly' ? 'quarterly' : 'monthly';
         $currentMonth = ($asOf ?? now())->copy()->startOfMonth();
         $targetMonth = $currentMonth->copy()->addMonth();
+        $periodMonths = $period === 'quarterly' ? 3 : 1;
+        $targetMonths = collect(range(0, $periodMonths - 1))
+            ->map(fn (int $offset) => $targetMonth->copy()->addMonths($offset));
+        $targetEnd = $targetMonths->last()->copy()->endOfMonth();
         $historyStart = $currentMonth->copy()->subMonths(23);
 
         $logs = SupplyInventoryLog::query()
@@ -24,7 +29,7 @@ class InventoryForecastService
             ->get()
             ->groupBy('supply_id');
 
-        $forecasts = $supplies->map(function ($supply) use ($logs, $currentMonth, $targetMonth, $historyStart) {
+        $forecasts = $supplies->map(function ($supply) use ($logs, $currentMonth, $targetMonth, $targetMonths, $historyStart, $period) {
             $itemLogs = $logs->get($supply->id, collect());
             $monthlyUsage = [];
 
@@ -47,8 +52,6 @@ class InventoryForecastService
             $recentAverage = $recentUsage / $recentMonthCount;
             $totalUsage = array_sum($monthlyUsage);
             $overallAverage = $totalUsage / $observedMonths;
-            $seasonalOccurrences = 0;
-            $seasonalTotal = 0;
             $calendarMonthTotals = [];
             $calendarMonthCounts = [];
 
@@ -58,25 +61,36 @@ class InventoryForecastService
                 $usage = $monthlyUsage[$month->format('Y-m')] ?? 0;
                 $calendarMonthTotals[$monthNumber] = ($calendarMonthTotals[$monthNumber] ?? 0) + $usage;
                 $calendarMonthCounts[$monthNumber] = ($calendarMonthCounts[$monthNumber] ?? 0) + 1;
-
-                if ($monthNumber === $targetMonth->month) {
-                    $seasonalOccurrences++;
-                    $seasonalTotal += $usage;
-                }
             }
 
-            $seasonalAverage = $seasonalOccurrences > 0 ? $seasonalTotal / $seasonalOccurrences : null;
+            $monthlyProjections = $targetMonths->map(function (Carbon $month) use ($calendarMonthTotals, $calendarMonthCounts, $recentAverage, $overallAverage) {
+                $occurrences = $calendarMonthCounts[$month->month] ?? 0;
+                $seasonalAverage = $occurrences > 0
+                    ? ($calendarMonthTotals[$month->month] ?? 0) / $occurrences
+                    : null;
+                $base = $seasonalAverage !== null
+                    ? ($seasonalAverage * 0.65) + ($recentAverage * 0.35)
+                    : ($recentAverage > 0 ? $recentAverage : $overallAverage);
 
-            $baseForecast = $seasonalAverage !== null
-                ? ($seasonalAverage * 0.65) + ($recentAverage * 0.35)
-                : ($recentAverage > 0 ? $recentAverage : $overallAverage);
-            $forecastDemand = (int) ceil($baseForecast);
+                return [
+                    'month' => $month,
+                    'demand' => (int) ceil($base),
+                    'base' => $base,
+                    'seasonality_index' => $seasonalAverage !== null && $overallAverage > 0
+                        ? $seasonalAverage / $overallAverage
+                        : null,
+                ];
+            });
+
+            $forecastDemand = $monthlyProjections->sum('demand');
+            $baseForecast = $monthlyProjections->sum('base');
             $safetyStock = max((int) $supply->min_stock_level, (int) ceil($baseForecast * 0.25));
             $targetStock = $forecastDemand + $safetyStock;
             $recommendedOrder = max(0, $targetStock - (int) $supply->quantity);
-            $seasonalityIndex = $seasonalAverage !== null && $overallAverage > 0
-                ? $seasonalAverage / $overallAverage
-                : null;
+            $strongestSeason = $monthlyProjections
+                ->sortByDesc(fn (array $projection) => $projection['seasonality_index'] ?? -1)
+                ->first();
+            $seasonalityIndex = $strongestSeason['seasonality_index'] ?? null;
 
             $calendarMonthAverages = collect($calendarMonthTotals)
                 ->map(fn ($total, $month) => $total / $calendarMonthCounts[$month]);
@@ -85,18 +99,10 @@ class InventoryForecastService
                 : null;
 
             $confidence = match (true) {
-                $observedMonths >= 12 && $seasonalTotal > 0 => 'high',
+                $observedMonths >= 12 && $monthlyProjections->contains(fn (array $projection) => ($projection['seasonality_index'] ?? 0) > 0) => 'high',
                 $observedMonths >= 6 || $itemLogs->count() >= 4 => 'medium',
                 default => 'low',
             };
-
-            $reason = $this->reason(
-                $targetMonth,
-                $seasonalityIndex,
-                $recentAverage,
-                $overallAverage,
-                $itemLogs->isNotEmpty()
-            );
 
             return [
                 'supply' => $supply,
@@ -110,7 +116,15 @@ class InventoryForecastService
                 'months_observed' => $observedMonths,
                 'release_events' => $itemLogs->count(),
                 'confidence' => $confidence,
-                'reason' => $reason,
+                'reason' => $this->reason(
+                    $strongestSeason['month'] ?? $targetMonth,
+                    $seasonalityIndex,
+                    $recentAverage,
+                    $overallAverage,
+                    $itemLogs->isNotEmpty(),
+                    $period
+                ),
+                'monthly_projections' => $monthlyProjections,
                 'urgency' => $supply->quantity <= 0 ? 'critical' : ($forecastDemand >= $supply->quantity ? 'buy_now' : 'plan'),
             ];
         });
@@ -125,11 +139,20 @@ class InventoryForecastService
             ->values();
 
         return [
+            'period' => $period,
+            'period_label' => $period === 'quarterly'
+                ? $targetMonth->format('M Y').' - '.$targetEnd->format('M Y')
+                : $targetMonth->format('F Y'),
             'target_month' => $targetMonth,
+            'target_end' => $targetEnd,
+            'months' => $targetMonths,
             'recommendations' => $recommendations,
             'all' => $forecasts,
             'items_with_history' => $forecasts->where('release_events', '>', 0)->count(),
             'release_events' => $forecasts->sum('release_events'),
+            'estimated_budget' => $recommendations->sum(
+                fn (array $forecast) => $forecast['recommended_order'] * (float) $forecast['supply']->unit_price
+            ),
         ];
     }
 
@@ -138,7 +161,8 @@ class InventoryForecastService
         ?float $seasonalityIndex,
         float $recentAverage,
         float $overallAverage,
-        bool $hasHistory
+        bool $hasHistory,
+        string $period
     ): string {
         if (! $hasHistory) {
             return 'No release history yet; recommendation is based on the configured safety threshold.';
@@ -153,9 +177,11 @@ class InventoryForecastService
         }
 
         if ($overallAverage > 0 && $recentAverage >= $overallAverage * 1.2) {
-            return 'Recent monthly consumption is above this item’s historical average.';
+            return 'Recent monthly consumption is above this item\'s historical average.';
         }
 
-        return 'Suggested from recent release volume plus safety stock.';
+        return $period === 'quarterly'
+            ? 'Three-month demand is projected from recent release volume plus safety stock.'
+            : 'Suggested from recent release volume plus safety stock.';
     }
 }

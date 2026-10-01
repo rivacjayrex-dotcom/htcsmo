@@ -61,6 +61,24 @@ class InventoryWorkspaceTest extends TestCase
         ], $supply->configurable_options);
     }
 
+    public function test_smo_can_generate_monthly_or_quarterly_forecast_reports(): void
+    {
+        $smo = User::factory()->create(['role' => 'smo']);
+        $this->supply('Forecast Paper', 'minor', 0, 10);
+
+        $this->actingAs($smo)
+            ->get(route('inventory.index', ['forecast_period' => 'quarterly']))
+            ->assertOk()
+            ->assertSee('Quarterly', false)
+            ->assertSee(route('inventory.forecast.report', ['period' => 'quarterly']), false);
+
+        $this->actingAs($smo)
+            ->get(route('inventory.forecast.report', ['period' => 'monthly']))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf')
+            ->assertDownload();
+    }
+
     private function supply(string $name, string $tier, int $quantity, int $minimum, float $price = 100): Supply
     {
         return Supply::create([

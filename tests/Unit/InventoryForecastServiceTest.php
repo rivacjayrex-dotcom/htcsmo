@@ -51,6 +51,37 @@ class InventoryForecastServiceTest extends TestCase
         $this->assertStringContainsString('historically consumes', $prediction['reason']);
     }
 
+    public function test_it_generates_a_three_month_quarterly_forecast(): void
+    {
+        Carbon::setTestNow('2026-09-15 10:00:00');
+        $smo = User::factory()->create(['role' => 'smo']);
+        $supply = Supply::create([
+            'item_name' => 'Quarterly Bond Paper',
+            'brand' => 'HTC Test',
+            'category' => 'Office Supplies',
+            'requisition_tier' => 'minor',
+            'specifications' => 'A4 80 GSM',
+            'quantity' => 4,
+            'unit' => 'Ream(s)',
+            'unit_price' => 200,
+            'min_stock_level' => 5,
+        ]);
+
+        $this->release($supply, $smo, -30, '2025-10-10 09:00:00');
+        $this->release($supply, $smo, -6, '2026-08-10 09:00:00');
+        $this->release($supply, $smo, -9, '2026-09-10 09:00:00');
+
+        $forecast = app(InventoryForecastService::class)->build(collect([$supply]), Carbon::now(), 'quarterly');
+        $prediction = $forecast['recommendations']->first();
+
+        $this->assertSame('quarterly', $forecast['period']);
+        $this->assertSame('Oct 2026 - Dec 2026', $forecast['period_label']);
+        $this->assertCount(3, $prediction['monthly_projections']);
+        $this->assertSame(26, $prediction['forecast_demand']);
+        $this->assertSame(29, $prediction['recommended_order']);
+        $this->assertSame(5800.0, $forecast['estimated_budget']);
+    }
+
     private function release(Supply $supply, User $user, int $quantity, string $createdAt): void
     {
         DB::table('supply_inventory_logs')->insert([

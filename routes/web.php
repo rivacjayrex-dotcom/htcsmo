@@ -132,6 +132,7 @@ Route::get('/dashboard', function () {
     Route::middleware(['auth', 'role:smo'])->group(function () {
         // Inventory Management
         Route::get('/inventory', [SupplyController::class, 'index'])->name('inventory.index');
+        Route::get('/inventory/forecast/report', [SupplyController::class, 'forecastReport'])->name('inventory.forecast.report');
         Route::get('/inventory/create', [SupplyController::class, 'create'])->name('inventory.create');
         Route::post('/inventory', [SupplyController::class, 'store'])->name('inventory.store');
 

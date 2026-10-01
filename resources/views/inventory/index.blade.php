@@ -40,22 +40,33 @@
                     <span class="forecast-icon"><i data-lucide="chart-no-axes-combined"></i></span>
                     <div>
                         <span class="inventory-eyebrow">Demand intelligence</span>
-                        <h5>{{ $forecast['target_month']->format('F Y') }} purchase forecast</h5>
+                        <h5>{{ $forecast['period_label'] }} purchase forecast</h5>
                         <p>Suggested orders use actual SMO releases, seasonal demand, recent consumption, and safety stock.</p>
                     </div>
                 </div>
                 <div class="forecast-readiness">
+                    <form method="GET" action="{{ route('inventory.index') }}" class="forecast-period-form">
+                        <label for="forecastPeriod">Report period</label>
+                        <select id="forecastPeriod" name="forecast_period">
+                            <option value="monthly" @selected($forecast['period'] === 'monthly')>Monthly</option>
+                            <option value="quarterly" @selected($forecast['period'] === 'quarterly')>Quarterly</option>
+                        </select>
+                        <button type="submit"><i data-lucide="sparkles"></i> Generate</button>
+                    </form>
+                    <a class="forecast-download" href="{{ route('inventory.forecast.report', ['period' => $forecast['period']]) }}">
+                        <i data-lucide="file-down"></i> PDF report
+                    </a>
                     <span><b>{{ $forecast['items_with_history'] }}</b> items learned</span>
                     <span><b>{{ $forecast['release_events'] }}</b> release records</span>
                     <details>
                         <summary>How it works</summary>
-                        <div>The estimate blends the last three months of released quantities with the same calendar month from prior years. A safety allowance is added, then current stock is deducted. Low-confidence labels mean the system still needs more release history.</div>
+                        <div>The estimate blends the last three months of released quantities with the same calendar month from prior years. Quarterly reports combine three upcoming monthly forecasts, add one safety allowance, then deduct current stock. Low-confidence labels mean the system still needs more release history.</div>
                     </details>
                 </div>
             </div>
 
             @if($forecastRecommendations->isNotEmpty())
-                <div class="forecast-callout"><i data-lucide="lightbulb"></i><span><strong>Planning signal:</strong> Consider purchasing these items before {{ $forecast['target_month']->format('F') }} demand begins.</span></div>
+                <div class="forecast-callout"><i data-lucide="lightbulb"></i><span><strong>Planning signal:</strong> Consider purchasing these items before the {{ strtolower($forecast['period']) }} demand period begins. Estimated purchase budget: <strong>₱{{ number_format($forecast['estimated_budget'], 2) }}</strong>.</span></div>
                 <div class="forecast-grid">
                     @foreach($forecastRecommendations as $prediction)
                         @php($item = $prediction['supply'])
@@ -82,7 +93,7 @@
             @else
                 <div class="forecast-empty">
                     <span><i data-lucide="circle-check-big"></i></span>
-                    <div><strong>No forecasted purchase gap for {{ $forecast['target_month']->format('F') }}</strong><p>Current quantities cover expected consumption and configured safety stock. The forecast will keep learning from each SMO release.</p></div>
+                    <div><strong>No forecasted purchase gap for {{ $forecast['period_label'] }}</strong><p>Current quantities cover expected consumption and configured safety stock. The forecast will keep learning from each SMO release.</p></div>
                 </div>
             @endif
         </section>
@@ -165,7 +176,8 @@
         .forecast-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1.5rem; padding: 1.35rem 1.4rem 1rem; }
         .forecast-heading { display: flex; align-items: center; gap: .85rem; }.forecast-heading h5 { margin: .15rem 0 .2rem; color: #20352a; font-weight: 800; }.forecast-heading p { margin: 0; color: #7b8981; font-size: .72rem; }
         .forecast-icon { width: 46px; height: 46px; flex: 0 0 46px; display: grid; place-items: center; border-radius: 13px; background: #dff1e6; color: var(--htc-green); }.forecast-icon svg { width: 22px; }
-        .forecast-readiness { display: flex; align-items: center; gap: .55rem; }.forecast-readiness > span { padding: .45rem .65rem; border: 1px solid #dde7e1; border-radius: 9px; background: #fff; color: #7a8880; font-size: .64rem; white-space: nowrap; }.forecast-readiness b { color: #2d4839; }
+        .forecast-readiness { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: .55rem; }.forecast-readiness > span { padding: .45rem .65rem; border: 1px solid #dde7e1; border-radius: 9px; background: #fff; color: #7a8880; font-size: .64rem; white-space: nowrap; }.forecast-readiness b { color: #2d4839; }
+        .forecast-period-form { display: flex; align-items: center; gap: .4rem; padding: .3rem; border: 1px solid #d9e5dd; border-radius: 10px; background: #fff; }.forecast-period-form label { padding-left: .35rem; color: #66766c; font-size: .62rem; font-weight: 800; text-transform: uppercase; }.forecast-period-form select { min-height: 32px; padding: .25rem 1.6rem .25rem .45rem; border: 1px solid #dfe7e2; border-radius: 7px; color: #405248; background-color: #f8faf9; font-size: .68rem; }.forecast-period-form button, .forecast-download { min-height: 32px; display: inline-flex; align-items: center; justify-content: center; gap: .3rem; padding: .35rem .65rem; border: 0; border-radius: 7px; color: #fff; background: var(--htc-green); font-size: .65rem; font-weight: 800; text-decoration: none; white-space: nowrap; }.forecast-period-form button svg, .forecast-download svg { width: 13px; height: 13px; }.forecast-download { background: #243d30; }
         .forecast-readiness details { position: relative; }.forecast-readiness summary { cursor: pointer; list-style: none; padding: .45rem .65rem; border-radius: 9px; background: var(--htc-green); color: #fff; font-size: .64rem; font-weight: 700; }.forecast-readiness details > div { position: absolute; z-index: 20; top: calc(100% + .5rem); right: 0; width: 290px; padding: .85rem; border: 1px solid #dbe5df; border-radius: 11px; background: #fff; color: #66756c; font-size: .68rem; line-height: 1.55; box-shadow: 0 12px 28px rgba(25, 52, 35, .14); }
         .forecast-callout { display: flex; align-items: center; gap: .55rem; margin: 0 1.4rem 1rem; padding: .7rem .85rem; border-radius: 10px; background: #eaf5ee; color: #39634b; font-size: .7rem; }.forecast-callout svg { width: 16px; color: #267047; }
         .forecast-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .85rem; padding: 0 1.4rem 1.4rem; }
@@ -206,6 +218,8 @@
             .forecast-header, .section-heading, .catalog-controls { padding: 1rem; }
             .forecast-heading { align-items: flex-start; }
             .forecast-readiness { flex-wrap: wrap; }
+            .forecast-period-form { width: 100%; display: grid; grid-template-columns: auto 1fr auto; }
+            .forecast-download { flex: 1; min-height: 40px; }
             .forecast-readiness > span { flex: 1; text-align: center; }
             .forecast-readiness details { flex-basis: 100%; }
             .forecast-readiness summary { min-height: 40px; display: grid; place-items: center; }
