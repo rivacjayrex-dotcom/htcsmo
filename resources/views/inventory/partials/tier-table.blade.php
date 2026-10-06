@@ -2,6 +2,15 @@
     <table class="table inventory-table align-middle mb-0">
         <thead>
             <tr>
+                <th class="inventory-select-cell">
+                    <input type="checkbox"
+                           class="inventory-select"
+                           aria-label="Select all matching {{ $tier }} items"
+                           title="Select all matching {{ $tier }} items"
+                           :checked="allMatchingSelected('{{ $tier }}')"
+                           :indeterminate="someMatchingSelected('{{ $tier }}')"
+                           @change="toggleMatching('{{ $tier }}')">
+                </th>
                 <th class="ps-4">Item</th>
                 <th>Category & choices</th>
                 <th class="text-center">Stock</th>
@@ -16,7 +25,15 @@
                     $searchText = strtolower(implode(' ', [$item->item_name, $item->brand, $item->model_number, $item->category, $item->specifications]));
                 @endphp
                 <tr x-show='matches({{ Illuminate\Support\Js::from($searchText) }}, "{{ $stockState }}")'
+                    :class="{ 'is-selected': selected.includes({{ $item->id }}) }"
                     class="inventory-row {{ $stockState === 'out' ? 'stock-out-row' : ($stockState === 'low' ? 'stock-low-row' : '') }}">
+                    <td class="inventory-select-cell" data-label="Select item">
+                        <input type="checkbox"
+                               class="inventory-select"
+                               value="{{ $item->id }}"
+                               x-model.number="selected"
+                               aria-label="Select {{ $item->item_name }}">
+                    </td>
                     <td class="ps-4 inventory-primary" data-label="Item">
                         <div class="d-flex align-items-center gap-3">
                             <div class="inventory-item-icon {{ $tier }}"><i data-lucide="{{ $tier === 'major' ? 'monitor' : 'package' }}"></i></div>
@@ -61,7 +78,7 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="5" class="inventory-empty"><i data-lucide="package-open"></i><strong>No {{ $tier }} items yet</strong><span>Register an item and assign it to this tier.</span></td></tr>
+                <tr><td colspan="6" class="inventory-empty"><i data-lucide="package-open"></i><strong>No {{ $tier }} items yet</strong><span>Register an item and assign it to this tier.</span></td></tr>
             @endforelse
         </tbody>
     </table>

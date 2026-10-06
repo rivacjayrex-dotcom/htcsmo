@@ -4,13 +4,17 @@
         inset: 0;
         z-index: 20000;
         display: grid;
-        place-items: end center;
+        place-items: center;
         padding: 1.25rem;
-        pointer-events: none;
-        background: rgba(248, 250, 249, .12);
+        cursor: wait;
+        pointer-events: auto;
+        touch-action: none;
+        background: rgba(248, 250, 249, .5);
+        backdrop-filter: blur(0.5px);
     }
 
     .runtime-loader[hidden] { display: none !important; }
+    body.runtime-locked { overflow: hidden; cursor: wait; }
     .runtime-loader::before {
         content: '';
         position: absolute;
@@ -61,7 +65,7 @@
     }
 </style>
 
-<div id="runtimeLoader" class="runtime-loader" role="status" aria-live="polite" aria-atomic="true" hidden>
+<div id="runtimeLoader" class="runtime-loader" role="status" aria-live="polite" aria-atomic="true" tabindex="-1" hidden>
     <div class="runtime-loader__message">
         <span class="runtime-spinner" aria-hidden="true"></span>
         <span id="runtimeLoaderMessage">Loading&hellip;</span>
@@ -77,6 +81,8 @@
         const loaderMessage = document.getElementById('runtimeLoaderMessage');
         const lockedForms = new Set();
         const nativeSubmit = HTMLFormElement.prototype.submit;
+        let runtimeLocked = false;
+        let previousFocus = null;
 
         // Legacy form.submit() skips submit events. Route it through requestSubmit()
         // so filter forms receive the same loader and duplicate-submit protection.
@@ -90,8 +96,24 @@
 
         const showLoader = (message = 'Loading&hellip;') => {
             if (!loader) return;
+            if (!runtimeLocked && document.activeElement instanceof HTMLElement) {
+                previousFocus = document.activeElement;
+            }
             loaderMessage.textContent = message.replace('&hellip;', '…');
             loader.hidden = false;
+            runtimeLocked = true;
+            document.body.classList.add('runtime-locked');
+            document.documentElement.setAttribute('aria-busy', 'true');
+            loader.focus({preventScroll: true});
+        };
+
+        const hideLoader = () => {
+            runtimeLocked = false;
+            document.body.classList.remove('runtime-locked');
+            document.documentElement.removeAttribute('aria-busy');
+            if (loader) loader.hidden = true;
+            if (previousFocus?.isConnected) previousFocus.focus({preventScroll: true});
+            previousFocus = null;
         };
 
         const clearRuntimeCache = () => {
@@ -163,17 +185,24 @@
             queueMicrotask(() => {
                 if (!event.defaultPrevented) return;
                 unlockForm(form);
-                if (loader) loader.hidden = true;
+                hideLoader();
             });
 
-            // Restore controls if another script cancels navigation or the network fails.
-            window.setTimeout(() => {
-                if (document.visibilityState === 'visible') {
-                    unlockForm(form);
-                    if (loader) loader.hidden = true;
-                }
-            }, 45000);
         });
+
+        // The overlay absorbs pointer input. Capture keyboard-triggered actions too,
+        // so users cannot start another operation while a request is in flight.
+        document.addEventListener('click', event => {
+            if (!runtimeLocked || loader?.contains(event.target)) return;
+            event.preventDefault();
+            event.stopImmediatePropagation();
+        }, true);
+
+        document.addEventListener('keydown', event => {
+            if (!runtimeLocked) return;
+            event.preventDefault();
+            event.stopImmediatePropagation();
+        }, true);
 
         document.addEventListener('click', event => {
             const link = event.target.closest('a[href]');
@@ -181,13 +210,22 @@
             if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
 
             const destination = new URL(link.href, window.location.href);
-            if (destination.origin !== window.location.origin || destination.href === window.location.href || link.dataset.bsToggle) return;
+            const sameDocumentAnchor = destination.origin === window.location.origin
+                && destination.pathname === window.location.pathname
+                && destination.search === window.location.search
+                && destination.hash;
+            if (!['http:', 'https:'].includes(destination.protocol)
+                || destination.origin !== window.location.origin
+                || destination.href === window.location.href
+                || sameDocumentAnchor
+                || link.dataset.bsToggle) return;
             showLoader('Opening page…');
         });
 
+        window.addEventListener('beforeunload', () => showLoader('Loading page…'));
         window.addEventListener('pageshow', () => {
             lockedForms.forEach(unlockForm);
-            if (loader) loader.hidden = true;
+            hideLoader();
         });
     })();
 </script>

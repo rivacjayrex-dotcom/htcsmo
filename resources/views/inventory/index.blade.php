@@ -10,9 +10,19 @@
         $outOfStockItems = $supplies->where('quantity', '<=', 0)->count();
         $inventoryValue = $supplies->sum(fn ($item) => $item->quantity * (float) $item->unit_price);
         $forecastRecommendations = $forecast['recommendations']->take(8);
+        $catalogSelectionData = $supplies->map(function ($item) {
+            $status = $item->quantity <= 0 ? 'out' : ($item->quantity <= $item->min_stock_level ? 'low' : 'healthy');
+
+            return [
+                'id' => $item->id,
+                'tier' => $item->requisition_tier ?? 'minor',
+                'status' => $status,
+                'text' => strtolower(implode(' ', [$item->item_name, $item->brand, $item->model_number, $item->category, $item->specifications])),
+            ];
+        })->values();
     @endphp
 
-    <div class="inventory-workspace" x-data="inventoryWorkspace()">
+    <div class="inventory-workspace" x-data="inventoryWorkspace({{ Illuminate\Support\Js::from($catalogSelectionData) }})">
         @if(session('success'))
             <div class="alert alert-success border-0 shadow-sm mb-4 rounded-4 d-flex align-items-center gap-2"><i data-lucide="check-circle" style="width:18px"></i>{{ session('success') }}</div>
         @endif
@@ -135,6 +145,18 @@
                 <button data-bs-toggle="pill" data-bs-target="#majorInventory" type="button" role="tab"><span class="tab-icon major"><i data-lucide="monitor-up"></i></span><span><small>Equipment & assets</small><strong>Major catalog</strong></span><em>{{ $majorItems->count() }}</em></button>
             </div>
 
+            <div class="inventory-bulk-bar" x-cloak x-show="selected.length > 0" x-transition>
+                <div>
+                    <span class="bulk-count" x-text="selected.length"></span>
+                    <strong x-text="selected.length === 1 ? 'item selected' : 'items selected'"></strong>
+                    <small>Selection is kept when switching tiers or changing filters.</small>
+                </div>
+                <div class="inventory-bulk-actions">
+                    <button type="button" class="btn bulk-clear" @click="clearSelection()">Clear selection</button>
+                    <button type="button" class="btn bulk-delete" @click="confirmBulkDelete()"><i data-lucide="trash-2"></i> Delete selected</button>
+                </div>
+            </div>
+
             <div class="tab-content inventory-tab-content">
                 <div class="tab-pane fade show active" id="minorInventory" role="tabpanel">
                     @include('inventory.partials.tier-table', ['items' => $minorItems, 'tier' => 'minor'])
@@ -144,7 +166,6 @@
                 </div>
             </div>
         </section>
-    </div>
 
     <div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-sm"><div class="modal-content border-0 shadow-lg rounded-4"><div class="modal-body p-4 text-center">
@@ -152,6 +173,20 @@
             <p class="text-muted small">This removes <strong id="deleteItemName"></strong> from the request catalog.</p>
             <form id="deleteForm" method="POST">@csrf @method('DELETE')<div class="d-grid gap-2"><button type="submit" class="btn btn-danger fw-bold py-2 rounded-3">Remove item</button><button type="button" class="btn btn-light fw-bold py-2 rounded-3 border" data-bs-dismiss="modal">Keep item</button></div></form>
         </div></div></div>
+    </div>
+
+    <div class="modal fade" id="bulkDeleteModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm"><div class="modal-content border-0 shadow-lg rounded-4"><div class="modal-body p-4 text-center">
+            <div class="delete-icon"><i data-lucide="trash-2"></i></div><h5 class="fw-bold">Remove selected items?</h5>
+            <p class="text-muted small">This removes <strong x-text="selected.length"></strong> selected <span x-text="selected.length === 1 ? 'item' : 'items'"></span> from the request catalog.</p>
+            <form method="POST" action="{{ route('inventory.bulk-destroy') }}">
+                @csrf
+                @method('DELETE')
+                <template x-for="id in selected" :key="id"><input type="hidden" name="ids[]" :value="id"></template>
+                <div class="d-grid gap-2"><button type="submit" class="btn btn-danger fw-bold py-2 rounded-3">Remove selected items</button><button type="button" class="btn btn-light fw-bold py-2 rounded-3 border" data-bs-dismiss="modal">Keep items</button></div>
+            </form>
+        </div></div></div>
+    </div>
     </div>
 
     <style>
@@ -204,6 +239,8 @@
         .inventory-table thead th { padding-top: .85rem; padding-bottom: .85rem; border-bottom: 1px solid #e8eeea; background: #fff; color: #8a978f; font-size: .62rem; letter-spacing: .06em; text-transform: uppercase; }.inventory-table td { padding-top: .9rem; padding-bottom: .9rem; border-color: #edf1ef; }.inventory-row:hover { background: #fafcfb; }.stock-out-row { background: #fffafa; }.stock-low-row { background: #fffdf8; }
         .inventory-item-icon { width: 40px; height: 40px; flex: 0 0 40px; display: grid; place-items: center; border-radius: 11px; }.inventory-item-icon svg { width: 19px; }.inventory-item-icon.minor { color: #17643d; background: #e8f5ed; }.inventory-item-icon.major { color: #95610a; background: #fff3da; }.item-specification { max-width: 280px; margin-top: .25rem; color: #8a958f; font-size: .66rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .inventory-category { display: inline-block; padding: .28rem .55rem; border-radius: 999px; background: #f0f3f1; color: #536159; font-size: .64rem; font-weight: 700; }.option-preview { display: flex; flex-direction: column; gap: .15rem; margin-top: .45rem; color: #859189; font-size: .62rem; }
+        .inventory-select-cell { width: 44px; text-align: center; }.inventory-select { width: 17px; height: 17px; cursor: pointer; accent-color: var(--htc-green); }.inventory-row.is-selected { background: #f0f8f3; box-shadow: inset 3px 0 #237149; }
+        .inventory-bulk-bar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .75rem 1.4rem; border-top: 1px solid #d8e7dd; border-bottom: 1px solid #d8e7dd; background: #f1f8f4; }.inventory-bulk-bar > div:first-child { display: flex; align-items: center; gap: .45rem; }.inventory-bulk-bar strong { color: #294638; font-size: .72rem; }.inventory-bulk-bar small { margin-left: .25rem; color: #78877f; font-size: .61rem; }.bulk-count { min-width: 27px; height: 27px; display: inline-grid; place-items: center; padding: 0 .4rem; border-radius: 999px; background: var(--htc-green); color: #fff; font-size: .66rem; font-weight: 900; }.inventory-bulk-actions { display: flex; gap: .45rem; }.inventory-bulk-actions .btn { min-height: 34px; padding: .4rem .65rem; border-radius: 8px; font-size: .62rem; font-weight: 800; }.bulk-clear { border: 1px solid #ccdbd1; color: #52675a; background: #fff; }.bulk-delete { display: inline-flex; align-items: center; gap: .35rem; color: #fff; background: #b82f38; }.bulk-delete:hover { color: #fff; background: #9f222b; }.bulk-delete svg { width: 13px; }
         .stock-badge { display: inline-flex; align-items: center; gap: .3rem; padding: .35rem .6rem; border-radius: 999px; font-size: .65rem; font-weight: 800; }.stock-badge svg { width: 13px; }.stock-badge.out { color: #ac2730; background: #fde9ea; }.stock-badge.low { color: #96610a; background: #fff0cc; }.stock-badge.healthy { color: #17643d; background: #e5f5eb; }.stock-threshold { display: block; margin-top: .3rem; color: #9aa39e; font-size: .6rem; }
         .inventory-action { width: 32px; height: 32px; display: inline-grid; place-items: center; padding: 0; border: 1px solid #dce4df; border-radius: 9px; color: #5f6f66; background: #fff; }.inventory-action svg { width: 14px; }.inventory-action:hover { border-color: var(--htc-green); color: var(--htc-green); background: #eff7f2; }.inventory-action.danger:hover { border-color: #dc3545; color: #dc3545; background: #fff5f5; }
         .inventory-empty { height: 220px; text-align: center; color: #94a3b8; }.inventory-empty svg { display: block; width: 34px; margin: 0 auto .5rem; }.inventory-empty strong, .inventory-empty span { display: block; }.delete-icon { width: 58px; height: 58px; display: grid; place-items: center; margin: 0 auto 1rem; border-radius: 50%; color: #b52d35; background: #fdebec; }.delete-icon svg { width: 25px; }
@@ -242,6 +279,7 @@
             .inventory-filters { flex-direction: column; }
             .inventory-search { width: 100%; min-height: 44px; }
             .inventory-filters select { min-height: 44px; }
+            .inventory-bulk-bar { align-items: stretch; flex-direction: column; padding: .75rem 1rem; }.inventory-bulk-bar > div:first-child { flex-wrap: wrap; }.inventory-bulk-bar small { flex-basis: 100%; margin-left: 0; }.inventory-bulk-actions { display: grid; grid-template-columns: 1fr 1fr; }.inventory-bulk-actions .btn { min-height: 42px; justify-content: center; }
             .tier-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; padding: .8rem; }
             .tier-tabs button { min-width: 0; padding: .7rem; }
             .tier-tabs button > span:nth-child(2) { min-width: 0; }
@@ -274,6 +312,7 @@
             .inventory-table tbody td.inventory-primary > * { justify-self: auto; }
             .inventory-table tbody td[colspan] { display: block; }
             .inventory-table tbody td[colspan]::before { display: none; }
+            .inventory-table tbody td.inventory-select-cell { display: flex; justify-content: flex-end; width: 100%; }.inventory-table tbody td.inventory-select-cell::before { content: 'Select item'; margin-right: auto; }.inventory-table tbody td.inventory-select-cell .inventory-select { justify-self: auto; }
             .item-specification { max-width: 100%; white-space: normal; }
             .option-preview { align-items: flex-end; }
             .inventory-row-actions { justify-content: flex-end; }
@@ -289,16 +328,47 @@
     </style>
 
     <script>
-        function inventoryWorkspace() {
+        function inventoryWorkspace(catalog) {
             return {
                 query: '',
                 stockFilter: 'all',
+                catalog,
+                selected: [],
                 matches(text, status) {
                     const matchesSearch = !this.query.trim() || text.includes(this.query.trim().toLowerCase());
                     const matchesStatus = this.stockFilter === 'all'
                         || (this.stockFilter === 'attention' && ['out', 'low'].includes(status))
                         || this.stockFilter === status;
                     return matchesSearch && matchesStatus;
+                },
+                matchingIds(tier) {
+                    return this.catalog
+                        .filter(item => item.tier === tier && this.matches(item.text, item.status))
+                        .map(item => item.id);
+                },
+                allMatchingSelected(tier) {
+                    const ids = this.matchingIds(tier);
+                    return ids.length > 0 && ids.every(id => this.selected.includes(id));
+                },
+                someMatchingSelected(tier) {
+                    const ids = this.matchingIds(tier);
+                    return ids.some(id => this.selected.includes(id)) && !ids.every(id => this.selected.includes(id));
+                },
+                toggleMatching(tier) {
+                    const ids = this.matchingIds(tier);
+                    if (ids.every(id => this.selected.includes(id))) {
+                        this.selected = this.selected.filter(id => !ids.includes(id));
+                    } else {
+                        this.selected = [...new Set([...this.selected, ...ids])];
+                    }
+                },
+                clearSelection() {
+                    this.selected = [];
+                },
+                confirmBulkDelete() {
+                    if (this.selected.length === 0) return;
+                    bootstrap.Modal.getOrCreateInstance(document.getElementById('bulkDeleteModal')).show();
+                    setTimeout(() => lucide.createIcons(), 50);
                 }
             };
         }

@@ -172,6 +172,7 @@ Route::get('/dashboard', function () {
         // --- ADDED THESE INVENTORY ROUTES ---
         Route::get('/inventory/{id}/edit', [SupplyController::class, 'edit'])->name('inventory.edit');
         Route::patch('/inventory/{id}', [SupplyController::class, 'update'])->name('inventory.update');
+        Route::delete('/inventory/bulk', [SupplyController::class, 'destroyMany'])->name('inventory.bulk-destroy');
         Route::delete('/inventory/{id}', [SupplyController::class, 'destroy'])->name('inventory.destroy');
         // -------------------------------------
 

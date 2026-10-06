@@ -174,6 +174,23 @@ class SupplyController extends Controller
         return redirect()->route('inventory.index')->with('success', 'Item has been removed from inventory.');
     }
 
+    /**
+     * Remove multiple selected catalog items in one inventory action.
+     */
+    public function destroyMany(Request $request)
+    {
+        $validated = $request->validate([
+            'ids' => ['required', 'array', 'min:1', 'max:500'],
+            'ids.*' => ['required', 'integer', 'distinct', 'exists:supplies,id'],
+        ]);
+
+        $deleted = Supply::destroy($validated['ids']);
+
+        return redirect()
+            ->route('inventory.index')
+            ->with('success', $deleted.' inventory '.($deleted === 1 ? 'item has' : 'items have').' been removed.');
+    }
+
     private function normalizeOptions(array $validated): array
     {
         $groups = [];

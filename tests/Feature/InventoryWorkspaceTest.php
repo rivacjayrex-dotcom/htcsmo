@@ -79,6 +79,34 @@ class InventoryWorkspaceTest extends TestCase
             ->assertDownload();
     }
 
+    public function test_smo_can_delete_multiple_selected_inventory_items(): void
+    {
+        $smo = User::factory()->create(['role' => 'smo']);
+        $first = $this->supply('Selected Paper', 'minor', 10, 2);
+        $second = $this->supply('Selected Toner', 'major', 5, 1);
+        $kept = $this->supply('Kept Stapler', 'minor', 8, 2);
+
+        $this->actingAs($smo)
+            ->delete(route('inventory.bulk-destroy'), ['ids' => [$first->id, $second->id]])
+            ->assertRedirect(route('inventory.index'))
+            ->assertSessionHas('success', '2 inventory items have been removed.');
+
+        $this->assertDatabaseMissing('supplies', ['id' => $first->id]);
+        $this->assertDatabaseMissing('supplies', ['id' => $second->id]);
+        $this->assertDatabaseHas('supplies', ['id' => $kept->id]);
+    }
+
+    public function test_bulk_delete_requires_at_least_one_valid_inventory_item(): void
+    {
+        $smo = User::factory()->create(['role' => 'smo']);
+
+        $this->actingAs($smo)
+            ->from(route('inventory.index'))
+            ->delete(route('inventory.bulk-destroy'), ['ids' => []])
+            ->assertRedirect(route('inventory.index'))
+            ->assertSessionHasErrors('ids');
+    }
+
     private function supply(string $name, string $tier, int $quantity, int $minimum, float $price = 100): Supply
     {
         return Supply::create([
