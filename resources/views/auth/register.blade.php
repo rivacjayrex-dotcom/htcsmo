@@ -119,6 +119,11 @@
                             Already registered?
                             <a href="{{ route('login') }}" class="auth-link">Sign in</a>
                         </p>
+                        <p class="auth-legal-copy text-center mt-3 mb-0">
+                            By requesting an account, you acknowledge the
+                            <a href="{{ route('legal.terms') }}">Terms of Service</a>
+                            and <a href="{{ route('legal.privacy') }}">Privacy Policy</a>.
+                        </p>
                     </form>
                 </div>
             </section>

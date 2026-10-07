@@ -19,6 +19,9 @@ Route::get('/', function () {
     return redirect()->route('login');
 });
 
+Route::view('/terms-of-service', 'legal.terms')->name('legal.terms');
+Route::view('/privacy-policy', 'legal.privacy')->name('legal.privacy');
+
 // DASHBOARD LOGIC (Updated for Multi-item Requisitions)
 Route::get('/dashboard', function () {
     $user = Auth::user();

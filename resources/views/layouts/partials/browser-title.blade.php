@@ -20,6 +20,8 @@
         request()->routeIs('login') => 'Sign In',
         request()->routeIs('approval.pending') => 'Approval Pending',
         request()->routeIs('register') => 'Create Account',
+        request()->routeIs('legal.terms') => 'Terms of Service',
+        request()->routeIs('legal.privacy') => 'Privacy Policy',
         request()->routeIs('password.request') => 'Forgot Password',
         request()->routeIs('password.reset') => 'Reset Password',
         request()->routeIs('verification.notice') => 'Verify Email',

@@ -91,6 +91,12 @@
                                 <a href="{{ route('register') }}" class="auth-link">Create one</a>
                             </p>
                         @endif
+
+                        <p class="auth-legal-copy text-center mt-3 mb-0">
+                            Use of this system is subject to the
+                            <a href="{{ route('legal.terms') }}">Terms of Service</a>
+                            and <a href="{{ route('legal.privacy') }}">Privacy Policy</a>.
+                        </p>
                     </form>
                 </div>
             </section>

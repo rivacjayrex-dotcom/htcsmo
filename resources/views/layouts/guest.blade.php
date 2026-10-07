@@ -92,6 +92,10 @@
             right: -9rem;
         }
 
+        .auth-legal-copy { color: #7b877f; font-size: .68rem; line-height: 1.5; }
+        .auth-legal-copy a { color: var(--auth-green-800); font-weight: 700; text-decoration: none; }
+        .auth-legal-copy a:hover { text-decoration: underline; }
+
         .auth-brand-panel::after {
             width: 12rem;
             height: 12rem;
