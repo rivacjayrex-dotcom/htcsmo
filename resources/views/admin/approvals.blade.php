@@ -245,7 +245,7 @@
                             @if(Auth::user()->role == 'smo')
                                 <!-- SMO FULFILLMENT FORM -->
                                 <template x-if="selectedReq.status !== 'for_clarification'">
-                                    <form :action="'{{ url('/admin/requests') }}/' + selectedReq.id + '/release'" method="POST">
+                                    <form :action="'{{ url('/admin/requests') }}/' + selectedReq.id + '/release'" method="POST" @submit="handleReleaseSubmit($event)">
                                         @csrf
                                         <button type="submit" class="btn btn-primary w-100 py-3 fw-bold rounded-3 shadow-sm d-flex align-items-center justify-content-center">
                                             <i data-lucide="package-check" class="me-2" style="width:18px;"></i> CONFIRM RELEASE
@@ -294,6 +294,40 @@
                 </div>
             </div>
         </div>
+
+        @if(Auth::user()->role == 'smo')
+            <!-- RELEASE CONFIRMATION MODAL -->
+            <div class="modal fade" id="releaseConfirmationModal" tabindex="-1" aria-hidden="true" aria-labelledby="releaseConfirmationTitle">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+                        <div class="modal-body p-4 p-md-5 text-center">
+                            <div class="release-confirmation-icon mx-auto mb-3" aria-hidden="true">
+                                <i data-lucide="package-check"></i>
+                            </div>
+                            <h5 class="fw-bold text-dark mb-2" id="releaseConfirmationTitle">Confirm supply release?</h5>
+                            <p class="text-muted small mb-3">
+                                You are about to release
+                                <strong class="text-dark" x-text="selectedReq.tracking_code || ('Requisition #' + selectedReq.id)"></strong>
+                                for <strong class="text-dark" x-text="requestorName"></strong>.
+                            </p>
+                            <div class="alert alert-warning border-0 rounded-3 small text-start mb-4">
+                                <i data-lucide="triangle-alert" class="me-2" style="width:16px; vertical-align:middle;"></i>
+                                Inventory quantities will be deducted and this requisition will be marked as released.
+                            </div>
+                            <div class="d-flex flex-column-reverse flex-sm-row gap-2 justify-content-center">
+                                <button type="button" class="btn btn-light border rounded-3 px-4" @click="cancelReleaseConfirmation()">
+                                    Cancel
+                                </button>
+                                <button type="button" class="btn btn-primary rounded-3 px-4 fw-bold" @click="submitConfirmedRelease()">
+                                    <i data-lucide="package-check" class="me-2" style="width:16px;"></i>
+                                    Yes, release supplies
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endif
     </div>
 
     <style>
@@ -302,6 +336,8 @@
         .approval-purpose-icon svg { width: 17px; height: 17px; }
         .approval-purpose small { display: block; margin-bottom: .25rem; color: #718078; font-size: 9px; letter-spacing: .08em; }
         .approval-purpose p { color: #26382e; font-size: .82rem; line-height: 1.6; white-space: pre-line; overflow-wrap: anywhere; }
+        .release-confirmation-icon { width: 58px; height: 58px; display: grid; place-items: center; border-radius: 18px; background: #e3f4e9; color: #187044; }
+        .release-confirmation-icon svg { width: 28px; height: 28px; }
     </style>
 
     <script>
@@ -314,6 +350,8 @@
                 requestorName: '',
                 requestorDept: '',
                 questioningRole: null,
+                releaseForm: null,
+                releaseConfirmed: false,
 
                 init() {
                     if (!focusedApprovalRequest) return;
@@ -338,6 +376,8 @@
                     this.selectedItems = items;
                     this.requestorName = name;
                     this.requestorDept = dept;
+                    this.releaseForm = null;
+                    this.releaseConfirmed = false;
 
                     // Identify the signatory that initiated the clarification from logs
                     if (req.status === 'for_clarification' && req.logs && req.logs.length > 0) {
@@ -356,6 +396,44 @@
                     // Re-render icons cleanly
                     setTimeout(() => lucide.createIcons(), 100);
                     setTimeout(() => lucide.createIcons(), 350);
+                },
+
+                handleReleaseSubmit(event) {
+                    if (this.releaseConfirmed) return;
+
+                    event.preventDefault();
+                    this.releaseForm = event.currentTarget;
+
+                    const reviewElement = document.getElementById('reviewModal');
+                    const confirmationElement = document.getElementById('releaseConfirmationModal');
+                    if (!reviewElement || !confirmationElement) return;
+
+                    reviewElement.addEventListener('hidden.bs.modal', () => {
+                        bootstrap.Modal.getOrCreateInstance(confirmationElement).show();
+                        setTimeout(() => lucide.createIcons(), 100);
+                    }, {once: true});
+
+                    bootstrap.Modal.getOrCreateInstance(reviewElement).hide();
+                },
+
+                cancelReleaseConfirmation() {
+                    const reviewElement = document.getElementById('reviewModal');
+                    const confirmationElement = document.getElementById('releaseConfirmationModal');
+                    if (!reviewElement || !confirmationElement) return;
+
+                    confirmationElement.addEventListener('hidden.bs.modal', () => {
+                        bootstrap.Modal.getOrCreateInstance(reviewElement).show();
+                    }, {once: true});
+
+                    bootstrap.Modal.getOrCreateInstance(confirmationElement).hide();
+                },
+
+                submitConfirmedRelease() {
+                    if (!this.releaseForm || this.releaseConfirmed) return;
+
+                    this.releaseConfirmed = true;
+                    bootstrap.Modal.getOrCreateInstance(document.getElementById('releaseConfirmationModal')).hide();
+                    this.$nextTick(() => this.releaseForm.requestSubmit());
                 }
             }
         }
