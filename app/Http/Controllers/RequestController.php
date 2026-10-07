@@ -1,6 +1,7 @@
 <?php
 namespace App\Http\Controllers;
 
+use App\Http\Requests\ArchiveIndexRequest;
 use App\Models\Notification;
 use App\Models\Requisition;
 use App\Models\RequisitionItem;
@@ -16,6 +17,7 @@ use Illuminate\Support\Facades\DB;
 use App\Mail\RequisitionAlertMail;
 use App\Models\EmailLog;
 use App\Services\InventoryAlertService;
+use App\Services\NotificationService;
 use Illuminate\Support\Facades\Mail;
 
 class RequestController extends Controller
@@ -34,23 +36,22 @@ class RequestController extends Controller
      */
     public function runtimeState(Request $request)
     {
-        $userId = (int) Auth::id();
-        $afterId = max(0, (int) $request->integer('after_id'));
-        $latestId = (int) Notification::where('user_id', $userId)->max('id');
-        $notification = null;
-
-        if ($afterId > 0) {
-            $notification = Notification::where('user_id', $userId)
-                ->where('is_read', false)
-                ->where('id', '>', $afterId)
-                ->oldest('id')
-                ->first();
-        }
+        $validated = $request->validate(['after_id' => ['nullable', 'integer', 'min:0']]);
+        $user = $request->user();
+        $afterId = (int) ($validated['after_id'] ?? 0);
+        $latestId = (int) Notification::query()->forUser($user)->max('id');
+        $notifications = Notification::query()->forUser($user)->unread()
+            ->where('id', '>', $afterId)->oldest('id')->limit(10)->get();
+        $payloads = $notifications->map(fn (Notification $notification) => $notification->pollPayload($user))->values();
 
         return response()->json([
             'version' => $this->runtimeVersion(),
+            'account_id' => $user->id,
             'latest_id' => $latestId,
-            'notification' => $notification,
+            'cursor' => (int) ($notifications->last()?->id ?? $latestId),
+            'unread_count' => Notification::query()->forUser($user)->unread()->count(),
+            'notifications' => $payloads,
+            'notification' => $payloads->first(),
         ])->header('Cache-Control', 'private, no-store, no-cache, must-revalidate');
     }
 
@@ -139,38 +140,26 @@ class RequestController extends Controller
     /**
      * Archived Requisitions (Released & Rejected)
      */
-    public function archive(Request $request)
+    public function archive(ArchiveIndexRequest $request)
     {
         $user = Auth::user();
+        $filters = $request->validated();
+        $order = $filters['order'] ?? 'desc';
+        $query = Requisition::query()
+            ->archived()
+            ->visibleTo($user)
+            ->withArchiveFilters($filters, allowDepartment: $user->role === 'smo')
+            ->with(['items', 'user'])
+            ->orderBy('closed_at', $order)
+            ->orderBy('id', $order);
+        $archivedRequests = $request->boolean('print')
+            ? $query->get()
+            : $query->paginate(15)->withQueryString();
+        $departments = $user->role === 'smo'
+            ? User::whereNotNull('department')->where('department', '<>', '')->distinct()->orderBy('department')->pluck('department')
+            : collect();
 
-        // 1. Base Query for COMPLETED ONLY
-        $query = Requisition::with(['items', 'user'])
-            ->whereIn('status', ['released', 'rejected']);
-
-        // 2. Privacy: Non-SMO only sees their own
-        if ($user->role !== 'smo') {
-            $query->where('user_id', $user->id);
-        }
-
-        // 3. Filters
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-        if ($user->role == 'smo' && $request->filled('dept')) {
-            $query->whereHas('user', fn($q) => $q->where('department', $request->dept));
-        }
-        if ($request->filled('date_from')) {
-            $query->whereDate('updated_at', '>=', $request->date_from);
-        }
-        if ($request->filled('date_to')) {
-            $query->whereDate('updated_at', '<=', $request->date_to);
-        }
-
-        // 4. Sorting
-        $order = $request->get('order', 'desc');
-        $archivedRequests = $query->orderBy('updated_at', $order)->paginate(15);
-
-        return view('requests.archive', compact('archivedRequests'));
+        return view('requests.archive', compact('archivedRequests', 'departments'));
     }
 
     /**
@@ -260,7 +249,7 @@ class RequestController extends Controller
     /**
      * Update Approval Status (Signatories)
      */
-    public function updateStatus(Request $request, $id)
+    public function updateStatus(Request $request, $id, NotificationService $notifications)
     {
         $request->validate([
             'status'  => 'required|in:approved,rejected,clarification',
@@ -298,7 +287,11 @@ class RequestController extends Controller
                 "Requisition Disapproved",
                 "Your request {$sr->tracking_code} was rejected by {$position}. Reason: {$request->remarks}",
                 'x-circle',
-                'danger'
+                'danger',
+                'requisition.rejected',
+                'requisition',
+                $sr->id,
+                "requisition:{$sr->id}:rejected:{$role}"
             );
         }
         // 2. QUESTIONABLE / OFFICE CLARIFICATION
@@ -312,7 +305,11 @@ class RequestController extends Controller
                 "⚠️ Office Appearance Requested",
                 "Your request {$sr->tracking_code} requires clarification. Please proceed to the office of {$position} together with SMO. Note: {$request->remarks}",
                 'help-circle',
-                'warning'
+                'warning',
+                'requisition.clarification_requested',
+                'requisition',
+                $sr->id,
+                "requisition:{$sr->id}:clarification:{$role}"
             );
 
             // Notify SMO In-Charge on Screen
@@ -323,7 +320,11 @@ class RequestController extends Controller
                     "⚠️ Inquiry on Req {$sr->tracking_code}",
                     "{$position} requested a meeting regarding {$sr->tracking_code} ({$sr->user->name}). Please coordinate with their office.",
                     'users',
-                    'warning'
+                    'warning',
+                    'requisition.clarification_coordination',
+                    'requisition',
+                    $sr->id,
+                    "requisition:{$sr->id}:clarification-smo:{$role}"
                 );
             }
         }
@@ -345,7 +346,11 @@ class RequestController extends Controller
                 "Requisition Endorsed",
                 "Your request {$sr->tracking_code} has been endorsed by {$position}.",
                 'check-circle',
-                'success'
+                'success',
+                'requisition.endorsed',
+                'requisition',
+                $sr->id,
+                "requisition:{$sr->id}:endorsed:{$role}"
             );
         }
 
@@ -358,6 +363,27 @@ class RequestController extends Controller
             'role'           => $role,
             'remarks'        => $request->remarks,
         ]);
+
+        if ($request->status === 'approved') {
+            $nextRole = match ($sr->status) {
+                'approved_dept' => $sr->request_type === 'minor' ? 'vp_finance' : 'vp_admin',
+                'approved_vp' => $sr->request_type === 'minor' ? 'smo' : 'provost',
+                'approved_provost' => 'president',
+                'approved_president' => 'smo',
+                default => null,
+            };
+
+            if ($nextRole) {
+                $notifications->sendToRole($nextRole, 'requisition.awaiting_approval', 'Requisition Ready for Action',
+                    "Requisition {$sr->tracking_code} is ready for your review.", [
+                        'icon' => 'file-text',
+                        'type' => $nextRole === 'smo' ? 'warning' : 'info',
+                        'action_type' => 'approval_queue',
+                        'action_id' => $sr->id,
+                        'dedupe_key' => "requisition:{$sr->id}:log:{$log->id}:next:{$nextRole}",
+                    ]);
+            }
+        }
 
         // 5. Cryptographic Digital Signature Generation (RA 8792 E-Commerce Act Compliance)
         if ($request->status === 'approved') {
@@ -412,24 +438,7 @@ class RequestController extends Controller
      */
     private function canReviewRequisition(Requisition $requisition, User $user): bool
     {
-        if ($requisition->status === 'for_clarification') {
-            $questioningRole = $requisition->logs()
-                ->where('action', 'like', '%Clarification%')
-                ->latest('id')
-                ->value('role');
-
-            return $questioningRole !== null && $user->role === $questioningRole;
-        }
-
-        return match ($requisition->status) {
-            'pending' => $user->role === 'dept_head'
-                && $requisition->user->department === $user->department,
-            'approved_dept' => ($requisition->request_type === 'minor' && $user->role === 'vp_finance')
-                || ($requisition->request_type === 'major' && $user->role === 'vp_admin'),
-            'approved_vp' => $requisition->request_type === 'major' && $user->role === 'provost',
-            'approved_provost' => $requisition->request_type === 'major' && $user->role === 'president',
-            default => false,
-        };
+        return $user->role !== 'smo' && $requisition->canBeReviewedBy($user);
     }
 
     /**
@@ -519,7 +528,11 @@ class RequestController extends Controller
                 "Supplies Ready for Pickup",
                 "Your requisition #{$sr->id} has been fulfilled by the SMO and is ready for pickup.",
                 'package-check',
-                'success'
+                'success',
+                'requisition.released',
+                'requisition',
+                $sr->id,
+                "requisition:{$sr->id}:released"
             );
 
             $this->sendEmailNotification(
@@ -536,97 +549,42 @@ class RequestController extends Controller
         });
     }
 
-    /**
-     * Notifications Center
-     */
-    public function notifications()
-    {
-        $user = Auth::user();
-        $allNotes = Notification::where('user_id', $user->id)->latest()->get();
-
-        // Categorized notes for tabs
-        $approvalNotes = $allNotes->where('type', 'success');
-        $inventoryNotes = $allNotes->filter(fn ($note) => in_array($note->icon, ['triangle-alert', 'package-x']));
-        $deadlineNotes = $allNotes->where('type', 'danger')->whereNotIn('id', $inventoryNotes->pluck('id'));
-
-        // 1. Data for SMO (Critical Deadlines)
-        $criticalRequests = ($user->role == 'smo')
-            ? Requisition::with('items')
-                ->where(function ($query) {
-                    $query->where(function ($minor) {
-                        $minor->where('request_type', 'minor')->where('status', 'approved_vp');
-                    })->orWhere(function ($major) {
-                        $major->where('request_type', 'major')->where('status', 'approved_president');
-                    });
-                })
-                ->where('updated_at', '<=', now()->subDays(2))
-                ->oldest('updated_at')
-                ->get()
-            : [];
-        $lowStockSupplies = $user->role === 'smo'
-            ? Supply::whereColumn('quantity', '<=', 'min_stock_level')
-                ->orderByRaw('CASE WHEN quantity <= 0 THEN 0 ELSE 1 END')
-                ->orderBy('quantity')
-                ->get()
-            : collect();
-
-        // 2. Data for Employee/Staff (Personal Summary)
-        $personalStats = [
-            'total'    => Requisition::where('user_id', $user->id)->count(),
-            'pending'  => Requisition::where('user_id', $user->id)->where('status', 'pending')->count(),
-            'released' => Requisition::where('user_id', $user->id)->where('status', 'released')->count(),
-        ];
-
-        Notification::where('user_id', $user->id)->where('is_read', false)->update(['is_read' => true]);
-
-        return view('notifications', compact(
-            'allNotes', 'approvalNotes', 'inventoryNotes', 'deadlineNotes',
-            'criticalRequests', 'lowStockSupplies', 'personalStats'
-        ));
-    }
-
-    public function show($id)
+    public function show(Request $httpRequest, $id)
     {
         $request = Requisition::with(['user', 'items', 'logs.digitalSignature'])->findOrFail($id);
+        abort_unless($request->canBeViewedBy($httpRequest->user()), 403);
+
         return view('requests.show', compact('request'));
     }
 
-    public function downloadPDF($id)
+    public function downloadPDF(Request $httpRequest, $id)
     {
         $request = Requisition::with(['user', 'items', 'logs.digitalSignature'])->findOrFail($id);
+        abort_unless($request->canBeViewedBy($httpRequest->user()), 403);
+
         $pdf = Pdf::loadView('requests.pdf', compact('request'))->setPaper('a4', 'portrait');
 
         return $pdf->download('HTC-Requisition-'.$request->tracking_code.'.pdf');
     }
 
-    private function sendAlert($userId, $title, $message, $icon = 'bell', $type = 'info')
+    private function sendAlert(
+        $userId,
+        $title,
+        $message,
+        $icon = 'bell',
+        $type = 'info',
+        $eventType = 'system.notice',
+        $actionType = null,
+        $actionId = null,
+        $dedupeKey = null,
+    )
     {
-        Notification::create([
-            'user_id' => $userId,
-            'title'   => $title,
-            'message' => $message,
-            'icon'    => $icon,
-            'type'    => $type
-        ]);
-    }
-
-    public function getLatestNotification(Request $request)
-    {
-        $latestId = (int) Notification::where('user_id', Auth::id())->max('id');
-
-        if (! $request->filled('after_id')) {
-            return response()->json(['latest_id' => $latestId, 'notification' => null]);
-        }
-
-        $notification = Notification::where('user_id', Auth::id())
-            ->where('is_read', false)
-            ->where('id', '>', max(0, (int) $request->integer('after_id')))
-            ->oldest('id')
-            ->first();
-
-        return response()->json([
-            'latest_id' => $latestId,
-            'notification' => $notification,
+        app(NotificationService::class)->send($userId, $eventType, $title, $message, [
+            'icon' => $icon,
+            'type' => $type,
+            'action_type' => $actionType,
+            'action_id' => $actionId,
+            'dedupe_key' => $dedupeKey,
         ]);
     }
 

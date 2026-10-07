@@ -1319,6 +1319,13 @@
             height: 14px;
         }
 
+        .notification-toast-read-note {
+            display: block;
+            margin-top: .35rem;
+            color: #8b968f;
+            font-size: .58rem;
+        }
+
         .notification-toast-close {
             position: absolute;
             top: .8rem;
@@ -1769,9 +1776,7 @@
                 <a href="{{ route('notifications') }}" class="nav-link-custom {{ request()->routeIs('notifications') ? 'active' : '' }}">
                     <i data-lucide="bell"></i>
                     <span>Notifications</span>
-                    @if(isset($unreadCount) && $unreadCount > 0)
-                        <span class="sidebar-count">{{ $unreadCount > 99 ? '99+' : $unreadCount }}</span>
-                    @endif
+                    <span id="notificationUnreadCount" class="sidebar-count" @if(!isset($unreadCount) || $unreadCount < 1) hidden @endif>{{ ($unreadCount ?? 0) > 99 ? '99+' : ($unreadCount ?? 0) }}</span>
                 </a>
 
                 <div class="nav-section-label">Requisitions</div>
@@ -2124,13 +2129,14 @@
                     <h6 x-text="title"></h6>
                     <p x-text="message"></p>
                     <div class="notification-toast-actions">
-                        <a :href="actionUrl" x-text="actionLabel"></a>
+                        <a x-show="actionUrl" :href="actionUrl" x-text="actionLabel"></a>
                         <button type="button" @click="toggleSound()" :title="soundEnabled ? 'Mute notification sounds' : 'Enable notification sounds'">
                             <template x-if="soundEnabled"><i data-lucide="volume-2"></i></template>
                             <template x-if="!soundEnabled"><i data-lucide="volume-x"></i></template>
                         </button>
-                        <button type="button" @click="dismiss()">Dismiss</button>
+                        <button type="button" @click="dismiss()" title="Hide this toast; it will remain unread">Dismiss toast</button>
                     </div>
+                    <small class="notification-toast-read-note">Dismissal hides this toast but keeps the notification unread.</small>
                 </div>
                 <button type="button" class="notification-toast-close" @click="dismiss()" aria-label="Dismiss notification"><i data-lucide="x"></i></button>
             </div>
@@ -2193,6 +2199,9 @@
         function notificationCenter() {
             const storageKey = 'htc-last-notification-{{ Auth::id() }}';
             const soundKey = 'htc-notification-sound';
+            const accountId = {{ (int) Auth::id() }};
+            const tabId = window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
+            const channel = 'BroadcastChannel' in window ? new BroadcastChannel(`htc-notifications-${accountId}`) : null;
 
             return {
                 show: false,
@@ -2205,7 +2214,7 @@
                 actionLabel: 'View notification center',
                 soundEnabled: localStorage.getItem(soundKey) !== 'off',
                 lastId: Number(localStorage.getItem(storageKey) || 0),
-                initialized: false,
+                queue: [],
                 timer: null,
                 timerKey: 0,
                 audioContext: null,
@@ -2215,36 +2224,55 @@
                     document.addEventListener('pointerdown', unlock, {once: true});
                     document.addEventListener('keydown', unlock, {once: true});
                     document.addEventListener('htc:runtime-state', event => this.consumeRuntimeState(event.detail));
+                    channel?.addEventListener('message', event => {
+                        if (event.data?.type === 'consumed') this.advanceCursor(Number(event.data.id || 0));
+                    });
+                    window.addEventListener('storage', event => {
+                        if (event.key === storageKey) this.lastId = Math.max(this.lastId, Number(event.newValue || 0));
+                    });
                 },
                 consumeRuntimeState(data) {
-                    if (!data) return;
-
-                    if (!this.initialized && this.lastId === 0) {
-                        this.lastId = Number(data.latest_id || 0);
-                        localStorage.setItem(storageKey, this.lastId);
-                        this.initialized = true;
-                        return;
-                    }
-
-                    this.initialized = true;
-                    if (data.notification && Number(data.notification.id) > this.lastId) {
-                        this.lastId = Number(data.notification.id);
-                        localStorage.setItem(storageKey, this.lastId);
-                        this.present(data.notification);
-                    } else if (Number(data.latest_id || 0) > this.lastId) {
-                        this.lastId = Number(data.latest_id);
-                        localStorage.setItem(storageKey, this.lastId);
+                    if (!data || Number(data.account_id) !== accountId) return;
+                    this.updateBadge(Number(data.unread_count || 0));
+                    const notifications = Array.isArray(data.notifications)
+                        ? data.notifications
+                        : (data.notification ? [data.notification] : []);
+                    notifications.forEach(notification => {
+                        const id = Number(notification.id || 0);
+                        if (id > this.lastId && this.claimToast(id) && !this.queue.some(item => Number(item.id) === id)) this.queue.push(notification);
+                        this.advanceCursor(id);
+                    });
+                    if (!notifications.length) this.advanceCursor(Number(data.cursor || data.latest_id || 0));
+                    if (!this.show) this.presentNext();
+                },
+                advanceCursor(id) {
+                    if (id <= this.lastId) return;
+                    this.lastId = id;
+                    localStorage.setItem(storageKey, String(id));
+                    channel?.postMessage({type: 'consumed', id});
+                },
+                claimToast(id) {
+                    const key = `htc-notification-toast-${accountId}-${id}`;
+                    try {
+                        const existing = JSON.parse(localStorage.getItem(key) || 'null');
+                        if (existing && Date.now() - Number(existing.at || 0) < 30000 && existing.tab !== tabId) return false;
+                        localStorage.setItem(key, JSON.stringify({tab: tabId, at: Date.now()}));
+                        return JSON.parse(localStorage.getItem(key) || 'null')?.tab === tabId;
+                    } catch (error) {
+                        return true;
                     }
                 },
+                presentNext() {
+                    const notification = this.queue.shift();
+                    if (notification) this.present(notification);
+                },
                 present(notification) {
-                    this.title = notification.title;
-                    this.message = notification.message;
+                    this.title = String(notification.title || 'Notification');
+                    this.message = String(notification.message || '');
                     this.type = ['success', 'warning', 'danger'].includes(notification.type) ? notification.type : 'info';
-                    this.icon = notification.icon || 'bell-ring';
-                    const inventoryAlert = ['triangle-alert', 'package-x'].includes(notification.icon) || notification.title.includes('Stock');
-                    this.label = inventoryAlert ? (this.type === 'danger' ? 'Critical inventory alert' : 'Inventory warning') : this.type === 'success' ? 'Action completed' : this.type === 'danger' ? 'Action required' : 'System update';
-                    this.actionUrl = inventoryAlert ? @json(route('inventory.index')) : @json(route('notifications'));
-                    this.actionLabel = inventoryAlert ? 'Review stock & forecast' : 'View notification center';
+                    this.label = this.type === 'success' ? 'Action completed' : this.type === 'danger' ? 'Action required' : this.type === 'warning' ? 'Attention needed' : 'System update';
+                    this.actionUrl = notification.action_url || null;
+                    this.actionLabel = notification.action_label || 'Open';
                     this.show = true;
                     this.timerKey++;
                     window.clearTimeout(this.timer);
@@ -2255,6 +2283,13 @@
                 dismiss() {
                     this.show = false;
                     window.clearTimeout(this.timer);
+                    window.setTimeout(() => this.presentNext(), 200);
+                },
+                updateBadge(count) {
+                    const badge = document.getElementById('notificationUnreadCount');
+                    if (!badge) return;
+                    badge.hidden = count < 1;
+                    badge.textContent = count > 99 ? '99+' : String(count);
                 },
                 toggleSound() {
                     this.soundEnabled = !this.soundEnabled;
@@ -2466,6 +2501,7 @@
         // Keep every signed-in workspace in sync with requisition and inventory actions.
         (() => {
             const endpoint = @json(route('api.runtime-state'));
+            const expectedAccountId = {{ (int) Auth::id() }};
             const notificationKey = 'htc-last-notification-{{ Auth::id() }}';
             const cacheKey = 'htc-runtime-state:{{ Auth::id() }}';
             const notice = document.getElementById('liveRefreshNotice');
@@ -2548,9 +2584,13 @@
                         credentials: 'same-origin',
                         signal: controller.signal,
                     });
-                    if (!response.ok) return;
+                    if (!response.ok) throw new Error(`Runtime poll failed with HTTP ${response.status}`);
 
                     const data = await response.json();
+                    if (Number(data.account_id) !== expectedAccountId) {
+                        window.location.reload();
+                        return;
+                    }
                     failures = 0;
                     lastCheckedAt = Date.now();
                     cacheMetadata(data);

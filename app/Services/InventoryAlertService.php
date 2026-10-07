@@ -2,12 +2,12 @@
 
 namespace App\Services;
 
-use App\Models\Notification;
 use App\Models\Supply;
-use App\Models\User;
 
 class InventoryAlertService
 {
+    public function __construct(private readonly NotificationService $notifications) {}
+
     public function notifyIfThresholdCrossed(Supply $supply, bool $wasLow, bool $wasOut): void
     {
         $isOut = $supply->quantity <= 0;
@@ -31,8 +31,13 @@ class InventoryAlertService
                 'type' => 'warning',
             ];
 
-        User::where('role', 'smo')->pluck('id')->each(function ($userId) use ($alert) {
-            Notification::create(['user_id' => $userId, ...$alert]);
-        });
+        $state = $isOut ? 'out' : 'low';
+        $this->notifications->sendToRole('smo', "inventory.{$state}", $alert['title'], $alert['message'], [
+            'icon' => $alert['icon'],
+            'type' => $alert['type'],
+            'action_type' => 'inventory',
+            'action_id' => $supply->id,
+            'dedupe_key' => "inventory:{$supply->id}:{$state}:{$supply->updated_at?->format('U.u')}",
+        ]);
     }
 }

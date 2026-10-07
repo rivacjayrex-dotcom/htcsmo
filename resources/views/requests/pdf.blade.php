@@ -104,7 +104,7 @@
             <tr>
                 <td><span>Line Items</span><strong>{{ number_format($request->items->count()) }}</strong></td>
                 <td><span>Total Quantity</span><strong>{{ number_format($totalQuantity) }}</strong></td>
-                <td><span>Last Updated</span><strong>{{ $request->updated_at->format('M d, Y - h:i A') }}</strong></td>
+                <td><span>{{ in_array($request->status, \App\Models\Requisition::ARCHIVED_STATUSES, true) ? 'Closed' : 'Last Updated' }}</span><strong>{{ ($request->closed_at ?? $request->updated_at)->format('M d, Y - h:i A') }}</strong></td>
                 <td><span>Total Value</span><strong>PHP {{ number_format((float) $request->grand_total, 2) }}</strong></td>
             </tr>
         </table>

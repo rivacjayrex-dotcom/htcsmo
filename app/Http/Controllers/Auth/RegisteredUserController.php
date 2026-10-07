@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Models\Notification;
 use App\Models\User;
+use App\Services\NotificationService;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -26,7 +26,7 @@ class RegisteredUserController extends Controller
     /**
      * Handle an incoming registration request.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, NotificationService $notifications): RedirectResponse
     {
         // 1. Sanitize & Normalize Inputs
         $request->merge([
@@ -118,16 +118,14 @@ class RegisteredUserController extends Controller
         ]);
 
         // 4. Send persistent notification to SMO In-Charge
-        $smo = User::where('role', 'smo')->first();
-        if ($smo) {
-            Notification::create([
-                'user_id' => $smo->id,
-                'title' => 'New User Access Request',
-                'message' => "{$user->name} ({$user->school_id}) from {$user->department} has registered and awaits verification.",
+        $notifications->sendToRole('smo', 'account.access_requested', 'New User Access Request',
+            "{$user->name} ({$user->school_id}) from {$user->department} has registered and awaits verification.", [
                 'icon' => 'user-plus',
                 'type' => 'warning',
+                'action_type' => 'pending_users',
+                'action_id' => $user->id,
+                'dedupe_key' => "account:access-requested:{$user->id}",
             ]);
-        }
 
         event(new Registered($user));
 

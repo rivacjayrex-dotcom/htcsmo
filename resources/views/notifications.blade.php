@@ -106,52 +106,36 @@
             <div class="col-lg-8">
                 <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
                     <div class="card-header bg-white border-0 p-4 pb-0">
-                        <h5 class="fw-bold mb-3">System Activity</h5>
-
-                        <!-- TAB NAVIGATION -->
-                        <ul class="nav nav-tabs flex-nowrap border-0 gap-4" id="noteTabs" role="tablist">
-                            <li class="nav-item">
-                                <button class="nav-link active border-0 px-0 fw-bold small text-uppercase tracking-wider" id="all-tab" data-bs-toggle="tab" data-bs-target="#all">All Activity</button>
-                            </li>
-                            <li class="nav-item">
-                                <button class="nav-link border-0 px-0 fw-bold small text-uppercase tracking-wider" id="approvals-tab" data-bs-toggle="tab" data-bs-target="#approvals">Approvals</button>
-                            </li>
-                            <li class="nav-item">
-                                <button class="nav-link border-0 px-0 fw-bold small text-uppercase tracking-wider" id="deadlines-tab" data-bs-toggle="tab" data-bs-target="#deadlines">Deadlines</button>
-                            </li>
-                            @if(Auth::user()->role === 'smo')
-                                <li class="nav-item">
-                                    <button class="nav-link border-0 px-0 fw-bold small text-uppercase tracking-wider" id="inventory-tab" data-bs-toggle="tab" data-bs-target="#inventory-alerts">Inventory <span class="badge bg-warning-subtle text-warning ms-1">{{ $inventoryNotes->count() }}</span></button>
-                                </li>
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                            <h5 class="fw-bold mb-0">System Activity</h5>
+                            @if($unreadCount > 0)
+                                <form method="POST" action="{{ route('notifications.read-all') }}">
+                                    @csrf
+                                    <button class="btn btn-sm btn-outline-secondary rounded-3" type="submit">Mark all as read</button>
+                                </form>
                             @endif
-                        </ul>
+                        </div>
+                        <nav class="nav nav-tabs flex-nowrap border-0 gap-4" id="noteTabs" aria-label="Notification categories">
+                            @foreach(['all' => 'All Activity', 'approvals' => 'Requisitions', 'deadlines' => 'Deadlines', 'accounts' => 'Accounts'] as $key => $label)
+                                <a class="nav-link border-0 px-0 fw-bold small text-uppercase tracking-wider {{ $category === $key ? 'active' : '' }}"
+                                   href="{{ route('notifications', ['category' => $key]) }}" @if($category === $key) aria-current="page" @endif>
+                                    {{ $label }} <span class="badge bg-light text-secondary ms-1">{{ $categoryCounts[$key] }}</span>
+                                </a>
+                            @endforeach
+                            @if(Auth::user()->role === 'smo')
+                                <a class="nav-link border-0 px-0 fw-bold small text-uppercase tracking-wider {{ $category === 'inventory' ? 'active' : '' }}"
+                                   href="{{ route('notifications', ['category' => 'inventory']) }}" @if($category === 'inventory') aria-current="page" @endif>
+                                    Inventory <span class="badge bg-warning-subtle text-warning ms-1">{{ $categoryCounts['inventory'] }}</span>
+                                </a>
+                            @endif
+                        </nav>
                     </div>
 
                     <div class="card-body p-0">
-                        <div class="tab-content" id="noteTabsContent">
-
-                            <!-- TAB 1: ALL ACTIVITY -->
-                            <div class="tab-pane fade show active" id="all">
-                                @include('notifications.list', ['notes' => $allNotes])
-                            </div>
-
-                            <!-- TAB 2: APPROVALS -->
-                            <div class="tab-pane fade" id="approvals">
-                                @include('notifications.list', ['notes' => $approvalNotes])
-                            </div>
-
-                            <!-- TAB 3: DEADLINES -->
-                            <div class="tab-pane fade" id="deadlines">
-                                @include('notifications.list', ['notes' => $deadlineNotes])
-                            </div>
-
-                            @if(Auth::user()->role === 'smo')
-                                <div class="tab-pane fade" id="inventory-alerts">
-                                    @include('notifications.list', ['notes' => $inventoryNotes])
-                                </div>
-                            @endif
-
-                        </div>
+                        @include('notifications.list', ['notes' => $notes])
+                        @if($notes->hasPages())
+                            <div class="p-3 border-top">{{ $notes->links() }}</div>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -311,14 +295,5 @@
             }
         }
     </style>
-
-    <script>
-        // Re-initialize icons when switching tabs
-        document.querySelectorAll('button[data-bs-toggle="tab"]').forEach(tabEl => {
-            tabEl.addEventListener('shown.bs.tab', () => {
-                lucide.createIcons();
-            });
-        });
-    </script>
 
 </x-app-layout>

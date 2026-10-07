@@ -42,7 +42,7 @@
                     <div class="priority-heading">
                         <span class="priority-symbol"><i data-lucide="{{ $stats['urgent'] > 0 ? 'siren' : 'shield-check' }}"></i></span>
                         <div>
-                            <span>Release deadline monitor</span>
+                            <span>Deadline monitor</span>
                             <h3>{{ $stats['urgent'] > 0 ? $stats['urgent'].' requests need immediate attention' : 'All release deadlines are healthy' }}</h3>
                         </div>
                         <a href="{{ route('notifications') }}">View deadline center <i data-lucide="arrow-up-right"></i></a>

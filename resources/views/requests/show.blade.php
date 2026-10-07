@@ -32,8 +32,8 @@
                             </div>
                             <div>
                                 <h6 class="info-label mb-0">Official Requestor</h6>
-                                <h5 class="fw-bold text-dark mb-0">{{ $request->user->name }}</h5>
-                                <small class="text-muted">{{ $request->user->department }} • {{ $request->user->school_id }}</small>
+                                <h5 class="fw-bold text-dark mb-0">{{ $request->user?->name ?? 'Former or unavailable user' }}</h5>
+                                <small class="text-muted">{{ $request->user?->department ?: 'Unassigned' }} • {{ $request->user?->school_id ?? 'No ID available' }}</small>
                             </div>
                         </div>
                         <div class="text-end">
@@ -204,7 +204,7 @@
                                 <div class="dot bg-success shadow-sm"></div>
                                 <div class="fw-bold small text-dark">Requisition Created</div>
                                 <p class="text-muted extra-small mb-0">{{ $request->created_at->format('F d, Y • h:i A') }}</p>
-                                <small class="text-muted d-block mt-1">Logged by {{ $request->user->name }}</small>
+                                <small class="text-muted d-block mt-1">Logged by {{ $request->user?->name ?? 'Former or unavailable user' }}</small>
                             </div>
 
                             @foreach($request->logs ?? [] as $log)
@@ -225,7 +225,7 @@
                             <div class="activity-log-item ps-4 position-relative">
                                 <div class="dot bg-success shadow-sm"></div>
                                 <div class="fw-bold small text-success">Order Released</div>
-                                <p class="text-muted extra-small mb-0">{{ $request->updated_at->format('M d, Y • h:i A') }}</p>
+                                <p class="text-muted extra-small mb-0">{{ ($request->closed_at ?? $request->updated_at)->format('M d, Y • h:i A') }}</p>
                                 <small class="text-muted">Fulfillment complete.</small>
                             </div>
                             @endif

@@ -39,12 +39,12 @@
                     <tr class="{{ $isOverdue ? 'request-overdue' : ($isNear ? 'request-near' : '') }}">
                         <td data-label="Request">
                             <div class="history-request-code">{{ $req->tracking_code }}</div>
-                            <small><i data-lucide="calendar"></i>{{ $req->created_at->format('M d, Y') }}</small>
+                            <small><i data-lucide="calendar"></i>{{ $type === 'archive' ? 'Closed '.($req->closed_at?->format('M d, Y') ?? 'date unavailable') : $req->created_at?->format('M d, Y') }}</small>
                         </td>
 
                         @if(Auth::user()->role === 'smo')
                             <td data-label="Requestor">
-                                <div class="request-person"><span>{{ strtoupper(substr($req->user->name, 0, 1)) }}</span><div><b>{{ $req->user->name }}</b><small>{{ $req->user->department ?: 'General' }}</small></div></div>
+                                <div class="request-person"><span>{{ strtoupper(substr($req->user?->name ?? '?', 0, 1)) }}</span><div><b>{{ $req->user?->name ?? 'Former or unavailable user' }}</b><small>{{ $req->user?->department ?: 'Unassigned' }}</small></div></div>
                             </td>
                         @endif
 
@@ -77,6 +77,9 @@
                         <td class="text-end" data-label="Actions">
                             <div class="request-actions">
                                 <a href="{{ route('requests.show', $req->id) }}" class="history-action details" title="View request details"><i data-lucide="arrow-up-right"></i><span>Details</span></a>
+                                @if($type === 'archive')
+                                    <a href="{{ route('requests.download', $req->id) }}" class="history-action" title="Download requisition PDF"><i data-lucide="file-down"></i><span>PDF</span></a>
+                                @endif
                                 @if($type === 'active' && Auth::id() === $req->user_id && $req->status === 'pending')
                                     <a href="{{ route('requisitions.edit', $req->id) }}" class="history-action edit" title="Edit pending request"><i data-lucide="pencil"></i></a>
                                     <form action="{{ route('requisitions.destroy', $req->id) }}" method="POST" onsubmit="return confirm('Cancel and delete this pending requisition?');">

@@ -1,90 +1,85 @@
 <x-app-layout>
-    <x-slot name="header">
-        {{ __('Institutional Archive') }}
-    </x-slot>
+    <x-slot name="header">{{ __('Institutional Archive') }}</x-slot>
 
     <div class="container-fluid py-2 institutional-archive-page">
-        <!-- FILTER BAR -->
-        <div class="card border-0 shadow-sm rounded-4 mb-4">
-            <div class="archive-toolbar card-body p-3 d-flex justify-content-between align-items-center gap-3">
-                <div class="archive-periods btn-group p-1 bg-light rounded-pill">
-                    <a href="{{ route('admin.archive', ['filter' => 'all']) }}" class="btn btn-sm rounded-pill px-3 {{ $filter == 'all' ? 'btn-htc' : 'btn-light' }}">All Time</a>
-                    <a href="{{ route('admin.archive', ['filter' => 'today']) }}" class="btn btn-sm rounded-pill px-3 {{ $filter == 'today' ? 'btn-htc' : 'btn-light' }}">Today</a>
-                    <a href="{{ route('admin.archive', ['filter' => 'week']) }}" class="btn btn-sm rounded-pill px-3 {{ $filter == 'week' ? 'btn-htc' : 'btn-light' }}">This Week</a>
-                    <a href="{{ route('admin.archive', ['filter' => 'month']) }}" class="btn btn-sm rounded-pill px-3 {{ $filter == 'month' ? 'btn-htc' : 'btn-light' }}">This Month</a>
-                    <a href="{{ route('admin.archive', ['filter' => 'year']) }}" class="btn btn-sm rounded-pill px-3 {{ $filter == 'year' ? 'btn-htc' : 'btn-light' }}">This Year</a>
-                </div>
-                <div>
-                    <button onclick="window.print()" class="btn btn-sm btn-outline-dark px-3 rounded-pill fw-bold">
-                        <i data-lucide="printer" class="me-1" style="width:14px"></i> Print PDF Report
-                    </button>
-                </div>
+        <div class="workflow-page-heading d-flex justify-content-between align-items-center mb-4 gap-3">
+            <div>
+                <h4 class="fw-black text-dark mb-0">Institutional Archive</h4>
+                <p class="text-muted small mb-0">Audit records for released/completed and rejected/disapproved requisitions.</p>
+            </div>
+            <a href="{{ route('admin.archive', array_merge(request()->except(['page', 'print']), ['print' => 1])) }}" target="_blank" class="workflow-heading-action btn btn-sm btn-htc px-4 rounded-pill shadow-sm">
+                <i data-lucide="printer" class="me-2" style="width:14px"></i> Print filtered archive
+            </a>
+        </div>
+
+        @if($errors->any())
+            <div class="alert alert-warning rounded-3 mb-3" role="alert">
+                <strong>Archive filters were not applied.</strong> {{ $errors->first() }}
+            </div>
+        @endif
+
+        <div class="card border-0 shadow-sm rounded-4 mb-3 archive-filter-card">
+            <div class="card-body p-3">
+                <form action="{{ route('admin.archive') }}" method="GET" class="row g-2 align-items-center">
+                    <div class="col-lg-2 col-md-4">
+                        <select name="status" class="form-select form-select-sm border-0 bg-light rounded-3 shadow-none">
+                            <option value="">All archived statuses</option>
+                            <option value="released" @selected(old('status', request('status')) === 'released')>Released / Completed</option>
+                            <option value="rejected" @selected(old('status', request('status')) === 'rejected')>Rejected / Disapproved</option>
+                        </select>
+                    </div>
+                    <div class="col-lg-2 col-md-4">
+                        <select name="dept" class="form-select form-select-sm border-0 bg-light rounded-3 shadow-none">
+                            <option value="">All departments</option>
+                            @foreach($departments as $department)
+                                <option value="{{ $department }}" @selected(old('dept', request('dept')) === $department)>{{ $department }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-lg-4 col-md-8">
+                        <div class="input-group input-group-sm archive-date-range">
+                            <span class="input-group-text border-0 bg-light text-muted">FROM</span>
+                            <input type="date" name="date_from" value="{{ old('date_from', request('date_from')) }}" class="form-control border-0 bg-light" aria-label="Closure date from">
+                            <span class="input-group-text border-0 bg-light text-muted">TO</span>
+                            <input type="date" name="date_to" value="{{ old('date_to', request('date_to')) }}" class="form-control border-0 bg-light" aria-label="Closure date to">
+                        </div>
+                    </div>
+                    <div class="col-lg-2 col-md-4">
+                        <select name="order" class="form-select form-select-sm border-0 bg-light rounded-3 shadow-none">
+                            <option value="desc" @selected(old('order', request('order', 'desc')) === 'desc')>Newest closed</option>
+                            <option value="asc" @selected(old('order', request('order')) === 'asc')>Oldest closed</option>
+                        </select>
+                    </div>
+                    <div class="col-lg-2 col-md-4 d-flex gap-2">
+                        <button type="submit" class="btn btn-sm btn-htc flex-grow-1">Apply filters</button>
+                        @if(request()->hasAny(['status', 'dept', 'date_from', 'date_to', 'order']))
+                            <a href="{{ route('admin.archive') }}" class="btn btn-sm btn-outline-danger">Reset</a>
+                        @endif
+                    </div>
+                </form>
             </div>
         </div>
 
-        <!-- ARCHIVE TABLE -->
-        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0 workflow-responsive-table">
-                    <thead class="bg-light text-muted small uppercase">
-                        <tr>
-                            <th class="ps-4 py-3">Control #</th>
-                            <th class="py-3">Released Date</th>
-                            <th class="py-3">Requestor</th>
-                            <th class="py-3">Total Value</th>
-                            <th class="py-3 text-center">Items</th>
-                            <th class="pe-4 py-3 text-end">Documents</th>
-                        </tr>
-                    </thead>
-                    <tbody style="font-size: 0.9rem;">
-                        @forelse($archives as $req)
-                        <tr>
-                            <td class="ps-4 fw-mono text-muted" data-label="Control">#{{ str_pad($req->id, 6, '0', STR_PAD_LEFT) }}</td>
-                            <td class="fw-bold text-dark" data-label="Released">
-                                {{ $req->updated_at->format('M d, Y') }}
-                                <div class="small text-muted fw-normal" style="font-size: 10px;">{{ $req->updated_at->format('h:i A') }}</div>
-                            </td>
-                            <td data-label="Requestor">
-                                <div class="fw-bold">{{ $req->user->name }}</div>
-                                <div class="small text-success fw-bold" style="font-size: 9px;">{{ strtoupper($req->user->department) }}</div>
-                            </td>
-                            <td class="fw-bold text-dark" data-label="Total">₱{{ number_format($req->grand_total, 2) }}</td>
-                            <td class="text-center" data-label="Items">
-                                <span class="badge bg-light text-dark border rounded-pill px-3">{{ $req->items->count() }} items</span>
-                            </td>
-                            <td class="pe-4 text-end" data-label="Documents">
-                                <div class="d-flex justify-content-end gap-2">
-                                    <a href="{{ route('requests.show', $req->id) }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3" style="font-size: 10px;">View Info</a>
-                                    <a href="{{ route('requests.download', $req->id) }}" class="btn btn-sm btn-success rounded-pill px-3 fw-bold" style="font-size: 10px;">PDF</a>
-                                </div>
-                            </td>
-                        </tr>
-                        @empty
-                        <tr>
-                            <td colspan="6" class="text-center py-5 text-muted">
-                                <i data-lucide="archive" class="mb-2 opacity-25" style="width: 48px; height: 48px;"></i>
-                                <p>No released records found for the selected period.</p>
-                            </td>
-                        </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-            @if($archives->hasPages())
-                <div class="card-footer bg-white border-0 p-4">
-                    {{ $archives->links() }}
-                </div>
-            @endif
-        </div>
+        @include('requests.partials.history-table', ['requisitions' => $archives, 'type' => 'archive'])
+
+        @if(method_exists($archives, 'hasPages') && $archives->hasPages())
+            <div class="mt-3 archive-pagination">{{ $archives->links() }}</div>
+        @endif
     </div>
 
     <style>
+        @media print {
+            .sidebar, .top-bar, .archive-filter-card, .archive-pagination, .workflow-heading-action { display: none !important; }
+            .main-content { width: 100% !important; margin-left: 0 !important; }
+            .main-content-inner { padding: 0 !important; border: 0 !important; box-shadow: none !important; }
+        }
         @media (max-width: 767.98px) {
-            .archive-toolbar { align-items: stretch !important; flex-direction: column; }
-            .archive-periods { width: 100%; overflow-x: auto; scrollbar-width: none; }
-            .archive-periods::-webkit-scrollbar { display: none; }
-            .archive-periods .btn { flex: 0 0 auto; min-height: 40px; }
-            .archive-toolbar > div:last-child .btn { width: 100%; min-height: 42px; }
+            .workflow-page-heading { align-items: stretch !important; flex-direction: column; }
+            .workflow-heading-action { min-height: 42px; }
         }
     </style>
+
+    @if(request()->boolean('print'))
+        <script>window.addEventListener('load', () => window.print());</script>
+    @endif
 </x-app-layout>

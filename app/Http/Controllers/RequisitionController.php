@@ -4,9 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Requisition;
 use App\Models\RequisitionItem;
-use App\Models\Notification;
 use App\Models\Supply;
 use App\Models\User;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -14,7 +14,7 @@ use Illuminate\Validation\ValidationException;
 
 class RequisitionController extends Controller
 {
-    public function store(Request $request)
+    public function store(Request $request, NotificationService $notifications)
     {
         $user = Auth::user();
 
@@ -111,28 +111,30 @@ class RequisitionController extends Controller
             return $requisition;
         });
 
-        // 6. SMART NOTIFICATIONS
-        if ($initialStatus === 'approved_president') {
-            // NOTIFY SMO: High Priority Alert
-            $smo = User::where('role', 'smo')->first();
-            if ($smo) {
-                Notification::create([
-                    'user_id' => $smo->id,
-                    'title' => '⚡ URGENT: Priority Requisition',
-                    'message' => "A direct requisition from the {$user->role} ({$user->name}) is ready for immediate release.",
-                    'icon' => 'zap',
-                    'type' => 'danger' // Red alert style
-                ]);
-            }
-        } else {
-            // NOTIFY USER: Standard submission
-            Notification::create([
-                'user_id' => $user->id,
-                'title' => 'Requisition Submitted',
-                'message' => "Your request for " . count($validated['items']) . " item(s) has been sent to your Department Head.",
-                'icon' => 'send',
-                'type' => 'info'
+        $notifications->send($user, 'requisition.submitted', 'Requisition Submitted',
+            'Your request for '.count($validated['items']).' item(s) has been submitted.', [
+                'icon' => 'send', 'type' => 'info', 'action_type' => 'requisition',
+                'action_id' => $requisition->id,
+                'dedupe_key' => "requisition:{$requisition->id}:submitted:owner",
             ]);
+
+        if ($initialStatus === 'approved_president') {
+            $notifications->sendToRole('smo', 'requisition.ready_for_release', 'Priority Requisition Ready',
+                "A direct requisition from the {$user->role} ({$user->name}) is ready for release.", [
+                    'icon' => 'zap', 'type' => 'danger', 'action_type' => 'approval_queue',
+                    'action_id' => $requisition->id,
+                    'dedupe_key' => "requisition:{$requisition->id}:ready:smo",
+                ]);
+        } else {
+            User::query()->where('role', 'dept_head')->where('department', $user->department)
+                ->where('is_approved', true)->eachById(fn (User $head) => $notifications->send(
+                    $head, 'requisition.awaiting_approval', 'Requisition Awaiting Review',
+                    "{$user->name}'s requisition {$requisition->tracking_code} is ready for department review.", [
+                        'icon' => 'file-text', 'type' => 'info', 'action_type' => 'approval_queue',
+                        'action_id' => $requisition->id,
+                        'dedupe_key' => "requisition:{$requisition->id}:awaiting:dept-head",
+                    ]
+                ));
         }
 
         return redirect()->route('dashboard')->with('success', 'Requisition processed successfully.');

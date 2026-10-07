@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Requisition;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\NotificationController;
 
 
 // Welcome Page
@@ -157,8 +158,10 @@ Route::get('/dashboard', function () {
 // EMPLOYEE REQUEST & ARCHIVE ROUTES
     Route::middleware(['auth'])->group(function () {
         Route::get('/requests', [RequestController::class, 'index'])->name('requests.index');
-        Route::get('/requests/archive', [RequestController::class, 'archive'])->name('requests.archive'); // <--- ADD THIS LINE
+        Route::get('/requests/archive', [RequestController::class, 'archive'])->name('requests.archive');
         Route::post('/requests', [RequestController::class, 'store'])->name('requests.store');
+        Route::get('/requests/{id}/download', [RequestController::class, 'downloadPDF'])->name('requests.download');
+        Route::get('/requests/{id}', [RequestController::class, 'show'])->name('requests.show');
     });
 
     // SMO INVENTORY & USER MANAGEMENT ROUTES
@@ -201,7 +204,12 @@ Route::get('/dashboard', function () {
         Route::patch('/admin/users/{user}', [ProfileController::class, 'updateManagedUser'])->name('admin.users.update');
     });
 
-    Route::get('/notifications', [RequestController::class, 'notifications'])->middleware('auth')->name('notifications');
+    Route::middleware('auth')->group(function () {
+        Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications');
+        Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
+        Route::patch('/notifications/{notification}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
+        Route::get('/notifications/{notification}/open', [NotificationController::class, 'open'])->name('notifications.open');
+    });
 
     // Change the submission route to point to the new Requisition Controller
     Route::post('/requisitions', [RequisitionController::class, 'store'])->middleware('auth')->name('requisitions.store');
@@ -210,13 +218,8 @@ Route::get('/dashboard', function () {
         ->name('api.requisition-catalog');
 
 
-    Route::get('/requests/{id}/download', [RequestController::class, 'downloadPDF'])->name('requests.download');
-
-    // Route for the "Details" / Shopee-style tracker page
-    Route::get('/requests/{id}', [RequestController::class, 'show'])->name('requests.show');
-
-
-    Route::get('/api/latest-notification', [RequestController::class, 'getLatestNotification'])->middleware('auth');
+    Route::get('/api/latest-notification', [NotificationController::class, 'poll'])
+        ->middleware(['auth', 'throttle:20,1']);
     Route::get('/api/system-version', [RequestController::class, 'systemVersion'])
         ->middleware('auth')
         ->name('api.system-version');
@@ -243,5 +246,6 @@ Route::get('/dashboard', function () {
         Route::redirect('/admin/reports/builder', '/admin/reports')->name('admin.reports.builder');
     });
 
-    //Archive Page route
-    Route::get('/admin/archive', [App\Http\Controllers\ArchiveController::class, 'index'])->name('admin.archive');
+    Route::get('/admin/archive', [App\Http\Controllers\ArchiveController::class, 'index'])
+        ->middleware(['auth', 'role:smo'])
+        ->name('admin.archive');

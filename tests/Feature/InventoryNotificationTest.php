@@ -18,6 +18,8 @@ class InventoryNotificationTest extends TestCase
     {
         $firstSmo = User::factory()->create(['role' => 'smo']);
         $secondSmo = User::factory()->create(['role' => 'smo']);
+        $employee = User::factory()->create(['role' => 'employee']);
+        $unapprovedSmo = User::factory()->create(['role' => 'smo', 'is_approved' => false]);
         $supply = $this->supply(5);
 
         app(InventoryAlertService::class)->notifyIfThresholdCrossed($supply, false, false);
@@ -31,6 +33,8 @@ class InventoryNotificationTest extends TestCase
             'user_id' => $secondSmo->id,
             'icon' => 'triangle-alert',
         ]);
+        $this->assertDatabaseMissing('notifications', ['user_id' => $employee->id]);
+        $this->assertDatabaseMissing('notifications', ['user_id' => $unapprovedSmo->id]);
 
         app(InventoryAlertService::class)->notifyIfThresholdCrossed($supply, true, false);
         $this->assertSame(2, Notification::count(), 'Remaining below the threshold must not create duplicate alerts.');

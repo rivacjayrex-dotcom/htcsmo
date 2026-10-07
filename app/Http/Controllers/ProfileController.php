@@ -4,8 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
 use App\Models\Department;
-use App\Models\Notification;
 use App\Models\User;
+use App\Services\NotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -75,7 +75,7 @@ class ProfileController extends Controller
         return view('admin.pending-users', compact('users'));
     }
 
-    public function approveUser(Request $request, $id)
+    public function approveUser(Request $request, $id, NotificationService $notifications)
     {
         $validated = $request->validate([
             'role' => ['required', Rule::in($this->allAssignableRoles())],
@@ -90,13 +90,11 @@ class ProfileController extends Controller
             'is_approved' => true,
         ]);
 
-        Notification::create([
-            'user_id' => $user->id,
-            'title' => 'Account Activated',
-            'message' => "Your account has been verified as {$validated['role']}. You now have full system access.",
-            'icon' => 'shield-check',
-            'type' => 'success',
-        ]);
+        $notifications->send($user, 'account.activated', 'Account Activated',
+            "Your account has been verified as {$validated['role']}. You now have full system access.", [
+                'icon' => 'shield-check', 'type' => 'success', 'action_type' => 'profile',
+                'action_id' => $user->id, 'dedupe_key' => "account:{$user->id}:activated",
+            ]);
 
         return back()->with('success', "Access granted. {$user->name} is now registered as ".strtoupper($validated['role']));
     }
@@ -144,7 +142,7 @@ class ProfileController extends Controller
         ]);
     }
 
-    public function updateManagedUser(Request $request, User $user): RedirectResponse
+    public function updateManagedUser(Request $request, User $user, NotificationService $notifications): RedirectResponse
     {
         $manager = $request->user();
         $this->ensureCanManageUsers($manager);
@@ -173,13 +171,12 @@ class ProfileController extends Controller
             'is_approved' => (bool) $validated['is_approved'],
         ]);
 
-        Notification::create([
-            'user_id' => $user->id,
-            'title' => 'Personnel Record Updated',
-            'message' => "Your account assignment was updated by {$manager->name}.",
-            'icon' => 'user-cog',
-            'type' => 'info',
-        ]);
+        $notifications->send($user, 'account.assignment_updated', 'Personnel Record Updated',
+            "Your account assignment was updated by {$manager->name}.", [
+                'icon' => 'user-cog', 'type' => 'info', 'action_type' => 'profile',
+                'action_id' => $user->id,
+                'dedupe_key' => "account:{$user->id}:assignment:{$user->updated_at?->format('U.u')}",
+            ]);
 
         return back()->with('success', "{$user->name}'s personnel record was updated.");
     }
