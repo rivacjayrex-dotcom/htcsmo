@@ -8,6 +8,13 @@
         'president' => 'School President',
         'smo' => 'SMO In-Charge',
     ];
+    $personnelCategories = [
+        'all' => ['label' => 'All Personnel', 'description' => 'Everyone within your management scope', 'icon' => 'users'],
+        'admins' => ['label' => 'Administrators', 'description' => 'SMO and institutional administrators', 'icon' => 'shield-check'],
+        'heads' => ['label' => 'Deans & Heads', 'description' => 'Department heads and academic deans', 'icon' => 'landmark'],
+        'staff' => ['label' => 'Faculty & Staff', 'description' => 'Faculty members and support personnel', 'icon' => 'graduation-cap'],
+    ];
+    $activeCategory = $category ?? 'all';
 @endphp
 
 <x-app-layout>
@@ -40,6 +47,9 @@
             </div>
 
             <form action="{{ route('admin.users.manage') }}" method="GET" class="personnel-search d-flex align-items-center gap-2">
+                @if($category)
+                    <input type="hidden" name="category" value="{{ $category }}">
+                @endif
                 <div class="input-group input-group-sm">
                     <span class="input-group-text bg-white border-end-0 rounded-start-pill text-muted">
                         <i data-lucide="search" style="width: 14px;"></i>
@@ -49,7 +59,7 @@
                         placeholder="Search name, ID, or email" style="min-width: 230px;">
                 </div>
                 @if(request('search'))
-                    <a href="{{ route('admin.users.manage') }}" class="btn btn-sm btn-link text-danger text-decoration-none">Clear</a>
+                    <a href="{{ route('admin.users.manage', array_filter(['category' => $category])) }}" class="btn btn-sm btn-link text-danger text-decoration-none">Clear</a>
                 @endif
             </form>
         </div>
@@ -93,10 +103,42 @@
             </div>
         </div>
 
+        <nav class="personnel-categories mb-4" aria-label="Personnel categories">
+            @foreach($personnelCategories as $categoryKey => $categoryDetails)
+                @if($categoryKey === 'all' || ($categoryCounts[$categoryKey] ?? 0) > 0 || $activeCategory === $categoryKey)
+                    @php
+                        $categoryUrl = route('admin.users.manage', array_filter([
+                            'category' => $categoryKey === 'all' ? null : $categoryKey,
+                            'search' => request('search'),
+                        ]));
+                    @endphp
+                    <a href="{{ $categoryUrl }}"
+                        class="personnel-category {{ $activeCategory === $categoryKey ? 'active' : '' }}"
+                        @if($activeCategory === $categoryKey) aria-current="page" @endif>
+                        <span class="personnel-category__icon"><i data-lucide="{{ $categoryDetails['icon'] }}"></i></span>
+                        <span class="personnel-category__copy">
+                            <strong>{{ $categoryDetails['label'] }}</strong>
+                            <small>{{ $categoryDetails['description'] }}</small>
+                        </span>
+                        <span class="personnel-category__count">{{ $categoryCounts[$categoryKey] ?? 0 }}</span>
+                    </a>
+                @endif
+            @endforeach
+        </nav>
+
         <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
             <div class="card-header bg-white border-0 p-4 pb-2">
-                <h6 class="fw-bold text-dark mb-0">Personnel Registry</h6>
-                <small class="text-muted">Actions are limited by your institutional role and assigned department.</small>
+                <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                    <div>
+                        <h6 class="fw-bold text-dark mb-0">{{ $personnelCategories[$activeCategory]['label'] }}</h6>
+                        <small class="text-muted">{{ $personnelCategories[$activeCategory]['description'] }}. Actions remain limited by your role and department.</small>
+                    </div>
+                    @if($activeCategory !== 'all')
+                        <a href="{{ route('admin.users.manage', array_filter(['search' => request('search')])) }}" class="btn btn-sm btn-light border rounded-pill px-3">
+                            View all
+                        </a>
+                    @endif
+                </div>
             </div>
 
             <div class="table-responsive">
@@ -152,7 +194,11 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="text-center py-5 text-muted">No personnel match the current scope or search.</td>
+                                <td colspan="5" class="text-center py-5">
+                                    <div class="personnel-empty-icon mx-auto mb-2"><i data-lucide="users-round"></i></div>
+                                    <div class="fw-bold text-dark">No {{ strtolower($personnelCategories[$activeCategory]['label']) }} found</div>
+                                    <small class="text-muted">Try clearing the search or selecting another category.</small>
+                                </td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -236,6 +282,24 @@
         .mini-label { font-size: 9px; font-weight: 800; text-transform: uppercase; color: #64748b; letter-spacing: 1px; }
         .btn-htc { background-color: var(--htc-green); color: white; border: none; }
         .btn-htc:hover { background-color: #0d2e16; color: white; }
+        .personnel-categories { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .75rem; }
+        .personnel-category { min-width: 0; display: flex; align-items: center; gap: .75rem; padding: .9rem; border: 1px solid #dfe8e2; border-radius: 15px; color: #526258; background: #fff; text-decoration: none; box-shadow: 0 5px 16px rgba(20, 62, 37, .045); transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease; }
+        .personnel-category:hover { border-color: #91b9a0; color: #214a31; transform: translateY(-1px); box-shadow: 0 8px 20px rgba(20, 62, 37, .08); }
+        .personnel-category.active { border-color: #27764b; color: #174d2e; background: #edf8f1; box-shadow: inset 0 0 0 1px #27764b; }
+        .personnel-category__icon { width: 38px; height: 38px; flex: 0 0 38px; display: grid; place-items: center; border-radius: 11px; color: #27764b; background: #e8f3ec; }
+        .personnel-category.active .personnel-category__icon { color: #fff; background: #27764b; }
+        .personnel-category__icon svg { width: 18px; height: 18px; }
+        .personnel-category__copy { min-width: 0; flex: 1; }
+        .personnel-category__copy strong, .personnel-category__copy small { display: block; }
+        .personnel-category__copy strong { font-size: .76rem; }
+        .personnel-category__copy small { margin-top: .12rem; overflow: hidden; color: #7b8980; font-size: .61rem; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
+        .personnel-category__count { min-width: 28px; padding: .25rem .45rem; border-radius: 999px; color: #53675a; background: #eef2ef; font-size: .67rem; font-weight: 800; text-align: center; }
+        .personnel-category.active .personnel-category__count { color: #19603a; background: #d7ecdf; }
+        .personnel-empty-icon { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 12px; color: #678071; background: #edf3ef; }
+        .personnel-empty-icon svg { width: 20px; height: 20px; }
+        @media (max-width: 1199.98px) {
+            .personnel-categories { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
         @media (max-width: 767.98px) {
             .personnel-toolbar { align-items: stretch !important; flex-direction: column; }
             .personnel-search { width: 100%; }
@@ -243,6 +307,8 @@
             .personnel-search input { min-width: 0 !important; min-height: 42px; font-size: 16px; }
             .personnel-page > .row.g-3 { --bs-gutter-y: .65rem; }
             .personnel-page > .card > .card-header { padding: 1rem !important; }
+            .personnel-categories { display: flex; gap: .6rem; margin-right: -.75rem; padding-right: .75rem; overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: thin; }
+            .personnel-category { min-width: 230px; scroll-snap-align: start; }
         }
         @media (max-width: 575.98px) {
             #editPersonnelModal .modal-dialog { width: 100%; max-width: none; height: 100%; min-height: 100%; margin: 0; }

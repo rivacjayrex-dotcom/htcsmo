@@ -97,6 +97,35 @@ class Requisition extends Model
             ->when($filters['date_to'] ?? null, fn (Builder $query, string $date) => $query->whereDate('closed_at', '<=', $date));
     }
 
+    public function scopePrioritizeExecutiveRequestors(Builder $query): Builder
+    {
+        return $query->orderByRaw(
+            "CASE (SELECT role FROM users WHERE users.id = requisitions.user_id) WHEN 'president' THEN 0 WHEN 'provost' THEN 1 ELSE 2 END"
+        );
+    }
+
+    public static function initialStatusFor(User $requestor): string
+    {
+        return match ($requestor->role) {
+            'president', 'provost' => 'approved_president',
+            'vp_admin', 'vp_finance' => 'approved_vp',
+            'dept_head' => 'approved_dept',
+            default => 'pending',
+        };
+    }
+
+    public function nextReviewerRole(): ?string
+    {
+        return match ($this->status) {
+            'pending' => 'dept_head',
+            'approved_dept' => $this->request_type === 'minor' ? 'vp_finance' : 'vp_admin',
+            'approved_vp' => $this->request_type === 'minor' ? 'smo' : 'provost',
+            'approved_provost' => 'president',
+            'approved_president' => 'smo',
+            default => null,
+        };
+    }
+
     public function canBeViewedBy(User $user): bool
     {
         return $user->role === 'smo' || $this->user_id === $user->id;

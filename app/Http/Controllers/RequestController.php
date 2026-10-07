@@ -203,6 +203,10 @@ class RequestController extends Controller
                 break;
         }
 
+        if ($user->role === 'smo') {
+            $query->prioritizeExecutiveRequestors();
+        }
+
         $pendingRequests = $query->latest()->get();
 
         // A notification can deep-link to one request, but only when that
@@ -365,13 +369,7 @@ class RequestController extends Controller
         ]);
 
         if ($request->status === 'approved') {
-            $nextRole = match ($sr->status) {
-                'approved_dept' => $sr->request_type === 'minor' ? 'vp_finance' : 'vp_admin',
-                'approved_vp' => $sr->request_type === 'minor' ? 'smo' : 'provost',
-                'approved_provost' => 'president',
-                'approved_president' => 'smo',
-                default => null,
-            };
+            $nextRole = $sr->nextReviewerRole();
 
             if ($nextRole) {
                 $notifications->sendToRole($nextRole, 'requisition.awaiting_approval', 'Requisition Ready for Action',

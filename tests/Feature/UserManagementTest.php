@@ -273,6 +273,37 @@ class UserManagementTest extends TestCase
             ->assertOk()->assertSee('Matching Active User')->assertSee('value="Matching"', false);
     }
 
+    public function test_personnel_registry_can_be_browsed_by_role_category_with_search_state_preserved(): void
+    {
+        $smo = User::factory()->create(['role' => 'smo']);
+        User::factory()->create(['name' => 'Category Administrator', 'role' => 'provost']);
+        User::factory()->create(['name' => 'Category Department Head', 'role' => 'dept_head', 'department' => 'CETE']);
+        User::factory()->create(['name' => 'Category Faculty Member', 'role' => 'employee', 'department' => 'CETE']);
+
+        $this->actingAs($smo)->get(route('admin.users.manage', [
+            'category' => 'admins',
+            'search' => 'Category',
+        ]))
+            ->assertOk()
+            ->assertSee('Category Administrator')
+            ->assertDontSee('Category Department Head')
+            ->assertDontSee('Category Faculty Member')
+            ->assertSee('name="category" value="admins"', false)
+            ->assertSee('value="Category"', false);
+
+        $this->actingAs($smo)->get(route('admin.users.manage', ['category' => 'heads']))
+            ->assertOk()
+            ->assertSee('Category Department Head')
+            ->assertDontSee('Category Administrator')
+            ->assertDontSee('Category Faculty Member');
+
+        $this->actingAs($smo)->get(route('admin.users.manage', ['category' => 'staff']))
+            ->assertOk()
+            ->assertSee('Category Faculty Member')
+            ->assertDontSee('Category Administrator')
+            ->assertDontSee('Category Department Head');
+    }
+
     public function test_incomplete_pending_registration_cannot_be_approved(): void
     {
         $smo = User::factory()->create(['role' => 'smo']);

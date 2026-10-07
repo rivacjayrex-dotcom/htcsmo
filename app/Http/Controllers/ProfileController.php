@@ -134,8 +134,12 @@ class ProfileController extends Controller
         $manager = $request->user();
         $this->ensureCanManageUsers($manager);
 
-        $validated = $request->validate(['search' => ['nullable', 'string', 'max:100']]);
+        $validated = $request->validate([
+            'search' => ['nullable', 'string', 'max:100'],
+            'category' => ['nullable', Rule::in(['admins', 'heads', 'staff'])],
+        ]);
         $search = trim($validated['search'] ?? '');
+        $category = $validated['category'] ?? null;
         $scope = User::query()->where('account_status', '!=', User::ACCOUNT_PENDING);
 
         if ($manager->role === 'dept_head') {
@@ -151,7 +155,22 @@ class ProfileController extends Controller
             'suspended' => (clone $scope)->where('account_status', User::ACCOUNT_SUSPENDED)->count(),
         ];
 
+        $categoryRoles = [
+            'admins' => ['smo', 'president', 'provost', 'vp_admin', 'vp_finance'],
+            'heads' => ['dept_head'],
+            'staff' => ['employee'],
+        ];
+        $categoryCounts = [
+            'all' => $stats['total'],
+            'admins' => (clone $scope)->whereIn('role', $categoryRoles['admins'])->count(),
+            'heads' => (clone $scope)->whereIn('role', $categoryRoles['heads'])->count(),
+            'staff' => (clone $scope)->whereIn('role', $categoryRoles['staff'])->count(),
+        ];
+
         $query = (clone $scope)->with('academicDepartment');
+        if ($category !== null) {
+            $query->whereIn('role', $categoryRoles[$category]);
+        }
         if ($search !== '') {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
@@ -170,6 +189,8 @@ class ProfileController extends Controller
         return view('admin.manage-users', [
             'users' => $users,
             'stats' => $stats,
+            'category' => $category,
+            'categoryCounts' => $categoryCounts,
             'departments' => $departments,
             'manageableUserIds' => $manageableUserIds,
             'manageableRoles' => $this->assignableRolesFor($manager),

@@ -78,12 +78,9 @@ class RequisitionController extends Controller
             ]);
         }
 
-        // 2. AUTO-APPROVAL LOGIC (Advisor's Rule)
-        // If the user is President or Provost, the status is pre-approved.
-        // Otherwise, it starts as 'pending' for the Dept Head.
-        $initialStatus = in_array($user->role, ['president', 'provost'])
-            ? 'approved_president'
-            : 'pending';
+        // Start after the requestor's own approval office so nobody approves
+        // their own requisition or sends it backward to a lower office.
+        $initialStatus = Requisition::initialStatusFor($user);
 
         // 3. CREATE THE HEADER
         $requisition = DB::transaction(function () use ($user, $validated, $initialStatus, $preparedItems, $calculatedGrandTotal) {
@@ -118,14 +115,7 @@ class RequisitionController extends Controller
                 'dedupe_key' => "requisition:{$requisition->id}:submitted:owner",
             ]);
 
-        if ($initialStatus === 'approved_president') {
-            $notifications->sendToRole('smo', 'requisition.ready_for_release', 'Priority Requisition Ready',
-                "A direct requisition from the {$user->role} ({$user->name}) is ready for release.", [
-                    'icon' => 'zap', 'type' => 'danger', 'action_type' => 'approval_queue',
-                    'action_id' => $requisition->id,
-                    'dedupe_key' => "requisition:{$requisition->id}:ready:smo",
-                ]);
-        } else {
+        if ($initialStatus === 'pending') {
             User::query()->where('role', 'dept_head')->where('department', $user->department)
                 ->where('account_status', User::ACCOUNT_ACTIVE)->eachById(fn (User $head) => $notifications->send(
                     $head, 'requisition.awaiting_approval', 'Requisition Awaiting Review',
@@ -135,6 +125,23 @@ class RequisitionController extends Controller
                         'dedupe_key' => "requisition:{$requisition->id}:awaiting:dept-head",
                     ]
                 ));
+        } elseif ($nextRole = $requisition->nextReviewerRole()) {
+            $isExecutivePriority = in_array($user->role, ['president', 'provost'], true);
+            $notifications->sendToRole(
+                $nextRole,
+                $nextRole === 'smo' ? 'requisition.ready_for_release' : 'requisition.awaiting_approval',
+                $isExecutivePriority ? 'Priority Requisition Ready' : 'Requisition Ready for Action',
+                $isExecutivePriority
+                    ? "A direct requisition from the {$user->role} ({$user->name}) is ready for release."
+                    : "Requisition {$requisition->tracking_code} from {$user->name} is ready for your review.",
+                [
+                    'icon' => $isExecutivePriority ? 'zap' : 'file-text',
+                    'type' => $isExecutivePriority ? 'danger' : ($nextRole === 'smo' ? 'warning' : 'info'),
+                    'action_type' => 'approval_queue',
+                    'action_id' => $requisition->id,
+                    'dedupe_key' => "requisition:{$requisition->id}:initial-route:{$nextRole}",
+                ]
+            );
         }
 
         return redirect()->route('dashboard')->with('success', 'Requisition processed successfully.');
