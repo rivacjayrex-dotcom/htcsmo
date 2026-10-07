@@ -127,7 +127,7 @@ class RequisitionController extends Controller
                 ]);
         } else {
             User::query()->where('role', 'dept_head')->where('department', $user->department)
-                ->where('is_approved', true)->eachById(fn (User $head) => $notifications->send(
+                ->where('account_status', User::ACCOUNT_ACTIVE)->eachById(fn (User $head) => $notifications->send(
                     $head, 'requisition.awaiting_approval', 'Requisition Awaiting Review',
                     "{$user->name}'s requisition {$requisition->tracking_code} is ready for department review.", [
                         'icon' => 'file-text', 'type' => 'info', 'action_type' => 'approval_queue',

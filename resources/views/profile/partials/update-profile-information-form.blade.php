@@ -51,17 +51,9 @@
 
             <div class="col-md-6">
                 <label for="department" class="form-label small fw-bold text-muted uppercase">Department / College</label>
-                <select id="department" name="department" class="form-select border-0 bg-light py-2 px-3 rounded-3 shadow-none @error('department') is-invalid @enderror">
-                    <option value="">Administrative Office / Not Assigned</option>
-                    @foreach($departments as $department)
-                        <option value="{{ $department->dept_code }}" @selected(old('department', $user->department) === $department->dept_code)>
-                            {{ $department->dept_name }} ({{ $department->dept_code }})
-                        </option>
-                    @endforeach
-                </select>
-                @error('department')
-                    <div class="invalid-feedback">{{ $message }}</div>
-                @enderror
+                <input id="department" type="text" class="form-control border-0 bg-light py-2 px-3 rounded-3 shadow-none"
+                    value="{{ $user->academicDepartment?->dept_name ?? $user->department ?? 'Administrative Office / Not Assigned' }}" readonly>
+                <small class="text-muted">Department assignments are maintained through Personnel Management.</small>
             </div>
 
             <div class="col-12">

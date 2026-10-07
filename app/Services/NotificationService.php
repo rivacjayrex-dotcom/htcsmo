@@ -62,7 +62,7 @@ class NotificationService
     {
         User::query()
             ->where('role', $role)
-            ->where('is_approved', true)
+            ->where('account_status', User::ACCOUNT_ACTIVE)
             ->eachById(fn (User $user) => $this->send($user, $eventType, $title, $message, $options));
     }
 }

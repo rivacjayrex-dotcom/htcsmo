@@ -181,7 +181,7 @@ Route::get('/dashboard', function () {
 
         // USER ACCESS MANAGEMENT
         Route::get('/admin/users/pending', [ProfileController::class, 'pendingUsers'])->name('admin.users.pending');
-        Route::post('/admin/users/{id}/approve', [ProfileController::class, 'approveUser'])->name('admin.users.approve');
+        Route::post('/admin/users/{id}/approve', [ProfileController::class, 'approveUser'])->whereNumber('id')->name('admin.users.approve');
     });
 
     // PROFILE ROUTES (Standard Laravel)
@@ -201,7 +201,7 @@ Route::get('/dashboard', function () {
 
     Route::middleware(['auth', 'role:smo,president,provost,vp_admin,dept_head'])->group(function () {
         Route::get('/admin/users/manage', [ProfileController::class, 'manageUsers'])->name('admin.users.manage');
-        Route::patch('/admin/users/{user}', [ProfileController::class, 'updateManagedUser'])->name('admin.users.update');
+        Route::patch('/admin/users/{user}', [ProfileController::class, 'updateManagedUser'])->whereNumber('user')->name('admin.users.update');
     });
 
     Route::middleware('auth')->group(function () {

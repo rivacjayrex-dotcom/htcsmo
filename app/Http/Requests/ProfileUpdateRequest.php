@@ -26,11 +26,6 @@ class ProfileUpdateRequest extends FormRequest
                 'alpha_dash:ascii',
                 Rule::unique(User::class)->ignore($this->user()->id),
             ],
-            'department' => [
-                'nullable',
-                'string',
-                Rule::exists('departments', 'dept_code'),
-            ],
             'email' => [
                 'required',
                 'string',
@@ -50,9 +45,6 @@ class ProfileUpdateRequest extends FormRequest
         $this->merge([
             'name' => preg_replace('/\s+/', ' ', trim((string) $this->name)),
             'username' => strtolower(trim((string) $this->username)),
-            'department' => $this->filled('department')
-                ? strtoupper(trim((string) $this->department))
-                : null,
             'email' => strtolower(trim((string) $this->email)),
         ]);
     }

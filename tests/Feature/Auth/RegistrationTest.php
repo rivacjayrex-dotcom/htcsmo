@@ -2,12 +2,19 @@
 
 namespace Tests\Feature\Auth;
 
+use Database\Seeders\DepartmentSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class RegistrationTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->seed(DepartmentSeeder::class);
+    }
 
     public function test_registration_screen_can_be_rendered(): void
     {
@@ -21,7 +28,7 @@ class RegistrationTest extends TestCase
         $response = $this->post('/register', [
             'name' => 'Test User',
             'username' => 'test_user',
-            'school_id' => '2026-0001',
+            'school_id' => '20260-0001',
             'department' => 'CETE',
             'email' => 'test.user@online.htcgsc.edu.ph',
             'password' => 'Password123',
@@ -34,8 +41,9 @@ class RegistrationTest extends TestCase
 
         $this->assertGuest();
         $this->assertDatabaseHas('users', [
-            'school_id' => '2026-0001',
+            'school_id' => '20260-0001',
             'is_approved' => false,
+            'account_status' => 'pending',
         ]);
     }
 

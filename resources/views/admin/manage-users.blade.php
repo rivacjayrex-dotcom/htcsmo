@@ -15,12 +15,13 @@
 
     <div class="container-fluid py-2 personnel-page" x-data="{
         editModal: null,
-        selectedUser: { id: '', name: '', role: '', department: '', is_approved: '1' },
+        selectedUser: { id: '', name: '', role: '', department: '', account_status: 'active', version: 0 },
         openEdit(user) {
             this.selectedUser = {
                 ...user,
                 department: user.department || '',
-                is_approved: user.is_approved ? '1' : '0'
+                account_status: user.account_status,
+                version: user.version
             };
             this.editModal ??= new bootstrap.Modal(document.getElementById('editPersonnelModal'));
             this.editModal.show();
@@ -75,19 +76,19 @@
             <div class="col-md-4">
                 <div class="card border-0 shadow-sm rounded-4 p-3 h-100">
                     <small class="text-muted fw-bold text-uppercase" style="font-size: 9px;">Visible Personnel</small>
-                    <h3 class="fw-black mb-0 mt-2">{{ $users->count() }}</h3>
+                    <h3 class="fw-black mb-0 mt-2">{{ $stats['total'] }}</h3>
                 </div>
             </div>
             <div class="col-md-4">
                 <div class="card border-0 shadow-sm rounded-4 p-3 h-100 border-start border-success border-4">
                     <small class="text-muted fw-bold text-uppercase" style="font-size: 9px;">Approved Accounts</small>
-                    <h3 class="fw-black text-success mb-0 mt-2">{{ $users->where('is_approved', true)->count() }}</h3>
+                    <h3 class="fw-black text-success mb-0 mt-2">{{ $stats['active'] }}</h3>
                 </div>
             </div>
             <div class="col-md-4">
                 <div class="card border-0 shadow-sm rounded-4 p-3 h-100 border-start border-warning border-4">
-                    <small class="text-muted fw-bold text-uppercase" style="font-size: 9px;">Pending / Inactive</small>
-                    <h3 class="fw-black text-warning mb-0 mt-2">{{ $users->where('is_approved', false)->count() }}</h3>
+                    <small class="text-muted fw-bold text-uppercase" style="font-size: 9px;">Suspended Accounts</small>
+                    <h3 class="fw-black text-warning mb-0 mt-2">{{ $stats['suspended'] }}</h3>
                 </div>
             </div>
         </div>
@@ -118,17 +119,17 @@
                                 </td>
                                 <td data-label="Department">
                                     <span class="badge bg-light text-dark border rounded-pill px-3">
-                                        {{ $user->department ?: 'Administrative Office' }}
+                                        {{ $user->academicDepartment?->dept_code ?? ($user->department ?: 'Administrative Office') }}
                                     </span>
                                 </td>
                                 <td data-label="Designation">
                                     <span class="small fw-semibold">{{ $roleLabels[$user->role] ?? ucwords(str_replace('_', ' ', $user->role)) }}</span>
                                 </td>
                                 <td data-label="Access">
-                                    @if($user->is_approved)
-                                        <span class="badge bg-success-subtle text-success rounded-pill px-3">Approved</span>
+                                    @if($user->account_status === \App\Models\User::ACCOUNT_ACTIVE)
+                                        <span class="badge bg-success-subtle text-success rounded-pill px-3">Active</span>
                                     @else
-                                        <span class="badge bg-warning-subtle text-warning rounded-pill px-3">Pending / Inactive</span>
+                                        <span class="badge bg-warning-subtle text-warning rounded-pill px-3">Suspended</span>
                                     @endif
                                 </td>
                                 <td class="text-end pe-4" data-label="Action">
@@ -139,7 +140,8 @@
                                                 'name' => $user->name,
                                                 'role' => $user->role,
                                                 'department' => $user->department,
-                                                'is_approved' => $user->is_approved,
+                                                'account_status' => $user->account_status,
+                                                'version' => $user->account_version,
                                             ]) }})">
                                             Manage
                                         </button>
@@ -156,6 +158,9 @@
                     </tbody>
                 </table>
             </div>
+            @if($users->hasPages())
+                <div class="card-footer bg-white border-0 p-3">{{ $users->links() }}</div>
+            @endif
         </div>
 
         <div class="modal fade" id="editPersonnelModal" tabindex="-1" aria-hidden="true" aria-labelledby="editPersonnelModalTitle">
@@ -166,12 +171,13 @@
                             <h6 class="modal-title fw-bold mb-0" id="editPersonnelModalTitle">Manage Personnel Record</h6>
                             <small class="text-muted" x-text="selectedUser.name"></small>
                         </div>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
 
                     <form :action="'{{ url('/admin/users') }}/' + selectedUser.id" method="POST">
                         @csrf
                         @method('patch')
+                        <input type="hidden" name="version" :value="selectedUser.version">
 
                         <div class="modal-body p-4">
                             <div class="mb-3">
@@ -203,11 +209,16 @@
 
                             <div>
                                 <label for="managed_status" class="form-label mini-label">Account Access</label>
-                                <select id="managed_status" name="is_approved" class="form-select bg-light border-0 shadow-none" x-model="selectedUser.is_approved" required>
-                                    <option value="1">Approved / Active</option>
-                                    <option value="0">Pending / Inactive</option>
+                                <select id="managed_status" name="account_status" class="form-select bg-light border-0 shadow-none" x-model="selectedUser.account_status" required>
+                                    <option value="active">Active</option>
+                                    <option value="suspended">Suspended</option>
                                 </select>
-                                <small class="text-muted d-block mt-2">Inactive accounts cannot sign in until access is approved again.</small>
+                                <small class="text-muted d-block mt-2">Suspended accounts are signed out and cannot sign in until access is restored.</small>
+                            </div>
+
+                            <div class="mt-3" x-show="selectedUser.account_status === 'suspended'" x-cloak>
+                                <label for="change_reason" class="form-label mini-label">Suspension reason</label>
+                                <textarea id="change_reason" name="change_reason" class="form-control bg-light border-0 shadow-none" rows="3" maxlength="500" :required="selectedUser.account_status === 'suspended'" placeholder="Record a concise administrative reason"></textarea>
                             </div>
                         </div>
 

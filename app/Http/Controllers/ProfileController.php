@@ -5,13 +5,15 @@ namespace App\Http\Controllers;
 use App\Http\Requests\ProfileUpdateRequest;
 use App\Models\Department;
 use App\Models\User;
+use App\Models\UserActivityLog;
 use App\Services\NotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class ProfileController extends Controller
@@ -23,7 +25,6 @@ class ProfileController extends Controller
     {
         return view('profile.edit', [
             'user' => $request->user(),
-            'departments' => Department::orderBy('dept_name')->get(),
         ]);
     }
 
@@ -49,10 +50,6 @@ class ProfileController extends Controller
         }
 
         $validated = $request->validated();
-        $validated['department_id'] = isset($validated['department'])
-            ? Department::where('dept_code', $validated['department'])->value('id')
-            : null;
-
         $request->user()->fill($validated);
 
         if ($request->user()->isDirty('email')) {
@@ -64,39 +61,72 @@ class ProfileController extends Controller
         return Redirect::route('profile.edit')->with('status', 'profile-updated');
     }
 
-    public function pendingUsers()
+    public function pendingUsers(Request $request)
     {
-        // Fetch all users where is_approved is 0 (false)
-        // and exclude the SMO themselves so they don't see their own account
-        $users = User::where('is_approved', false)
-            ->where('id', '!=', Auth::id())
-            ->get();
+        abort_unless($request->user()->role === 'smo', 403);
+        $validated = $request->validate(['search' => ['nullable', 'string', 'max:100']]);
+        $search = trim($validated['search'] ?? '');
+        $users = User::query()
+            ->with('academicDepartment')
+            ->withAccountStatus(User::ACCOUNT_PENDING)
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($matches) use ($search) {
+                    $matches->where('name', 'like', "%{$search}%")
+                        ->orWhere('school_id', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%");
+                });
+            })
+            ->oldest('created_at')
+            ->paginate(15)
+            ->withQueryString();
 
         return view('admin.pending-users', compact('users'));
     }
 
     public function approveUser(Request $request, $id, NotificationService $notifications)
     {
-        $validated = $request->validate([
-            'role' => ['required', Rule::in($this->allAssignableRoles())],
-        ]);
+        $manager = $request->user();
+        abort_unless($manager->role === 'smo', 403);
+        $validated = $request->validate(['version' => ['required', 'integer', 'min:0']]);
 
-        $user = User::findOrFail($id);
+        $user = DB::transaction(function () use ($id, $manager, $request, $validated) {
+            $manager = User::query()->lockForUpdate()->findOrFail($manager->id);
+            abort_unless($manager->hasActiveAccess() && $manager->role === 'smo', 403);
+            $user = User::query()->lockForUpdate()->findOrFail($id);
+            abort_if($manager->is($user), 403, 'You cannot approve your own account.');
 
-        // 1. Assign the role chosen by the SMO
-        // 2. Set is_approved to true
-        $user->update([
-            'role' => $validated['role'],
-            'is_approved' => true,
-        ]);
+            if ($user->account_status !== User::ACCOUNT_PENDING) {
+                throw ValidationException::withMessages(['account' => 'This access request has already been processed.']);
+            }
+            if ($user->account_version !== (int) $validated['version']) {
+                throw ValidationException::withMessages(['account' => 'This request changed while you were reviewing it. Refresh and try again.']);
+            }
+
+            $department = Department::where('dept_code', $user->department)->first();
+            if (! $department) {
+                throw ValidationException::withMessages(['account' => 'This registration has an invalid or missing department and cannot be approved.']);
+            }
+
+            $user->forceFill([
+                'role' => 'employee',
+                'department' => $department->dept_code,
+                'department_id' => $department->id,
+                'account_status' => User::ACCOUNT_ACTIVE,
+                'account_version' => $user->account_version + 1,
+            ])->save();
+
+            $this->recordAccountAudit($manager, $request, "Approved pending account #{$user->id} as employee");
+
+            return $user;
+        }, 3);
 
         $notifications->send($user, 'account.activated', 'Account Activated',
-            "Your account has been verified as {$validated['role']}. You now have full system access.", [
+            'Your account has been verified as employee. You now have system access.', [
                 'icon' => 'shield-check', 'type' => 'success', 'action_type' => 'profile',
                 'action_id' => $user->id, 'dedupe_key' => "account:{$user->id}:activated",
             ]);
 
-        return back()->with('success', "Access granted. {$user->name} is now registered as ".strtoupper($validated['role']));
+        return back()->with('success', "Access granted to {$user->name} as Faculty / Staff.");
     }
 
     public function manageUsers(Request $request)
@@ -104,18 +134,25 @@ class ProfileController extends Controller
         $manager = $request->user();
         $this->ensureCanManageUsers($manager);
 
-        $query = User::query();
+        $validated = $request->validate(['search' => ['nullable', 'string', 'max:100']]);
+        $search = trim($validated['search'] ?? '');
+        $scope = User::query()->where('account_status', '!=', User::ACCOUNT_PENDING);
 
         if ($manager->role === 'dept_head') {
             abort_if(blank($manager->department), 403, 'A department assignment is required to manage personnel.');
 
-            $query->where('department', $manager->department)
+            $scope->where('department', $manager->department)
                 ->where('role', 'employee');
         }
 
-        // Optional search filter by name or ID
-        if ($request->filled('search')) {
-            $search = $request->search;
+        $stats = [
+            'total' => (clone $scope)->count(),
+            'active' => (clone $scope)->where('account_status', User::ACCOUNT_ACTIVE)->count(),
+            'suspended' => (clone $scope)->where('account_status', User::ACCOUNT_SUSPENDED)->count(),
+        ];
+
+        $query = (clone $scope)->with('academicDepartment');
+        if ($search !== '') {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                     ->orWhere('school_id', 'like', "%{$search}%")
@@ -123,7 +160,7 @@ class ProfileController extends Controller
             });
         }
 
-        $users = $query->orderBy('department')->orderBy('name')->get();
+        $users = $query->orderBy('department')->orderBy('name')->paginate(20)->withQueryString();
         $departments = Department::orderBy('dept_name')->get();
         $manageableUserIds = $users
             ->filter(fn (User $user) => $this->canManageTarget($manager, $user))
@@ -132,6 +169,7 @@ class ProfileController extends Controller
 
         return view('admin.manage-users', [
             'users' => $users,
+            'stats' => $stats,
             'departments' => $departments,
             'manageableUserIds' => $manageableUserIds,
             'manageableRoles' => $this->assignableRolesFor($manager),
@@ -152,31 +190,80 @@ class ProfileController extends Controller
         $validated = $request->validate([
             'role' => ['required', Rule::in($this->assignableRolesFor($manager))],
             'department' => ['nullable', 'required_if:role,dept_head', Rule::exists('departments', 'dept_code')],
-            'is_approved' => ['required', 'boolean'],
+            'account_status' => ['required', Rule::in([User::ACCOUNT_ACTIVE, User::ACCOUNT_SUSPENDED])],
+            'change_reason' => ['nullable', 'required_if:account_status,'.User::ACCOUNT_SUSPENDED, 'string', 'max:500'],
+            'version' => ['required', 'integer', 'min:0'],
         ]);
 
-        if ($manager->role === 'dept_head') {
-            $validated['role'] = 'employee';
-            $validated['department'] = $manager->department;
+        $result = DB::transaction(function () use ($user, $manager, $request, $validated) {
+            $manager = User::query()->lockForUpdate()->findOrFail($manager->id);
+            abort_unless($manager->hasActiveAccess(), 403);
+            $this->ensureCanManageUsers($manager);
+            $lockedUser = User::query()->lockForUpdate()->findOrFail($user->id);
+            abort_unless($this->canManageTarget($manager, $lockedUser), 403, 'You cannot manage this user account.');
+            abort_if($lockedUser->account_status === User::ACCOUNT_PENDING, 409, 'Pending registrations must be handled through Access Requests.');
+
+            abort_unless(in_array($validated['role'], $this->assignableRolesFor($manager), true), 403, 'You cannot assign this role.');
+            if ($manager->role === 'dept_head') {
+                $validated['role'] = 'employee';
+                $validated['department'] = $manager->department;
+            }
+
+            if ($lockedUser->account_version !== (int) $validated['version']) {
+                throw ValidationException::withMessages(['account' => 'This personnel record changed while you were editing it. Refresh and try again.']);
+            }
+
+            $department = filled($validated['department'] ?? null)
+                ? Department::where('dept_code', $validated['department'])->firstOrFail()
+                : null;
+            $before = $lockedUser->only(['role', 'department', 'account_status']);
+            $after = [
+                'role' => $validated['role'],
+                'department' => $department?->dept_code,
+                'account_status' => $validated['account_status'],
+            ];
+
+            if ($before === $after) {
+                return ['user' => $lockedUser, 'changed' => false, 'changes' => []];
+            }
+
+            $lockedUser->forceFill([
+                ...$after,
+                'department_id' => $department?->id,
+                'account_version' => $lockedUser->account_version + 1,
+            ])->save();
+
+            $changes = collect($after)->filter(fn ($value, $field) => $before[$field] !== $value)
+                ->map(fn ($value, $field) => "{$field}: ".($before[$field] ?? 'none').' -> '.($value ?? 'none'))
+                ->implode('; ');
+            $reason = filled($validated['change_reason'] ?? null) ? '; reason: '.trim($validated['change_reason']) : '';
+            $this->recordAccountAudit($manager, $request, "Updated account #{$lockedUser->id}: {$changes}{$reason}");
+
+            return ['user' => $lockedUser, 'changed' => true, 'changes' => array_keys(array_diff_assoc($after, $before))];
+        }, 3);
+
+        if (! $result['changed']) {
+            return back()->with('success', 'No personnel changes were needed.');
         }
 
-        $department = filled($validated['department'] ?? null)
-            ? Department::where('dept_code', $validated['department'])->first()
-            : null;
-
-        $user->update([
-            'role' => $validated['role'],
-            'department' => $department?->dept_code,
-            'department_id' => $department?->id,
-            'is_approved' => (bool) $validated['is_approved'],
+        $user = $result['user'];
+        $statusChanged = in_array('account_status', $result['changes'], true);
+        $event = $user->account_status === User::ACCOUNT_SUSPENDED
+            ? 'account.suspended'
+            : ($statusChanged ? 'account.reactivated' : 'account.assignment_updated');
+        $title = $user->account_status === User::ACCOUNT_SUSPENDED
+            ? 'Account Access Suspended'
+            : ($statusChanged ? 'Account Access Restored' : 'Personnel Record Updated');
+        $message = $user->account_status === User::ACCOUNT_SUSPENDED
+            ? 'Your system access has been suspended. Contact the Supply Management Office for assistance.'
+            : ($statusChanged ? 'Your system access has been restored.' : 'Your account assignment was updated.');
+        $notifications->send($user, $event, $title, $message, [
+            'icon' => $statusChanged ? 'user-check' : 'user-cog',
+            'type' => $user->account_status === User::ACCOUNT_SUSPENDED ? 'warning' : ($statusChanged ? 'success' : 'info'),
+            'action_type' => 'profile',
+            'action_id' => $user->id,
+            'dedupe_key' => "account:{$user->id}:change:{$user->account_version}",
         ]);
-
-        $notifications->send($user, 'account.assignment_updated', 'Personnel Record Updated',
-            "Your account assignment was updated by {$manager->name}.", [
-                'icon' => 'user-cog', 'type' => 'info', 'action_type' => 'profile',
-                'action_id' => $user->id,
-                'dedupe_key' => "account:{$user->id}:assignment:{$user->updated_at?->format('U.u')}",
-            ]);
 
         return back()->with('success', "{$user->name}'s personnel record was updated.");
     }
@@ -230,6 +317,17 @@ class ProfileController extends Controller
      */
     private function allAssignableRoles(): array
     {
-        return ['employee', 'dept_head', 'vp_finance', 'vp_admin', 'provost', 'president', 'smo'];
+        return User::ROLES;
+    }
+
+    private function recordAccountAudit(User $manager, Request $request, string $action): void
+    {
+        UserActivityLog::create([
+            'user_id' => $manager->id,
+            'action' => mb_substr($action, 0, 255),
+            'ip_address' => $request->ip() ?? 'unknown',
+            'user_agent' => $request->userAgent(),
+            'created_at' => now(),
+        ]);
     }
 }

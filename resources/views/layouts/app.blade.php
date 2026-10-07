@@ -1881,9 +1881,9 @@
                             </li>
                             <li><hr class="dropdown-divider opacity-50"></li>
                             <li>
-                                <form method="POST" action="{{ route('logout') }}">
+                                <form method="POST" action="{{ route('logout') }}" data-logout-form>
                                     @csrf
-                                    <button type="submit" class="dropdown-item text-danger rounded-3 small d-flex align-items-center">
+                                    <button type="submit" class="dropdown-item text-danger rounded-3 small d-flex align-items-center" data-loading-text="Logging out…">
                                         <i data-lucide="log-out" class="me-2" style="width:14px"></i> Sign Out
                                     </button>
                                 </form>

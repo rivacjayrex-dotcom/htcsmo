@@ -112,8 +112,9 @@
                                 <label for="account_status" class="form-label mini-label">Account Status</label>
                                 <select id="account_status" name="account_status" class="form-select border-0 bg-light rounded-3 shadow-none">
                                     <option value="">All Accounts</option>
-                                    <option value="approved" @selected(request('account_status') === 'approved')>Approved</option>
+                                    <option value="active" @selected(request('account_status') === 'active')>Active</option>
                                     <option value="pending" @selected(request('account_status') === 'pending')>Pending Approval</option>
+                                    <option value="suspended" @selected(request('account_status') === 'suspended')>Suspended</option>
                                 </select>
                             </div>
                         @endif

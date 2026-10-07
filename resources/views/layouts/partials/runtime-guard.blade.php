@@ -30,6 +30,12 @@
     .runtime-spinner { width: 1rem; height: 1rem; flex: 0 0 1rem; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: runtime-spin .7s linear infinite; }
     button .runtime-spinner { width: .9rem; height: .9rem; flex-basis: .9rem; }
     form[data-runtime-submitting='true'] { cursor: wait; }
+    .runtime-logout-modal { position: fixed; inset: 0; z-index: 20001; display: grid; place-items: center; padding: 1rem; background: rgba(10, 29, 18, .46); backdrop-filter: blur(2px); }
+    .runtime-logout-modal[hidden] { display: none !important; }
+    .runtime-logout-modal__dialog { display: flex; align-items: center; gap: .9rem; width: min(100%, 320px); padding: 1.15rem 1.25rem; border: 1px solid rgba(255, 255, 255, .7); border-radius: 16px; background: #fff; color: #173b27; box-shadow: 0 22px 60px rgba(8, 34, 19, .24); }
+    .runtime-logout-modal__spinner { width: 1.5rem; height: 1.5rem; flex: 0 0 1.5rem; border: 3px solid #dbe9df; border-top-color: #198754; border-radius: 50%; animation: runtime-spin .75s linear infinite; }
+    .runtime-logout-modal__title { display: block; font-size: .95rem; font-weight: 700; line-height: 1.25; }
+    .runtime-logout-modal__copy { display: block; margin-top: .15rem; color: #66756c; font-size: .78rem; line-height: 1.35; }
 
     @keyframes runtime-spin { to { transform: rotate(360deg); } }
     @keyframes runtime-shimmer { 100% { transform: translateX(100%); } }
@@ -83,6 +89,16 @@
     </div>
 </div>
 
+<div id="runtimeLogoutModal" class="runtime-logout-modal" role="dialog" aria-modal="true" aria-labelledby="runtimeLogoutTitle" tabindex="-1" hidden>
+    <div class="runtime-logout-modal__dialog">
+        <span class="runtime-logout-modal__spinner" aria-hidden="true"></span>
+        <span>
+            <span id="runtimeLogoutTitle" class="runtime-logout-modal__title">Logging out…</span>
+            <span class="runtime-logout-modal__copy">Please wait while we securely end your session.</span>
+        </span>
+    </div>
+</div>
+
 <script>
     (() => {
         if (window.__htcRuntimeGuardLoaded) return;
@@ -90,9 +106,11 @@
 
         const loader = document.getElementById('runtimeLoader');
         const loaderMessage = document.getElementById('runtimeLoaderMessage');
+        const logoutModal = document.getElementById('runtimeLogoutModal');
         const lockedForms = new Set();
         const nativeSubmit = HTMLFormElement.prototype.submit;
         let runtimeLocked = false;
+        let logoutPending = false;
         let previousFocus = null;
 
         // Legacy form.submit() skips submit events. Route it through requestSubmit()
@@ -118,11 +136,26 @@
             loader.focus({preventScroll: true});
         };
 
+        const showLogoutModal = () => {
+            if (!logoutModal) return;
+            if (!runtimeLocked && document.activeElement instanceof HTMLElement) {
+                previousFocus = document.activeElement;
+            }
+            logoutPending = true;
+            runtimeLocked = true;
+            logoutModal.hidden = false;
+            document.body.classList.add('runtime-locked');
+            document.documentElement.setAttribute('aria-busy', 'true');
+            logoutModal.focus({preventScroll: true});
+        };
+
         const hideLoader = () => {
             runtimeLocked = false;
+            logoutPending = false;
             document.body.classList.remove('runtime-locked');
             document.documentElement.removeAttribute('aria-busy');
             if (loader) loader.hidden = true;
+            if (logoutModal) logoutModal.hidden = true;
             if (previousFocus?.isConnected) previousFocus.focus({preventScroll: true});
             previousFocus = null;
         };
@@ -191,7 +224,11 @@
             });
 
             if ((form.method || 'get').toLowerCase() !== 'get') clearRuntimeCache();
-            showLoader(form.dataset.loadingMessage || 'Processing request…');
+            if (form.dataset.logoutForm !== undefined) {
+                showLogoutModal();
+            } else {
+                showLoader(form.dataset.loadingMessage || 'Processing request…');
+            }
 
             queueMicrotask(() => {
                 if (!event.defaultPrevented) return;
@@ -204,7 +241,7 @@
         // The overlay absorbs pointer input. Capture keyboard-triggered actions too,
         // so users cannot start another operation while a request is in flight.
         document.addEventListener('click', event => {
-            if (!runtimeLocked || loader?.contains(event.target)) return;
+            if (!runtimeLocked || loader?.contains(event.target) || logoutModal?.contains(event.target)) return;
             event.preventDefault();
             event.stopImmediatePropagation();
         }, true);
@@ -233,7 +270,9 @@
             showLoader('Opening page…');
         });
 
-        window.addEventListener('beforeunload', () => showLoader('Loading page…'));
+        window.addEventListener('beforeunload', () => {
+            if (!logoutPending) showLoader('Loading page…');
+        });
         window.addEventListener('pageshow', () => {
             lockedForms.forEach(unlockForm);
             hideLoader();

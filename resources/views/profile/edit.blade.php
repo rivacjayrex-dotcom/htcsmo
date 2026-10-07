@@ -39,7 +39,7 @@
                         <i data-lucide="user-cog" class="text-success me-3"></i>
                         <div>
                             <h6 class="fw-bold mb-0">Profile Information</h6>
-                            <small class="text-muted">Update your name, username, department, and email address.</small>
+                            <small class="text-muted">Update your name, username, and email address.</small>
                         </div>
                     </div>
                     @include('profile.partials.update-profile-information-form')

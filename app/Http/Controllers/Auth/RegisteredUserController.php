@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\Department;
 use App\Models\User;
 use App\Services\NotificationService;
 use Illuminate\Auth\Events\Registered;
@@ -20,7 +21,9 @@ class RegisteredUserController extends Controller
      */
     public function create(): View
     {
-        return view('auth.register');
+        return view('auth.register', [
+            'departments' => Department::query()->orderBy('dept_name')->get(),
+        ]);
     }
 
     /**
@@ -67,11 +70,7 @@ class RegisteredUserController extends Controller
             ],
 
             // Department: Restricted to official HTC colleges only
-            'department' => [
-                'required',
-                'string',
-                Rule::in(['CTE', 'CETE', 'CCJE', 'CBMA', 'CAS']),
-            ],
+            'department' => ['required', 'string', Rule::exists('departments', 'dept_code')],
 
             // Strict Institutional Email: Must end specifically with @online.htcgsc.edu.ph
             'email' => [
@@ -106,15 +105,18 @@ class RegisteredUserController extends Controller
         ]);
 
         // 3. Create User in Database
+        $department = Department::where('dept_code', $validated['department'])->firstOrFail();
         $user = User::create([
             'name' => $validated['name'],
             'username' => $validated['username'],
             'school_id' => $validated['school_id'],
             'department' => $validated['department'],
+            'department_id' => $department->id,
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'role' => 'employee',
             'is_approved' => false,
+            'account_status' => User::ACCOUNT_PENDING,
         ]);
 
         // 4. Send persistent notification to SMO In-Charge

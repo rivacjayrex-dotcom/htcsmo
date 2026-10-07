@@ -2,15 +2,15 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Models\User;
+use App\Models\UserActivityLog;
 use Illuminate\Auth\Events\Lockout;
-use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
-use App\Models\User;
-use Illuminate\Support\Facades\Hash;
 
 class LoginRequest extends FormRequest
 {
@@ -42,8 +42,8 @@ class LoginRequest extends FormRequest
 
         // 1. Find user by either Email OR School ID OR Username
         $user = User::where('username', $this->login)
-                    ->orWhere('school_id', $this->login)
-                    ->first();
+            ->orWhere('school_id', $this->login)
+            ->first();
 
         // 2. Check if user exists and if password matches
         if (! $user || ! Hash::check($this->password, $user->password)) {
@@ -54,8 +54,10 @@ class LoginRequest extends FormRequest
             ]);
         }
 
-        if ($user && ! $user->is_approved) {
+        if ($user && ! $user->hasActiveAccess()) {
             Auth::logout();
+            $this->session()->flash('account_status', $user->account_status);
+
             return false;
         }
 
@@ -65,9 +67,9 @@ class LoginRequest extends FormRequest
         RateLimiter::clear($this->throttleKey());
 
         // Security Audit Trail (Activity Logging)
-        \App\Models\UserActivityLog::create([
-            'user_id'    => $user->id,
-            'action'     => "User Authenticated ({$user->role})",
+        UserActivityLog::create([
+            'user_id' => $user->id,
+            'action' => "User Authenticated ({$user->role})",
             'ip_address' => $this->ip(),
             'user_agent' => $this->userAgent(),
             'created_at' => now(),

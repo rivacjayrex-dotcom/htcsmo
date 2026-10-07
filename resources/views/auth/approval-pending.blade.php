@@ -18,14 +18,15 @@
                     <div class="mb-4 text-success" aria-hidden="true">
                         <i data-lucide="clock-3" width="38" height="38"></i>
                     </div>
+                    @php($isSuspended = session('account_status') === \App\Models\User::ACCOUNT_SUSPENDED)
                     <header class="auth-form-heading">
-                        <h1 id="approval-heading">Your account is awaiting approval</h1>
-                        <p>Your sign-in details are correct, but access has not been granted yet.</p>
+                        <h1 id="approval-heading">{{ $isSuspended ? 'Your account access is suspended' : 'Your account is awaiting approval' }}</h1>
+                        <p>{{ $isSuspended ? 'Your sign-in details are correct, but this account is currently inactive.' : 'Your sign-in details are correct, but access has not been granted yet.' }}</p>
                     </header>
 
                     <div class="auth-note mb-4" role="status">
                         <i data-lucide="info" width="17" height="17" aria-hidden="true"></i>
-                        <span>The Supply Management Office must approve your account before you can access the system. Please try again after approval.</span>
+                        <span>{{ $isSuspended ? 'Please contact the Supply Management Office if you believe access should be restored.' : 'The Supply Management Office must approve your account before you can access the system. Please try again after approval.' }}</span>
                     </div>
 
                     <a href="{{ route('login') }}" class="btn auth-primary-button w-100">

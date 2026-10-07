@@ -41,6 +41,7 @@ class ReportController extends Controller
             'period' => ['nullable', 'in:current_semester,this_month,this_year,all,custom'],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
+            'account_status' => ['nullable', 'in:pending,active,suspended'],
         ]);
 
         [$semesterStart, $semesterEnd, $semesterLabel] = $this->currentSemester();
@@ -53,7 +54,7 @@ class ReportController extends Controller
             'month' => Requisition::where('status', 'released')->where('updated_at', '>=', now()->startOfMonth())->count(),
             'year' => Requisition::where('status', 'released')->where('updated_at', '>=', now()->startOfYear())->count(),
             'semester' => (clone $releasedThisSemester)->count(),
-            'users' => User::where('is_approved', true)->count(),
+            'users' => User::where('account_status', User::ACCOUNT_ACTIVE)->count(),
             'inventory_items' => Supply::count(),
         ];
 
@@ -327,7 +328,7 @@ class ReportController extends Controller
             $query->where('role', $request->role);
         }
         if ($request->filled('account_status')) {
-            $query->where('is_approved', $request->account_status === 'approved');
+            $query->where('account_status', $request->account_status);
         }
 
         $this->applyDateRange($query, 'created_at', $dateFrom, $dateTo);
@@ -340,7 +341,7 @@ class ReportController extends Controller
             'email' => $user->email,
             'department' => $user->department ?: 'Administrative Office',
             'role' => strtoupper(str_replace('_', ' ', $user->role)),
-            'status' => $user->is_approved ? 'Approved' : 'Pending',
+            'status' => ucfirst($user->account_status),
             'registered' => $user->created_at->format('Y-m-d'),
         ]);
 

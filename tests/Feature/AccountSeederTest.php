@@ -26,6 +26,7 @@ class AccountSeederTest extends TestCase
             $this->assertDatabaseHas('users', [
                 'role' => $role,
                 'is_approved' => true,
+                'account_status' => User::ACCOUNT_ACTIVE,
             ]);
         }
 

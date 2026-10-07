@@ -6,8 +6,25 @@
     <div class="container-fluid py-2 pending-users-page">
         <div class="mb-4 animate__animated animate__fadeIn">
             <h4 class="fw-black text-dark mb-1">Pending Registrations</h4>
-            <p class="text-muted small">Verify institutional identity and assign administrative authority levels.</p>
+            <p class="text-muted small mb-3">Verify institutional identity before activating a new Faculty / Staff account.</p>
+            <form action="{{ route('admin.users.pending') }}" method="GET" class="d-flex flex-wrap gap-2" role="search">
+                <input type="search" name="search" value="{{ request('search') }}" class="form-control" maxlength="100" placeholder="Search name, school ID, or email" aria-label="Search access requests">
+                <button class="btn btn-htc" type="submit">Search</button>
+                @if(request()->filled('search'))
+                    <a class="btn btn-outline-secondary" href="{{ route('admin.users.pending') }}">Clear</a>
+                @endif
+            </form>
         </div>
+
+        @if(session('success'))
+            <div class="alert alert-success" role="status">{{ session('success') }}</div>
+        @endif
+        @if($errors->any())
+            <div class="alert alert-danger" role="alert">
+                <strong>The request could not be processed.</strong>
+                <ul class="small mb-0 mt-1">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>
+            </div>
+        @endif
 
         <div class="row g-4">
             <div class="col-xl-9">
@@ -23,7 +40,7 @@
                                     <h6 class="fw-bold mb-0 text-dark">{{ $u->name }}</h6>
                                     <div class="text-muted small mb-1">ID: {{ $u->school_id }}</div>
                                     <span class="badge bg-success-subtle text-success rounded-pill px-3" style="font-size: 9px;">
-                                        {{ $u->department }} DEPARTMENT
+                                        {{ $u->academicDepartment?->dept_code ?? $u->department ?? 'UNASSIGNED' }} DEPARTMENT
                                     </span>
                                 </div>
                             </div>
@@ -32,20 +49,13 @@
                             <div class="pending-user-role col-md-7 p-4 bg-white">
                                 <form action="{{ route('admin.users.approve', $u->id) }}" method="POST">
                                     @csrf
+                                    <input type="hidden" name="version" value="{{ $u->account_version }}">
                                     <div class="row align-items-center">
                                         <div class="col-sm-7">
-                                            <label class="form-label mini-label">Assign Institutional Role</label>
-                                            <div class="input-group input-group-sm">
-                                                <span class="input-group-text bg-light border-0"><i data-lucide="shield-check" style="width:14px"></i></span>
-                                                <select name="role" class="form-select border-0 bg-light fw-bold shadow-none" required>
-                                                    <option value="employee" selected>Faculty / Staff</option>
-                                                    <option value="dept_head">Department Head (Dean)</option>
-                                                    <option value="vp_finance">VP for Finance</option>
-                                                    <option value="vp_admin">VP for Administration</option>
-                                                    <option value="provost">School Provost</option>
-                                                    <option value="president">School President</option>
-                                                    <option value="smo">SMO Personnel</option>
-                                                </select>
+                                            <label class="form-label mini-label">Initial Access Role</label>
+                                            <div class="d-flex align-items-center gap-2 rounded-3 bg-light p-2 fw-bold small">
+                                                <i data-lucide="user-check" style="width:16px"></i>
+                                                Faculty / Staff
                                             </div>
                                         </div>
                                         <div class="col-sm-5 text-end mt-3 mt-sm-0">
@@ -68,6 +78,9 @@
                         <p class="text-muted small mx-auto" style="max-width: 300px;">All registration attempts have been processed. No users are currently awaiting verification.</p>
                     </div>
                 @endforelse
+                @if($users->hasPages())
+                    <div class="mt-3">{{ $users->links() }}</div>
+                @endif
             </div>
 
             <!-- RIGHT SIDEBAR: REQUIREMENTS REMINDER -->

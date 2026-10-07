@@ -32,7 +32,7 @@ class CheckDeadlineSla extends Command
         $this->info('Scanning requisitions against 3-day SLA...');
 
         // Find all SMO users
-        $smoUsers = User::where('role', 'smo')->where('is_approved', true)->get();
+        $smoUsers = User::where('role', 'smo')->where('account_status', User::ACCOUNT_ACTIVE)->get();
 
         if ($smoUsers->isEmpty()) {
             $this->warn('No SMO users found in the system.');

@@ -39,11 +39,11 @@
                                     <span class="input-group-text" aria-hidden="true"><i data-lucide="building-2" width="17" height="17"></i></span>
                                     <select id="department" name="department" class="form-select @error('department') is-invalid @enderror" required>
                                         <option value="" disabled {{ old('department') ? '' : 'selected' }}>Select your department</option>
-                                        <option value="CTE" {{ old('department') === 'CTE' ? 'selected' : '' }}>College of Teacher Education (CTE)</option>
-                                        <option value="CETE" {{ old('department') === 'CETE' ? 'selected' : '' }}>College of Engineering and Technology (CETE)</option>
-                                        <option value="CCJE" {{ old('department') === 'CCJE' ? 'selected' : '' }}>College of Criminal Justice Education (CCJE)</option>
-                                        <option value="CBMA" {{ old('department') === 'CBMA' ? 'selected' : '' }}>College of Business Management & Accountancy (CBMA)</option>
-                                        <option value="CAS" {{ old('department') === 'CAS' ? 'selected' : '' }}>College of Arts and Sciences (CAS)</option>
+                                        @foreach($departments as $department)
+                                            <option value="{{ $department->dept_code }}" {{ old('department') === $department->dept_code ? 'selected' : '' }}>
+                                                {{ $department->dept_name }} ({{ $department->dept_code }})
+                                            </option>
+                                        @endforeach
                                     </select>
                                     @error('department') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
