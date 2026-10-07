@@ -1,74 +1,85 @@
 <style>
     .runtime-loader {
         position: fixed;
-        inset: 0;
+        top: 72px;
+        right: 0;
+        bottom: 0;
+        left: var(--sidebar-width, 250px);
         z-index: 20000;
-        display: grid;
-        place-items: center;
-        padding: 1.25rem;
+        display: block;
+        padding: 1.5rem;
+        overflow: hidden;
         cursor: wait;
         pointer-events: auto;
         touch-action: none;
-        background: rgba(248, 250, 249, .5);
-        backdrop-filter: blur(0.5px);
+        background: #f3f7f4;
     }
 
     .runtime-loader[hidden] { display: none !important; }
     body.runtime-locked { overflow: hidden; cursor: wait; }
-    .runtime-loader::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 42%;
-        height: 3px;
-        background: #198754;
-        box-shadow: 0 0 12px rgba(25, 135, 84, .45);
-        animation: runtime-progress 1.15s ease-in-out infinite;
-    }
+    .runtime-content-skeleton { min-height: calc(100vh - 120px); padding: 1.4rem; border: 1px solid #e0e9e3; border-radius: 18px; background: #fff; box-shadow: 0 12px 34px rgba(17,62,38,.06); }
+    .runtime-content-skeleton__heading { display: flex; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem; }
+    .runtime-content-skeleton__cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+    .runtime-content-skeleton__card { min-height: 122px; padding: 1rem; border: 1px solid #e5ece7; border-radius: 14px; }
+    .runtime-content-skeleton__table { margin-top: 1rem; padding: 1rem; border: 1px solid #e5ece7; border-radius: 14px; }
+    .runtime-content-skeleton__row { display: grid; grid-template-columns: 1.2fr .8fr .65fr; gap: 1rem; padding: .85rem 0; border-bottom: 1px solid #edf1ef; }
+    .runtime-content-skeleton__row:last-child { border-bottom: 0; }
+    .runtime-content-skeleton__block { position: relative; height: 12px; overflow: hidden; border-radius: 8px; background: #e5ece7; }
+    .runtime-content-skeleton__block::after { content: ''; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, rgba(255,255,255,.72), transparent); animation: runtime-shimmer 1.25s ease-in-out infinite; }
 
-    .runtime-loader__message {
-        display: inline-flex;
-        align-items: center;
-        gap: .6rem;
-        padding: .7rem .9rem;
-        color: #244c34;
-        font-size: .76rem;
-        font-weight: 700;
-        background: rgba(255, 255, 255, .97);
-        border: 1px solid #d8e5dc;
-        border-radius: .75rem;
-        box-shadow: 0 12px 35px rgba(20, 55, 34, .15);
-    }
-
-    .runtime-spinner {
-        width: 1rem;
-        height: 1rem;
-        flex: 0 0 1rem;
-        border: 2px solid currentColor;
-        border-right-color: transparent;
-        border-radius: 50%;
-        animation: runtime-spin .7s linear infinite;
-    }
-
+    .runtime-spinner { width: 1rem; height: 1rem; flex: 0 0 1rem; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: runtime-spin .7s linear infinite; }
     button .runtime-spinner { width: .9rem; height: .9rem; flex-basis: .9rem; }
     form[data-runtime-submitting='true'] { cursor: wait; }
 
     @keyframes runtime-spin { to { transform: rotate(360deg); } }
-    @keyframes runtime-progress {
-        0% { transform: translateX(-110%); }
-        100% { transform: translateX(340%); }
-    }
+    @keyframes runtime-shimmer { 100% { transform: translateX(100%); } }
 
+    @media (max-width: 991.98px) {
+        .runtime-loader { left: 0; }
+        .runtime-content-skeleton__cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 575.98px) {
+        .runtime-loader { top: 64px; padding: .8rem; }
+        .runtime-content-skeleton { padding: 1rem; border-radius: 14px; }
+        .runtime-content-skeleton__cards { grid-template-columns: 1fr; }
+        .runtime-content-skeleton__card:nth-child(3) { display: none; }
+        .runtime-content-skeleton__row { grid-template-columns: 1fr .55fr; }
+        .runtime-content-skeleton__row > :last-child { display: none; }
+    }
     @media (prefers-reduced-motion: reduce) {
-        .runtime-spinner, .runtime-loader::before { animation-duration: 2s; }
+        .runtime-spinner { animation-duration: 2s; }
+        .runtime-content-skeleton__block::after { animation: none; }
     }
 </style>
 
 <div id="runtimeLoader" class="runtime-loader" role="status" aria-live="polite" aria-atomic="true" tabindex="-1" hidden>
-    <div class="runtime-loader__message">
-        <span class="runtime-spinner" aria-hidden="true"></span>
-        <span id="runtimeLoaderMessage">Loading&hellip;</span>
+    <span id="runtimeLoaderMessage" class="visually-hidden">Loading&hellip;</span>
+    <div class="runtime-content-skeleton" aria-hidden="true">
+        <div class="runtime-content-skeleton__heading">
+            <div class="d-grid gap-2" style="width: min(360px, 65%)">
+                <div class="runtime-content-skeleton__block" style="width: 62%"></div>
+                <div class="runtime-content-skeleton__block" style="width: 88%"></div>
+            </div>
+            <div class="runtime-content-skeleton__block" style="width: 110px; height: 38px"></div>
+        </div>
+        <div class="runtime-content-skeleton__cards">
+            @for($card = 0; $card < 3; $card++)
+                <div class="runtime-content-skeleton__card d-grid align-content-start gap-3">
+                    <div class="runtime-content-skeleton__block" style="width: 38%"></div>
+                    <div class="runtime-content-skeleton__block" style="width: 54%; height: 28px"></div>
+                    <div class="runtime-content-skeleton__block" style="width: 88%"></div>
+                </div>
+            @endfor
+        </div>
+        <div class="runtime-content-skeleton__table">
+            @for($row = 0; $row < 6; $row++)
+                <div class="runtime-content-skeleton__row">
+                    <div class="runtime-content-skeleton__block" style="width: 88%"></div>
+                    <div class="runtime-content-skeleton__block" style="width: 68%"></div>
+                    <div class="runtime-content-skeleton__block" style="width: 68%"></div>
+                </div>
+            @endfor
+        </div>
     </div>
 </div>
 

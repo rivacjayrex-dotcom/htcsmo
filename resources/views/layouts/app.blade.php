@@ -2276,14 +2276,18 @@
                     this.show = true;
                     this.timerKey++;
                     window.clearTimeout(this.timer);
-                    this.timer = window.setTimeout(() => this.dismiss(), 9000);
+                    this.timer = window.setTimeout(() => this.dismiss('expired'), 9000);
                     this.playSound(this.type);
                     this.$nextTick(() => lucide.createIcons());
                 },
-                dismiss() {
+                dismiss(reason = 'manual') {
                     this.show = false;
                     window.clearTimeout(this.timer);
-                    window.setTimeout(() => this.presentNext(), 200);
+                    if (this.queue.length) {
+                        window.setTimeout(() => this.presentNext(), 200);
+                    } else if (reason === 'expired') {
+                        window.location.reload();
+                    }
                 },
                 updateBadge(count) {
                     const badge = document.getElementById('notificationUnreadCount');
