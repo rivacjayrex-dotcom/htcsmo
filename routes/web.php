@@ -26,22 +26,28 @@ Route::view('/privacy-policy', 'legal.privacy')->name('legal.privacy');
 Route::get('/dashboard', function () {
     $user = Auth::user();
 
-    // 1. BASE COUNTERS (Keep these to show overall health)
-    $activeCount = Requisition::where('user_id', $user->id)
-        ->whereNotIn('status', ['released', 'rejected'])
-        ->count();
+    $activeCount = 0;
+    $approvedLast24h = 0;
+    $recentRequests = collect();
 
-    $approvedLast24h = Requisition::where('user_id', $user->id)
-        ->whereIn('status', ['approved_president', 'released'])
-        ->where('updated_at', '>=', now()->subDay())
-        ->count();
+    if ($user->role !== 'smo') {
+        // 1. BASE COUNTERS (Keep these to show overall health)
+        $activeCount = Requisition::where('user_id', $user->id)
+            ->whereNotIn('status', ['released', 'rejected'])
+            ->count();
 
-    // 2. EMPLOYEE TABLE: Filter to show ONLY Pending/In-Progress
-    $recentRequests = Requisition::with('items')
-        ->where('user_id', $user->id)
-        ->whereNotIn('status', ['released', 'rejected']) // <--- THE FILTER
-        ->latest()
-        ->get();
+        $approvedLast24h = Requisition::where('user_id', $user->id)
+            ->whereIn('status', ['approved_president', 'released'])
+            ->where('updated_at', '>=', now()->subDay())
+            ->count();
+
+        // 2. EMPLOYEE TABLE: Filter to show ONLY Pending/In-Progress
+        $recentRequests = Requisition::with('items')
+            ->where('user_id', $user->id)
+            ->whereNotIn('status', ['released', 'rejected']) // <--- THE FILTER
+            ->latest()
+            ->get();
+    }
 
     // SCHOOL ADMIN DASHBOARD: Show only requests currently assigned to this approver.
     $approvalRequests = collect();
@@ -90,15 +96,15 @@ Route::get('/dashboard', function () {
             ->oldest('stage_started_at')
             ->take(6)
             ->get();
-        $stats['total'] = Requisition::count();
-        $stats['pending'] = Requisition::whereNotIn('status', ['released', 'rejected'])->count();
-        $stats['urgent'] = Requisition::where(function ($query) {
-            $query->where(function ($minor) {
-                $minor->where('request_type', 'minor')->where('status', 'approved_vp');
-            })->orWhere(function ($major) {
-                $major->where('request_type', 'major')->where('status', 'approved_president');
-            });
-        })->where('stage_started_at', '<=', now()->subDays(2))->count();
+        $requisitionStats = Requisition::query()->selectRaw(
+            'COUNT(*) as total,
+             COALESCE(SUM(CASE WHEN status NOT IN (?, ?) THEN 1 ELSE 0 END), 0) as pending,
+             COALESCE(SUM(CASE WHEN ((request_type = ? AND status = ?) OR (request_type = ? AND status = ?)) AND stage_started_at <= ? THEN 1 ELSE 0 END), 0) as urgent',
+            ['released', 'rejected', 'minor', 'approved_vp', 'major', 'approved_president', now()->subDays(2)]
+        )->first();
+        $stats['total'] = (int) $requisitionStats->total;
+        $stats['pending'] = (int) $requisitionStats->pending;
+        $stats['urgent'] = (int) $requisitionStats->urgent;
         $deadlineRequests = Requisition::with(['items', 'user'])
             ->where(function ($query) {
                 $query->where(function ($minor) {
@@ -111,8 +117,12 @@ Route::get('/dashboard', function () {
             ->oldest('stage_started_at')
             ->take(4)
             ->get();
-        $stats['low_stock'] = Supply::whereColumn('quantity', '<=', 'min_stock_level')->count();
-        $stats['out_of_stock'] = Supply::where('quantity', '<=', 0)->count();
+        $inventoryStats = Supply::query()->selectRaw(
+            'COALESCE(SUM(CASE WHEN quantity <= min_stock_level THEN 1 ELSE 0 END), 0) as low_stock,
+             COALESCE(SUM(CASE WHEN quantity <= 0 THEN 1 ELSE 0 END), 0) as out_of_stock'
+        )->first();
+        $stats['low_stock'] = (int) $inventoryStats->low_stock;
+        $stats['out_of_stock'] = (int) $inventoryStats->out_of_stock;
         $lowStockSupplies = Supply::whereColumn('quantity', '<=', 'min_stock_level')
             ->orderByRaw('CASE WHEN quantity <= 0 THEN 0 ELSE 1 END')
             ->orderByRaw('(min_stock_level - quantity) DESC')

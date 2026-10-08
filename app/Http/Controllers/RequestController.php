@@ -39,17 +39,23 @@ class RequestController extends Controller
         $validated = $request->validate(['after_id' => ['nullable', 'integer', 'min:0']]);
         $user = $request->user();
         $afterId = (int) ($validated['after_id'] ?? 0);
-        $latestId = (int) Notification::query()->forUser($user)->max('id');
+        $notificationState = Notification::query()->forUser($user)
+            ->selectRaw(
+                'COALESCE(MAX(id), 0) as latest_id, COALESCE(SUM(CASE WHEN is_read = ? THEN 1 ELSE 0 END), 0) as unread_count',
+                [false]
+            )
+            ->first();
         $notifications = Notification::query()->forUser($user)->unread()
             ->where('id', '>', $afterId)->oldest('id')->limit(10)->get();
         $payloads = $notifications->map(fn (Notification $notification) => $notification->pollPayload($user))->values();
+        $latestId = (int) $notificationState->latest_id;
 
         return response()->json([
             'version' => $this->runtimeVersion(),
             'account_id' => $user->id,
             'latest_id' => $latestId,
             'cursor' => (int) ($notifications->last()?->id ?? $latestId),
-            'unread_count' => Notification::query()->forUser($user)->unread()->count(),
+            'unread_count' => (int) $notificationState->unread_count,
             'notifications' => $payloads,
             'notification' => $payloads->first(),
         ])->header('Cache-Control', 'private, no-store, no-cache, must-revalidate');
@@ -57,17 +63,28 @@ class RequestController extends Controller
 
     private function runtimeVersion(): string
     {
-        $requisitions = DB::table('requisitions')
-            ->selectRaw('COUNT(*) as total, COALESCE(MAX(id), 0) as latest_id, MAX(updated_at) as latest_update')
-            ->first();
-        $approvals = DB::table('approval_logs')
-            ->selectRaw('COUNT(*) as total, COALESCE(MAX(id), 0) as latest_id, MAX(created_at) as latest_update')
-            ->first();
-        $supplies = DB::table('supplies')
-            ->selectRaw('COUNT(*) as total, COALESCE(MAX(id), 0) as latest_id, MAX(updated_at) as latest_update')
+        $state = DB::query()->selectRaw('(
+                SELECT COUNT(*) FROM requisitions
+            ) as requisition_total, (
+                SELECT COALESCE(MAX(id), 0) FROM requisitions
+            ) as requisition_latest_id, (
+                SELECT MAX(updated_at) FROM requisitions
+            ) as requisition_latest_update, (
+                SELECT COUNT(*) FROM approval_logs
+            ) as approval_total, (
+                SELECT COALESCE(MAX(id), 0) FROM approval_logs
+            ) as approval_latest_id, (
+                SELECT MAX(created_at) FROM approval_logs
+            ) as approval_latest_update, (
+                SELECT COUNT(*) FROM supplies
+            ) as supply_total, (
+                SELECT COALESCE(MAX(id), 0) FROM supplies
+            ) as supply_latest_id, (
+                SELECT MAX(updated_at) FROM supplies
+            ) as supply_latest_update')
             ->first();
 
-        return hash('sha256', json_encode([$requisitions, $approvals, $supplies]));
+        return hash('sha256', json_encode($state));
     }
 
     /**

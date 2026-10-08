@@ -2200,6 +2200,7 @@
             const storageKey = 'htc-last-notification-{{ Auth::id() }}';
             const soundKey = 'htc-notification-sound';
             const accountId = {{ (int) Auth::id() }};
+            const runtimeCacheKey = `htc-runtime-state:${accountId}`;
             const tabId = window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
             const channel = 'BroadcastChannel' in window ? new BroadcastChannel(`htc-notifications-${accountId}`) : null;
 
@@ -2220,6 +2221,12 @@
                 audioContext: null,
 
                 init() {
+                    try {
+                        const cachedRuntimeState = JSON.parse(sessionStorage.getItem(runtimeCacheKey) || 'null');
+                        if (cachedRuntimeState) this.updateBadge(Number(cachedRuntimeState.unread_count || 0));
+                    } catch (error) {
+                        // The next runtime poll will populate the badge.
+                    }
                     const unlock = () => this.unlockAudio();
                     document.addEventListener('pointerdown', unlock, {once: true});
                     document.addEventListener('keydown', unlock, {once: true});
@@ -2550,6 +2557,7 @@
                     sessionStorage.setItem(cacheKey, JSON.stringify({
                         version: data.version,
                         latest_id: Number(data.latest_id || 0),
+                        unread_count: Number(data.unread_count || 0),
                         cached_at: Date.now(),
                     }));
                 } catch (error) {
