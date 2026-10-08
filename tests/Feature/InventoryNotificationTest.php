@@ -65,7 +65,10 @@ class InventoryNotificationTest extends TestCase
             'grand_total' => 500,
             'updated_at' => now()->subDays(3),
         ]);
-        $readyMinor->forceFill(['updated_at' => now()->subDays(3)])->saveQuietly();
+        $readyMinor->forceFill([
+            'stage_started_at' => now()->subDays(3),
+            'updated_at' => now()->subDays(3),
+        ])->saveQuietly();
         $unfinishedMajor = Requisition::create([
             'user_id' => $requestor->id,
             'request_type' => 'major',
@@ -73,7 +76,10 @@ class InventoryNotificationTest extends TestCase
             'grand_total' => 25000,
             'updated_at' => now()->subDays(3),
         ]);
-        $unfinishedMajor->forceFill(['updated_at' => now()->subDays(3)])->saveQuietly();
+        $unfinishedMajor->forceFill([
+            'stage_started_at' => now()->subDays(3),
+            'updated_at' => now()->subDays(3),
+        ])->saveQuietly();
 
         $notifications = $this->actingAs($smo)->get(route('notifications'));
 

@@ -101,7 +101,7 @@ class RequestController extends Controller
                 })->orWhere(function ($major) {
                     $major->where('request_type', 'major')->where('status', 'approved_president');
                 });
-            })->where('updated_at', '<=', now()->subDays(2))->count(),
+            })->where('stage_started_at', '<=', now()->subDays(2))->count(),
         ];
 
         $query = (clone $scopeQuery)->with(['items', 'user']);
@@ -134,7 +134,83 @@ class RequestController extends Controller
             ? User::whereNotNull('department')->where('department', '<>', '')->distinct()->orderBy('department')->pluck('department')
             : collect();
 
-        return view('requests.index', compact('activeRequests', 'requestStats', 'departments'));
+        $approvalDeadlineRequests = collect();
+        if ($user->role === 'smo' || in_array($user->role, ['dept_head', 'vp_finance', 'vp_admin', 'provost', 'president'], true)) {
+            $deadlineQuery = Requisition::query()
+                ->with(['items', 'user'])
+                ->approvalDeadlineRisks();
+
+            if ($user->role !== 'smo') {
+                $deadlineQuery->assignedToReviewer($user);
+            }
+
+            $approvalDeadlineRequests = $deadlineQuery
+                ->oldest('stage_started_at')
+                ->take(8)
+                ->get();
+        }
+
+        return view('requests.index', compact('activeRequests', 'requestStats', 'departments', 'approvalDeadlineRequests'));
+    }
+
+    public function sendApprovalDeadlineReminder(Request $request, Requisition $requisition, NotificationService $notifications)
+    {
+        abort_unless($request->user()->role === 'smo', 403);
+
+        $requisition->loadMissing(['user', 'items']);
+        if (! $requisition->isApprovalDeadlineNearing() && ! $requisition->isApprovalDeadlineOverdue()) {
+            return back()->with('error', 'This requisition is no longer at an approval deadline risk.');
+        }
+
+        $reviewerRole = $requisition->currentReviewerRole();
+        if (! in_array($reviewerRole, ['dept_head', 'vp_finance', 'vp_admin', 'provost', 'president'], true)) {
+            return back()->with('error', 'This requisition no longer has an administrator awaiting action.');
+        }
+
+        $recipients = User::query()
+            ->where('role', $reviewerRole)
+            ->where('account_status', User::ACCOUNT_ACTIVE)
+            ->when(
+                $reviewerRole === 'dept_head',
+                fn ($users) => $users->where('department', $requisition->user?->department)
+            )
+            ->get();
+
+        if ($recipients->isEmpty()) {
+            return back()->with('error', 'No active approver is assigned to this requisition stage.');
+        }
+
+        $state = $requisition->isApprovalDeadlineOverdue() ? 'at or past its deadline' : 'nearing its deadline';
+        $created = 0;
+        $delivered = 0;
+        foreach ($recipients as $recipient) {
+            $notification = $notifications->send(
+                $recipient,
+                'deadline.approval_reminder',
+                'SMO Approval Deadline Reminder',
+                "Requisition {$requisition->tracking_code} is {$state} and needs your review. — SMO",
+                [
+                    'icon' => 'clock',
+                    'type' => $requisition->isApprovalDeadlineOverdue() ? 'danger' : 'warning',
+                    'action_type' => 'approval_queue',
+                    'action_id' => $requisition->id,
+                    'dedupe_key' => "deadline-reminder:{$requisition->id}:{$reviewerRole}:".now()->toDateString(),
+                ]
+            );
+            $delivered += (int) ($notification !== null);
+            $created += (int) ($notification?->wasRecentlyCreated === true);
+        }
+
+        if ($delivered === 0) {
+            return back()->with('error', 'The reminder could not be delivered. Please try again.');
+        }
+
+        return back()->with(
+            'success',
+            $created > 0
+                ? 'The current approver has been notified about the deadline.'
+                : 'The current approver was already notified about this requisition today.'
+        );
     }
 
     /**

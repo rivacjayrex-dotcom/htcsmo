@@ -39,8 +39,8 @@ class NotificationController extends Controller
                     $query->where(fn ($minor) => $minor->where('request_type', 'minor')->where('status', 'approved_vp'))
                         ->orWhere(fn ($major) => $major->where('request_type', 'major')->where('status', 'approved_president'));
                 })
-                ->where('updated_at', '<=', now()->subDays(2))
-                ->oldest('updated_at')
+                ->where('stage_started_at', '<=', now()->subDays(2))
+                ->oldest('stage_started_at')
                 ->get()
             : collect();
         $lowStockSupplies = $user->role === 'smo'

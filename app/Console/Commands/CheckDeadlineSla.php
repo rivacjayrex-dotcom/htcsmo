@@ -55,7 +55,7 @@ class CheckDeadlineSla extends Command
         $alertsCount = 0;
 
         foreach ($approvedRequisitions as $req) {
-            $daysElapsed = Carbon::parse($req->updated_at)->diffInDays(Carbon::now());
+            $daysElapsed = Carbon::parse($req->stage_started_at ?? $req->updated_at)->diffInDays(Carbon::now());
             $itemName = $req->items->first()->item_name ?? 'Supplies';
 
             // Check if 3 days or more (CRITICAL OVERDUE)

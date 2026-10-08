@@ -10,6 +10,10 @@
             <article class="request-metric deadline {{ $requestStats['deadline'] > 0 ? 'attention' : '' }}"><span><i data-lucide="siren"></i></span><div><strong>{{ $requestStats['deadline'] }}</strong><h3>Deadline watch</h3><p>Day 2 or already overdue</p></div></article>
         </section>
 
+        @if(in_array(Auth::user()->role, ['smo', 'dept_head', 'vp_finance', 'vp_admin', 'provost', 'president'], true))
+            @include('requests.partials.approval-deadline-watch', ['approvalDeadlineRequests' => $approvalDeadlineRequests])
+        @endif
+
         <section class="request-panel">
             <div class="request-panel-heading">
                 <div>

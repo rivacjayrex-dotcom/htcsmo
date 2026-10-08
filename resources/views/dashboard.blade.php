@@ -36,6 +36,10 @@
             </div>
         </section>
 
+        @if($isSmo || $isApprover)
+            @include('requests.partials.approval-deadline-watch', ['approvalDeadlineRequests' => $approvalDeadlineRequests])
+        @endif
+
         @if($isSmo)
             <section class="priority-watch" aria-label="Urgent operational warnings">
                 <article class="priority-panel deadline {{ $stats['urgent'] > 0 ? 'has-alerts' : 'is-clear' }}">
@@ -50,7 +54,7 @@
                     <div class="priority-list">
                         @forelse($deadlineRequests as $deadlineRequest)
                             @php
-                                $waitingDays = $deadlineRequest->updated_at->diffInDays(now());
+                                $waitingDays = ($deadlineRequest->stage_started_at ?? $deadlineRequest->updated_at)->diffInDays(now());
                                 $deadlineState = $waitingDays >= 3 ? 'overdue' : 'near';
                             @endphp
                             <a href="{{ route('admin.approvals', ['request' => $deadlineRequest->id]) }}" class="priority-row">

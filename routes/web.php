@@ -45,6 +45,7 @@ Route::get('/dashboard', function () {
 
     // SCHOOL ADMIN DASHBOARD: Show only requests currently assigned to this approver.
     $approvalRequests = collect();
+    $approvalDeadlineRequests = collect();
     if (in_array($user->role, ['dept_head', 'vp_finance', 'vp_admin', 'provost', 'president'])) {
         $approvalQuery = Requisition::with(['items', 'user']);
 
@@ -68,6 +69,12 @@ Route::get('/dashboard', function () {
         }
 
         $approvalRequests = $approvalQuery->latest()->take(5)->get();
+        $approvalDeadlineRequests = Requisition::with(['items', 'user'])
+            ->approvalDeadlineRisks()
+            ->assignedToReviewer($user)
+            ->oldest('stage_started_at')
+            ->take(6)
+            ->get();
     }
 
     // 3. SMO SPECIFIC LOGIC
@@ -78,6 +85,11 @@ Route::get('/dashboard', function () {
     $lowStockSupplies = collect();
 
     if ($user->role == 'smo') {
+        $approvalDeadlineRequests = Requisition::with(['items', 'user'])
+            ->approvalDeadlineRisks()
+            ->oldest('stage_started_at')
+            ->take(6)
+            ->get();
         $stats['total'] = Requisition::count();
         $stats['pending'] = Requisition::whereNotIn('status', ['released', 'rejected'])->count();
         $stats['urgent'] = Requisition::where(function ($query) {
@@ -86,7 +98,7 @@ Route::get('/dashboard', function () {
             })->orWhere(function ($major) {
                 $major->where('request_type', 'major')->where('status', 'approved_president');
             });
-        })->where('updated_at', '<=', now()->subDays(2))->count();
+        })->where('stage_started_at', '<=', now()->subDays(2))->count();
         $deadlineRequests = Requisition::with(['items', 'user'])
             ->where(function ($query) {
                 $query->where(function ($minor) {
@@ -95,8 +107,8 @@ Route::get('/dashboard', function () {
                     $major->where('request_type', 'major')->where('status', 'approved_president');
                 });
             })
-            ->where('updated_at', '<=', now()->subDays(2))
-            ->oldest('updated_at')
+            ->where('stage_started_at', '<=', now()->subDays(2))
+            ->oldest('stage_started_at')
             ->take(4)
             ->get();
         $stats['low_stock'] = Supply::whereColumn('quantity', '<=', 'min_stock_level')->count();
@@ -122,7 +134,7 @@ Route::get('/dashboard', function () {
                     })->orWhere(function ($major) {
                         $major->where('request_type', 'major')->where('status', 'approved_president');
                     });
-                })->where('updated_at', '<=', now()->subDays(2));
+                })->where('stage_started_at', '<=', now()->subDays(2));
             } else {
                 $query->where('status', request('status'));
             }
@@ -154,7 +166,7 @@ Route::get('/dashboard', function () {
     return view('dashboard', compact(
         'activeCount', 'approvedLast24h', 'recentRequests',
         'stats', 'allStaffRequests', 'recentActivity', 'approvalRequests',
-        'deadlineRequests', 'lowStockSupplies'
+        'deadlineRequests', 'approvalDeadlineRequests', 'lowStockSupplies'
     ));
 })->middleware(['auth'])->name('dashboard');
 
@@ -200,6 +212,8 @@ Route::get('/dashboard', function () {
         Route::get('/admin/approvals', [RequestController::class, 'adminIndex'])->name('admin.approvals');
         Route::post('/admin/requests/{id}/status', [RequestController::class, 'updateStatus'])->name('admin.status.update');
         Route::post('/admin/requests/{id}/release', [RequestController::class, 'releaseRequest'])->name('admin.requests.release');
+        Route::post('/admin/requests/{requisition}/deadline-reminder', [RequestController::class, 'sendApprovalDeadlineReminder'])
+            ->middleware('role:smo')->whereNumber('requisition')->name('admin.requests.deadline-reminder');
     });
 
     Route::middleware(['auth', 'role:smo,president,provost,vp_admin,dept_head'])->group(function () {

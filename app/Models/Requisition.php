@@ -17,6 +17,7 @@ class Requisition extends Model
         'user_id',
         'request_type',
         'status',
+        'stage_started_at',
         'closed_at',
         'purpose',
         'remarks',
@@ -26,6 +27,7 @@ class Requisition extends Model
     protected function casts(): array
     {
         return [
+            'stage_started_at' => 'datetime',
             'closed_at' => 'datetime',
         ];
     }
@@ -39,6 +41,8 @@ class Requisition extends Model
             if (! $requisition->isDirty('status')) {
                 return;
             }
+
+            $requisition->stage_started_at = now();
 
             if (in_array($requisition->status, self::ARCHIVED_STATUSES, true)) {
                 $requisition->closed_at ??= now();
@@ -104,6 +108,35 @@ class Requisition extends Model
         );
     }
 
+    public function scopeAwaitingAdministrativeApproval(Builder $query): Builder
+    {
+        return $query->where(function (Builder $query) {
+            $query->whereIn('status', ['pending', 'approved_dept', 'approved_provost'])
+                ->orWhere(function (Builder $majorVp) {
+                    $majorVp->where('status', 'approved_vp')->where('request_type', 'major');
+                });
+        });
+    }
+
+    public function scopeApprovalDeadlineRisks(Builder $query): Builder
+    {
+        return $query->awaitingAdministrativeApproval()
+            ->where('stage_started_at', '<=', now()->subDays(2));
+    }
+
+    public function scopeAssignedToReviewer(Builder $query, User $reviewer): Builder
+    {
+        return match ($reviewer->role) {
+            'dept_head' => $query->where('status', 'pending')
+                ->whereHas('user', fn (Builder $users) => $users->where('department', $reviewer->department)),
+            'vp_finance' => $query->where('status', 'approved_dept')->where('request_type', 'minor'),
+            'vp_admin' => $query->where('status', 'approved_dept')->where('request_type', 'major'),
+            'provost' => $query->where('status', 'approved_vp')->where('request_type', 'major'),
+            'president' => $query->where('status', 'approved_provost')->where('request_type', 'major'),
+            default => $query->whereRaw('1 = 0'),
+        };
+    }
+
     public static function initialStatusFor(User $requestor): string
     {
         return match ($requestor->role) {
@@ -124,6 +157,44 @@ class Requisition extends Model
             'approved_president' => 'smo',
             default => null,
         };
+    }
+
+    public function currentReviewerRole(): ?string
+    {
+        if ($this->status === 'for_clarification') {
+            return $this->logs()
+                ->where('action', 'like', '%Clarification%')
+                ->latest('id')
+                ->value('role');
+        }
+
+        return $this->nextReviewerRole();
+    }
+
+    public function approvalDeadlineDaysElapsed(): int
+    {
+        return (int) floor(($this->stage_started_at ?? $this->updated_at)->diffInDays(now()));
+    }
+
+    public function isAwaitingAdministrativeApproval(): bool
+    {
+        return in_array($this->status, ['pending', 'approved_dept', 'approved_provost'], true)
+            || ($this->status === 'approved_vp' && $this->request_type === 'major');
+    }
+
+    public function isApprovalDeadlineNearing(): bool
+    {
+        return $this->isAwaitingAdministrativeApproval()
+            && $this->currentReviewerRole() !== 'smo'
+            && $this->approvalDeadlineDaysElapsed() >= 2
+            && $this->approvalDeadlineDaysElapsed() < 3;
+    }
+
+    public function isApprovalDeadlineOverdue(): bool
+    {
+        return $this->isAwaitingAdministrativeApproval()
+            && $this->currentReviewerRole() !== 'smo'
+            && $this->approvalDeadlineDaysElapsed() >= 3;
     }
 
     public function canBeViewedBy(User $user): bool
@@ -182,7 +253,7 @@ class Requisition extends Model
                            ($this->request_type === 'minor' && $this->status === 'approved_vp');
 
         if ($isFullyApproved) {
-            return $this->updated_at->diffInDays(Carbon::now()) >= 2;
+            return ($this->stage_started_at ?? $this->updated_at)->diffInDays(Carbon::now()) >= 2;
         }
 
         return false;
@@ -197,7 +268,7 @@ class Requisition extends Model
                            ($this->request_type === 'minor' && $this->status === 'approved_vp');
 
         if ($isFullyApproved) {
-            return $this->updated_at->diffInDays(Carbon::now()) >= 3;
+            return ($this->stage_started_at ?? $this->updated_at)->diffInDays(Carbon::now()) >= 3;
         }
 
         return false;

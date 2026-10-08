@@ -30,7 +30,10 @@ class DashboardWorkspaceTest extends TestCase
             'purpose' => 'Urgent printing supplies',
             'grand_total' => 800,
         ]);
-        $deadlineRequest->forceFill(['updated_at' => now()->subDays(3)])->saveQuietly();
+        $deadlineRequest->forceFill([
+            'stage_started_at' => now()->subDays(3),
+            'updated_at' => now()->subDays(3),
+        ])->saveQuietly();
         Supply::create([
             'item_name' => 'Low Stock Bond Paper',
             'brand' => 'HTC Test',
