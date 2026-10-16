@@ -11,7 +11,7 @@
         <section class="dashboard-hero">
             <div class="dashboard-hero-copy">
                 <span class="dashboard-kicker">{{ $isSmo ? 'Inventory and fulfillment overview' : 'Your requisition workspace' }}</span>
-                <h2>{{ $isSmo ? 'Good day, '.$firstName.'.' : 'Welcome back, '.$firstName.'.' }}</h2>
+                <h2>{{ $isSmo ? 'GoodHoly, '.$firstName.'.' : 'Welcome back, '.$firstName.'.' }}</h2>
                 <p>
                     @if($isSmo)
                         Monitor institutional demand, deadline risks, and requests ready for release.
