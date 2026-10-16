@@ -33,7 +33,7 @@ flowchart LR
 | Assets              | Vite, `resources/css/app.css`, `resources/js/app.js`                | Produces `public/build`; `vite.config.js` declares the two source entry points                        |
 | PDF                 | `barryvdh/laravel-dompdf`                                           | Renders requisition documents, report exports, and inventory forecasts from Blade                     |
 | Email               | Laravel Mail                                                        | Sends approval/release messages and records delivery outcomes in `email_logs`                         |
-| Background schedule | `routes/console.php` schedules `smo:check-deadlines` daily at 08:00 | A host scheduler must invoke Laravel's scheduler for SLA notices to run                               |
+| Background schedule | `routes/console.php` schedules deadline checks and notification pruning in the configured timezone | Docker starts `schedule:work`; non-Docker hosts must invoke Laravel's scheduler                        |
 | Container           | Node build stage + PHP 8.3 Apache stage                             | Builds assets, installs production Composer dependencies, runs config cache/migrations, serves Apache |
 
 ## 2. Repository structure and responsibilities
@@ -147,8 +147,8 @@ Every decision updates requisition status/remarks and creates an `ApprovalLog`; 
 ### 4.6 Reports, notifications, and refresh
 
 - `ReportController::index` assembles summary KPIs and selects one of eight tabular reports: requisitions, inventory, department spending, users, item consumption, approval audit, inventory movements, or user activity. It returns the report page or produces CSV/PDF output.
-- `RequestController::notifications` displays a user's notifications, categorizes them, gathers SMO deadline/stock context or personal metrics, and marks that user's unread notifications as read.
-- `RequestController::runtimeState` returns a compact fingerprint of requisitions, approvals and supplies plus the user's latest unread notification after a cursor ID. `/api/system-version` returns the fingerprint only; `/api/latest-notification` is the older notification-only poll endpoint.
+- `NotificationController::index` displays a user's categorized notification feed and returns an HTML feed fragment for in-place category and pagination updates. Read state changes only through explicit authenticated actions.
+- `RequestController::runtimeState` returns a compact fingerprint of requisitions, approvals and supplies plus batches of unread notifications after a cursor ID. `/api/system-version` returns the fingerprint only; `/api/latest-notification` remains as a compatibility endpoint.
 
 ## 5. Persistence model and relationships
 
@@ -223,11 +223,11 @@ The notes below describe the purpose of each declared application method/functio
 | `updateStatus`          | Validates approval/rejection/clarification, checks reviewer authority, changes state, writes log/signature, and sends notifications/email. |
 | `canReviewRequisition`  | Encodes the valid role and request-state transition, including department and clarification-origin checks.                                 |
 | `releaseRequest`        | SMO-only fulfillment transaction: guards duplicate release/stock levels, deducts inventory, audits, signs, and notifies.                   |
-| `notifications`         | Loads and categorizes personal notifications, role-specific context and summary counts, then marks unread items read.                      |
+| `NotificationController::index` | Loads and categorizes personal notifications, resolves action targets in batches, and returns either the full center or an AJAX feed fragment. |
 | `show`                  | Loads a request with owner/items/log signatures and renders tracking details.                                                              |
 | `downloadPDF`           | Renders a request with its history and signatures into a portrait PDF download.                                                            |
 | `sendAlert`             | Inserts a per-user in-app notification.                                                                                                    |
-| `getLatestNotification` | Legacy notification polling endpoint; returns the first unread notification after an optional ID.                                          |
+| `NotificationController::poll` | Compatibility notification polling endpoint; returns a bounded batch of unread notifications after an optional ID.                    |
 | `sendEmailNotification` | Sends `RequisitionAlertMail`; writes success/failure to `email_logs` and suppresses transport exceptions from the request.                 |
 
 ### RequisitionController
@@ -375,7 +375,7 @@ These are current-source observations, not features to rely on as already fixed:
 2. `SupplyController::update` changes quantity but does not create a `SupplyInventoryLog`; there are no current application writers for `restock_delivery` or `manual_adjustment`. Forecast/report movement history therefore reflects release deductions, not a complete stock ledger.
 3. `DigitalSignature` stores a SHA-256 digest made from request/user/role/time plus `APP_KEY`, alongside signer and client metadata. There is no verifier method or public-key signature flow in the scanned application; the record is an integrity/audit token, not proof of a cryptographically verifiable human signature by itself.
 4. The app model does not declare the relationship method for notifications; controllers query `Notification` directly. `User::isAdmin()` and `User::isVP()` also use role strings not used by the current route workflow, so they appear to be legacy helpers.
-5. The approval state update and its notification/log/signature writes are not transaction-wrapped. By contrast, request creation/update and SMO release use transactions.
+5. Approval state transitions lock the requisition row and transactionally persist status, audit log, signature, and in-app notifications. Email delivery remains a best-effort post-commit side effect.
 6. The migration `2026_08_16_163954_refined_supplies_table_rebuild.php` explicitly drops and recreates `supplies`; applying this migration against an existing installation can discard inventory rows. Review production migration history/data before running migrations in a populated environment. A later migration drops the legacy prototype request tables.
 7. `bootstrap/app.php` trusts proxies from `*`; configure this only behind appropriately controlled proxy infrastructure.
 8. `Dockerfile` startup requires persistent `APP_KEY`, creates storage link, caches config, runs migrations, then starts Apache. Production email, database, session, queue and scheduler operation depend on deployment environment configuration.

@@ -54,7 +54,7 @@ class DashboardWorkspaceTest extends TestCase
             ->assertSee('Active requisitions')
             ->assertSee($request->tracking_number)
             ->assertSee('Faculty Requestor')
-            ->assertSee('Release deadline monitor')
+            ->assertSee('Deadline monitor')
             ->assertSee($deadlineRequest->tracking_number)
             ->assertSee('Inventory warning')
             ->assertSee('Low Stock Bond Paper')

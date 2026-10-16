@@ -12,6 +12,29 @@ class RequisitionCatalogTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_catalog_status_banners_are_cloaked_until_alpine_initializes(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('x-cloak x-show="catalogLoading"', false)
+            ->assertSee('x-cloak x-show="catalogError" class="alert alert-danger mx-4', false)
+            ->assertDontSee('x-show="catalogError" class="alert alert-danger d-flex', false);
+    }
+
+    public function test_cart_actions_have_distinct_enabled_and_disabled_styles(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('#globalRequestModal .btn-htc:not(:disabled)', false)
+            ->assertSee('#globalRequestModal .btn-htc:disabled', false);
+    }
+
     public function test_authenticated_page_does_not_embed_the_supply_catalog(): void
     {
         $user = User::factory()->create();

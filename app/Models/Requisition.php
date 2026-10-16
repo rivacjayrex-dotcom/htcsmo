@@ -162,10 +162,14 @@ class Requisition extends Model
     public function currentReviewerRole(): ?string
     {
         if ($this->status === 'for_clarification') {
-            return $this->logs()
-                ->where('action', 'like', '%Clarification%')
-                ->latest('id')
-                ->value('role');
+            if ($this->relationLoaded('logs')) {
+                return $this->logs
+                    ->filter(fn ($log) => str_contains($log->action, 'Clarification'))
+                    ->sortByDesc('id')
+                    ->first()?->role;
+            }
+
+            return $this->logs()->where('action', 'like', '%Clarification%')->latest('id')->value('role');
         }
 
         return $this->nextReviewerRole();
@@ -205,10 +209,7 @@ class Requisition extends Model
     public function canBeReviewedBy(User $user): bool
     {
         if ($this->status === 'for_clarification') {
-            $questioningRole = $this->logs()
-                ->where('action', 'like', '%Clarification%')
-                ->latest('id')
-                ->value('role');
+            $questioningRole = $this->currentReviewerRole();
 
             return $questioningRole !== null && $user->role === $questioningRole;
         }

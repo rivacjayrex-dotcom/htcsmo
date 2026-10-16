@@ -16,4 +16,9 @@ php artisan storage:link || true
 php artisan config:cache
 php artisan migrate --force
 
+# Keep scheduled deadline notifications running in the web-service container.
+# The scheduler uses a shared cache lock, so horizontally scaled instances do
+# not execute the same daily notification job more than once.
+php artisan schedule:work >> storage/logs/scheduler.log 2>&1 &
+
 exec apache2-foreground

@@ -78,8 +78,19 @@ class Notification extends Model
      */
     public function actionFor(User $user): ?array
     {
+        $target = match ($this->action_type) {
+            'requisition', 'approval_queue' => $this->action_id ? Requisition::with(['user', 'logs'])->find($this->action_id) : null,
+            'inventory' => $this->action_id ? Supply::find($this->action_id) : null,
+            default => null,
+        };
+
+        return $this->actionForResolvedTarget($user, $target);
+    }
+
+    public function actionForResolvedTarget(User $user, ?Model $target): ?array
+    {
         if ($this->action_type === 'requisition' && $this->action_id) {
-            $requisition = Requisition::find($this->action_id);
+            $requisition = $target instanceof Requisition ? $target : null;
 
             return $requisition?->canBeViewedBy($user)
                 ? ['url' => route('requests.show', $requisition), 'label' => 'View requisition']
@@ -87,7 +98,7 @@ class Notification extends Model
         }
 
         if ($this->action_type === 'approval_queue' && $this->action_id) {
-            $requisition = Requisition::find($this->action_id);
+            $requisition = $target instanceof Requisition ? $target : null;
 
             return $requisition?->canBeReviewedBy($user)
                 ? ['url' => route('admin.approvals', ['request' => $requisition->id]), 'label' => 'Review requisition']
@@ -95,7 +106,7 @@ class Notification extends Model
         }
 
         if ($this->action_type === 'inventory' && $user->role === 'smo') {
-            $supply = $this->action_id ? Supply::find($this->action_id) : null;
+            $supply = $target instanceof Supply ? $target : null;
 
             return ['url' => $supply ? route('inventory.edit', $supply) : route('inventory.index'), 'label' => 'View inventory'];
         }
@@ -123,9 +134,9 @@ class Notification extends Model
         return null;
     }
 
-    public function pollPayload(User $user): array
+    public function pollPayload(User $user, ?array $resolvedAction = null, bool $wasResolved = false): array
     {
-        $action = $this->actionFor($user);
+        $action = $wasResolved ? $resolvedAction : $this->actionFor($user);
 
         return [
             'id' => $this->id,

@@ -1,6 +1,6 @@
 <!-- GLOBAL REQUISITION ENGINE -->
 <div class="modal fade" id="globalRequestModal" tabindex="-1" aria-hidden="true" aria-labelledby="requisitionModalTitle" x-data="cartSystem()">
-    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable requisition-dialog">
         <div class="modal-content requisition-shell border-0 overflow-hidden">
             <div class="requisition-header">
                 <div>
@@ -17,12 +17,14 @@
                 <div :class="cart.length ? 'active' : ''"><span>3</span> Review &amp; explain</div>
             </div>
 
-            <div x-show="catalogLoading" class="alert alert-light border mx-4 mt-3 mb-0" role="status">
+            <div x-cloak x-show="catalogLoading" class="alert alert-light border mx-4 mt-3 mb-0" role="status">
                 <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Loading supplies...
             </div>
-            <div x-show="catalogError" class="alert alert-danger d-flex justify-content-between align-items-center mx-4 mt-3 mb-0" role="alert">
-                <span x-text="catalogError"></span>
-                <button type="button" class="btn btn-sm btn-outline-danger ms-3" @click="loadCatalog()">Retry</button>
+            <div x-cloak x-show="catalogError" class="alert alert-danger mx-4 mt-3 mb-0" role="alert">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span x-text="catalogError"></span>
+                    <button type="button" class="btn btn-sm btn-outline-danger ms-3" @click="loadCatalog()">Retry</button>
+                </div>
             </div>
 
             <div x-show="view === 'selection'" x-transition class="tier-stage p-4 p-lg-5">
@@ -52,7 +54,7 @@
                 </div>
             </div>
 
-            <form x-show="view !== 'selection'" x-cloak action="{{ route('requisitions.store') }}" method="POST">
+            <form x-show="view !== 'selection'" x-cloak class="requisition-form" action="{{ route('requisitions.store') }}" method="POST">
                 @csrf
                 <input type="hidden" name="request_type" :value="tier">
                 @if($errors->any() && old('request_type'))

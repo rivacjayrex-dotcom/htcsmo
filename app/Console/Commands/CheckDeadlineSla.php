@@ -47,7 +47,8 @@ class CheckDeadlineSla extends Command
                     $sub->where('request_type', 'minor')
                         ->where('status', 'approved_vp');
                 })->orWhere(function ($sub) {
-                    $sub->where('status', 'approved_president');
+                    $sub->where('request_type', 'major')
+                        ->where('status', 'approved_president');
                 });
             })
             ->get();

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Notification;
 use App\Models\Requisition;
 use App\Models\Supply;
+use App\Services\NotificationActionResolver;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -15,7 +16,7 @@ class NotificationController extends Controller
 {
     private const CATEGORIES = ['all', 'approvals', 'deadlines', 'inventory', 'accounts'];
 
-    public function index(Request $request): View
+    public function index(Request $request, NotificationActionResolver $actionResolver): View|JsonResponse
     {
         $user = $request->user();
         $category = in_array($request->query('category'), self::CATEGORIES, true)
@@ -27,11 +28,20 @@ class NotificationController extends Controller
             ->latest('id')
             ->paginate(20)
             ->withQueryString();
-
+        $unreadCount = Notification::query()->forUser($user)->unread()->count();
+        $resolvedActions = $actionResolver->resolve($notes->getCollection(), $user);
         $categoryCounts = collect(self::CATEGORIES)->mapWithKeys(
             fn (string $name) => [$name => $this->applyCategory(clone $base, $name)->count()]
         );
-        $unreadCount = Notification::query()->forUser($user)->unread()->count();
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'html' => view('notifications.feed', compact('notes', 'resolvedActions'))->render(),
+                'category' => $category,
+                'category_counts' => $categoryCounts,
+                'unread_count' => $unreadCount,
+            ])->header('Cache-Control', 'private, no-store, no-cache, must-revalidate');
+        }
 
         $criticalRequests = $user->role === 'smo'
             ? Requisition::with('items')
@@ -56,7 +66,7 @@ class NotificationController extends Controller
         ];
 
         return view('notifications', compact(
-            'notes', 'category', 'categoryCounts', 'unreadCount', 'criticalRequests', 'lowStockSupplies', 'personalStats'
+            'notes', 'resolvedActions', 'category', 'categoryCounts', 'unreadCount', 'criticalRequests', 'lowStockSupplies', 'personalStats'
         ));
     }
 
@@ -66,7 +76,10 @@ class NotificationController extends Controller
         $notification->markAsRead();
 
         return $request->expectsJson()
-            ? response()->json(['is_read' => true])
+            ? response()->json([
+                'is_read' => true,
+                'unread_count' => Notification::query()->forUser($request->user())->unread()->count(),
+            ])
             : back()->with('success', 'Notification marked as read.');
     }
 
@@ -96,7 +109,7 @@ class NotificationController extends Controller
         return redirect()->to($action['url']);
     }
 
-    public function poll(Request $request): JsonResponse
+    public function poll(Request $request, NotificationActionResolver $actionResolver): JsonResponse
     {
         $validated = $request->validate(['after_id' => ['nullable', 'integer', 'min:0']]);
         $user = $request->user();
@@ -110,7 +123,14 @@ class NotificationController extends Controller
             ->limit(10)
             ->get();
         $cursor = (int) ($notifications->last()?->id ?? $latestId);
-        $payloads = $notifications->map(fn (Notification $notification) => $notification->pollPayload($user))->values();
+        $resolvedActions = $actionResolver->resolve($notifications, $user);
+        $payloads = $notifications->map(
+            fn (Notification $notification) => $notification->pollPayload(
+                $user,
+                $resolvedActions[$notification->id] ?? null,
+                true,
+            )
+        )->values();
 
         return response()->json([
             'account_id' => $user->id,

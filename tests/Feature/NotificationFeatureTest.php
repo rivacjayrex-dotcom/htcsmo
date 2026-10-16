@@ -8,6 +8,7 @@ use App\Models\Supply;
 use App\Models\User;
 use App\Services\NotificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class NotificationFeatureTest extends TestCase
@@ -109,13 +110,14 @@ class NotificationFeatureTest extends TestCase
             'action_id' => $requisition->id,
         ]);
 
-        $this->actingAs($recipient)->get(route('notifications.open', $notification))
+        $this->actingAs($recipient)->post(route('notifications.open', $notification))
             ->assertRedirect(route('notifications'))
             ->assertSessionHas('warning');
         $this->assertTrue($notification->fresh()->is_read);
 
         $other = User::factory()->create();
-        $this->actingAs($other)->get(route('notifications.open', $notification))->assertForbidden();
+        $this->actingAs($other)->post(route('notifications.open', $notification))->assertForbidden();
+        $this->actingAs($recipient)->get(route('notifications.open', $notification))->assertMethodNotAllowed();
     }
 
     public function test_notification_center_paginates_and_escapes_content(): void
@@ -132,6 +134,88 @@ class NotificationFeatureTest extends TestCase
             ->assertDontSee('<script>alert(1)</script>', false)
             ->assertSee('data-lucide="bell"', false)
             ->assertSee('page=2', false);
+    }
+
+    public function test_notification_categories_can_update_without_a_full_page_reload(): void
+    {
+        $user = User::factory()->create();
+        Notification::create([
+            'user_id' => $user->id,
+            'title' => 'Approval activity',
+            'message' => 'A requisition changed.',
+            'event_type' => 'requisition.approved',
+        ]);
+        Notification::create([
+            'user_id' => $user->id,
+            'title' => 'Account activity',
+            'message' => 'Your account changed.',
+            'event_type' => 'account.updated',
+        ]);
+
+        $this->actingAs($user)
+            ->getJson(route('notifications', ['category' => 'accounts']))
+            ->assertOk()
+            ->assertJsonPath('category', 'accounts')
+            ->assertJsonPath('category_counts.all', 2)
+            ->assertJsonPath('category_counts.accounts', 1)
+            ->assertJsonPath('unread_count', 2)
+            ->assertJsonPath('html', fn (string $html) => str_contains($html, 'Account activity')
+                && ! str_contains($html, 'Approval activity'));
+
+        $this->actingAs($user)
+            ->get(route('notifications'))
+            ->assertOk()
+            ->assertSee('data-notification-category="accounts"', false)
+            ->assertSee('data-notification-feed', false);
+    }
+
+    public function test_ajax_feed_resolves_requisition_actions_in_one_batch(): void
+    {
+        $user = User::factory()->create();
+        foreach (range(1, 5) as $number) {
+            $requisition = Requisition::create([
+                'user_id' => $user->id,
+                'request_type' => 'minor',
+                'status' => 'pending',
+                'purpose' => "Batch action test {$number}",
+                'grand_total' => 100,
+            ]);
+            Notification::create([
+                'user_id' => $user->id,
+                'title' => "Request {$number}",
+                'message' => 'Open this request.',
+                'event_type' => 'requisition.submitted',
+                'action_type' => 'requisition',
+                'action_id' => $requisition->id,
+            ]);
+        }
+
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        $this->actingAs($user)->getJson(route('notifications'))->assertOk();
+        $queries = DB::getQueryLog();
+        DB::disableQueryLog();
+
+        $requisitionQueries = collect($queries)->filter(
+            fn (array $query) => str_contains(strtolower($query['query']), 'from "requisitions"')
+                || str_contains(strtolower($query['query']), 'from `requisitions`')
+        );
+        $this->assertCount(1, $requisitionQueries);
+    }
+
+    public function test_pruning_removes_only_expired_read_notifications(): void
+    {
+        $user = User::factory()->create();
+        $expired = Notification::create(['user_id' => $user->id, 'title' => 'Old read', 'message' => 'Old', 'is_read' => true, 'read_at' => now()->subDays(400)]);
+        $recent = Notification::create(['user_id' => $user->id, 'title' => 'Recent read', 'message' => 'Recent', 'is_read' => true, 'read_at' => now()->subDays(10)]);
+        $unread = Notification::create(['user_id' => $user->id, 'title' => 'Old unread', 'message' => 'Unread', 'is_read' => false]);
+        $unread->forceFill(['created_at' => now()->subDays(500), 'updated_at' => now()->subDays(500)])->saveQuietly();
+
+        $this->artisan('notifications:prune --days=365')->assertSuccessful();
+
+        $this->assertDatabaseMissing('notifications', ['id' => $expired->id]);
+        $this->assertDatabaseHas('notifications', ['id' => $recent->id]);
+        $this->assertDatabaseHas('notifications', ['id' => $unread->id]);
     }
 
     private function supply(): Supply

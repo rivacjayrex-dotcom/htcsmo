@@ -251,7 +251,7 @@ composer run dev
 
 ## Scheduled SLA alerts
 
-The `smo:check-deadlines` command checks approved, unreleased requisitions and creates Day 2 and Day 3+ notifications. Laravel schedules it to run daily at 8:00 AM.
+The `smo:check-deadlines` command checks approved, unreleased requisitions and creates Day 2 and Day 3+ notifications. Laravel schedules it to run daily at 8:00 AM in the configured application timezone (`Asia/Manila` by default). Read notifications older than one year are pruned by a separate daily task.
 
 During local development, keep the scheduler running:
 
@@ -259,7 +259,7 @@ During local development, keep the scheduler running:
 php artisan schedule:work
 ```
 
-In production, configure the server to execute Laravel's scheduler every minute as described in the Laravel deployment documentation.
+The included Docker entrypoint starts `schedule:work` automatically. Non-Docker deployments must configure the server to execute Laravel's scheduler every minute.
 
 The command can also be run manually:
 

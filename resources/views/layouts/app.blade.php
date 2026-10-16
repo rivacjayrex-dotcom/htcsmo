@@ -430,6 +430,39 @@
             min-height: 50px; /* Ensures it has a proper button shape */
         }
 
+        #globalRequestModal .btn-htc {
+            border: 1px solid #cbd5cf;
+            background: #e8edea;
+            color: #7b8981;
+            box-shadow: none;
+            transition: background-color .18s ease, border-color .18s ease, color .18s ease, box-shadow .18s ease, transform .18s ease;
+        }
+
+        #globalRequestModal .btn-htc:not(:disabled) {
+            border-color: #17633e;
+            background: linear-gradient(135deg, #17633e, #218a55);
+            color: #fff;
+            box-shadow: 0 6px 15px rgba(24, 91, 59, .2);
+        }
+
+        #globalRequestModal .btn-htc:not(:disabled):hover {
+            border-color: #104a2e;
+            background: linear-gradient(135deg, #104a2e, #176f44);
+            color: #fff;
+            transform: translateY(-1px);
+            box-shadow: 0 8px 18px rgba(24, 91, 59, .26);
+        }
+
+        #globalRequestModal .btn-htc:disabled {
+            cursor: not-allowed;
+            opacity: 1;
+        }
+
+        #globalRequestModal .btn-htc:focus-visible {
+            outline: 3px solid rgba(44, 153, 91, .24);
+            outline-offset: 2px;
+        }
+
         .grayscale {
             filter: grayscale(1);
         }
@@ -521,14 +554,24 @@
         .footer-note { font-size: 10px; font-weight: bold; margin-top: 20px; opacity: 0.5; }
 
         /* Requisition marketplace */
+        .requisition-dialog {
+            height: min(780px, calc(100dvh - 2rem));
+            margin: 1rem auto;
+        }
+
         .requisition-shell {
             border-radius: 22px !important;
-            min-height: 680px;
+            height: 100%;
+            min-height: 0;
             background: #fff;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 28px 70px rgba(16, 45, 29, .2);
         }
 
         .requisition-header {
-            padding: 1.4rem 2rem;
+            flex: 0 0 auto;
+            padding: 1.15rem 1.5rem;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -544,6 +587,7 @@
         }
 
         .requisition-progress {
+            flex: 0 0 auto;
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 1rem;
@@ -600,16 +644,18 @@
         }
 
         .tier-stage {
-            min-height: 510px;
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
             background: radial-gradient(circle at 50% 0, #f0f8f3, #fff 52%);
         }
 
         .tier-choice {
-            min-height: 330px;
+            min-height: 280px;
             border: 1px solid #dfe8e3;
             border-radius: 22px;
             background: #fff;
-            padding: 2rem;
+            padding: 1.5rem;
             display: flex;
             flex-direction: column;
             align-items: flex-start;
@@ -630,7 +676,7 @@
             border-radius: 17px;
             display: grid;
             place-items: center;
-            margin-bottom: 1.5rem;
+            margin-bottom: 1rem;
         }
 
         .tier-choice .tier-icon svg {
@@ -676,15 +722,26 @@
             color: #64748b;
         }
 
+        .requisition-form {
+            display: flex;
+            flex: 1;
+            min-height: 0;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
         .requisition-workspace {
-            min-height: 540px;
+            flex: 1;
+            min-height: 0;
         }
 
         .catalog-pane {
             padding: 1.5rem 1.75rem;
             background: #f7f9f8;
-            max-height: 610px;
+            height: 100%;
+            min-height: 0;
             overflow-y: auto;
+            overscroll-behavior: contain;
         }
 
         .catalog-toolbar {
@@ -1011,12 +1068,14 @@
         .cart-pane {
             display: flex;
             flex-direction: column;
-            max-height: 610px;
+            height: 100%;
+            min-height: 0;
             background: #fff;
             border-left: 1px solid #e4ebe7;
         }
 
         .cart-title {
+            flex: 0 0 auto;
             padding: 1.4rem;
             border-bottom: 1px solid #edf1ef;
             display: flex;
@@ -1052,7 +1111,9 @@
         .cart-items {
             padding: 1rem 1.35rem;
             flex: 1;
+            min-height: 120px;
             overflow-y: auto;
+            overscroll-behavior: contain;
         }
 
         .cart-item {
@@ -1096,9 +1157,13 @@
         }
 
         .cart-summary {
+            flex: 0 0 auto;
+            max-height: 58%;
             padding: 1.25rem 1.4rem;
             background: #f8faf9;
             border-top: 1px solid #e4ebe7;
+            overflow-y: auto;
+            overscroll-behavior: contain;
         }
 
         .reason-field {
@@ -1314,6 +1379,12 @@
             font-size: .62rem;
         }
 
+        .notification-toast-actions .notification-toast-open {
+            color: var(--htc-green);
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
         .notification-toast-actions button svg {
             width: 14px;
             height: 14px;
@@ -1406,9 +1477,20 @@
                 min-height: auto;
             }
 
+            .requisition-form {
+                flex: 0 0 auto;
+                overflow: visible;
+            }
+
             .catalog-pane,
             .cart-pane {
+                height: auto;
                 max-height: none;
+            }
+
+            .cart-summary {
+                max-height: none;
+                overflow: visible;
             }
 
             .cart-pane {
@@ -1771,12 +1853,15 @@
 
                 <div class="nav-section-label">Overview</div>
                 <a href="{{ route('dashboard') }}" class="nav-link-custom {{ request()->routeIs('dashboard') ? 'active' : '' }}">
-                    <i data-lucide="layout-dashboard"></i> Dashboard
+                    <i data-lucide="layout-dashboard"></i> Home
                 </a>
                 <a href="{{ route('notifications') }}" class="nav-link-custom {{ request()->routeIs('notifications') ? 'active' : '' }}">
                     <i data-lucide="bell"></i>
                     <span>Notifications</span>
-                    <span id="notificationUnreadCount" class="sidebar-count" @if(!isset($unreadCount) || $unreadCount < 1) hidden @endif>{{ ($unreadCount ?? 0) > 99 ? '99+' : ($unreadCount ?? 0) }}</span>
+                    @php
+                        $initialUnreadCount = $unreadCount ?? $layoutUnreadCount ?? 0;
+                    @endphp
+                    <span id="notificationUnreadCount" class="sidebar-count" @if($initialUnreadCount < 1) hidden @endif>{{ $initialUnreadCount > 99 ? '99+' : $initialUnreadCount }}</span>
                 </a>
 
                 <div class="nav-section-label">Requisitions</div>
@@ -2129,7 +2214,10 @@
                     <h6 x-text="title"></h6>
                     <p x-text="message"></p>
                     <div class="notification-toast-actions">
-                        <a x-show="actionUrl" :href="actionUrl" x-text="actionLabel"></a>
+                        <form x-show="actionUrl" :action="actionUrl" method="POST">
+                            @csrf
+                            <button type="submit" class="notification-toast-open" x-text="actionLabel"></button>
+                        </form>
                         <button type="button" @click="toggleSound()" :title="soundEnabled ? 'Mute notification sounds' : 'Enable notification sounds'">
                             <template x-if="soundEnabled"><i data-lucide="volume-2"></i></template>
                             <template x-if="!soundEnabled"><i data-lucide="volume-x"></i></template>
@@ -2200,6 +2288,7 @@
             const storageKey = 'htc-last-notification-{{ Auth::id() }}';
             const soundKey = 'htc-notification-sound';
             const accountId = {{ (int) Auth::id() }};
+            const pageNotificationBaseline = {{ (int) ($layoutLatestNotificationId ?? 0) }};
             const runtimeCacheKey = `htc-runtime-state:${accountId}`;
             const tabId = window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
             const channel = 'BroadcastChannel' in window ? new BroadcastChannel(`htc-notifications-${accountId}`) : null;
@@ -2214,13 +2303,16 @@
                 actionUrl: @json(route('notifications')),
                 actionLabel: 'View notification center',
                 soundEnabled: localStorage.getItem(soundKey) !== 'off',
-                lastId: Number(localStorage.getItem(storageKey) || 0),
+                lastId: Math.max(Number(localStorage.getItem(storageKey) || 0), pageNotificationBaseline),
                 queue: [],
                 timer: null,
                 timerKey: 0,
                 audioContext: null,
 
                 init() {
+                    if (Number(localStorage.getItem(storageKey) || 0) < pageNotificationBaseline) {
+                        localStorage.setItem(storageKey, String(pageNotificationBaseline));
+                    }
                     try {
                         const cachedRuntimeState = JSON.parse(sessionStorage.getItem(runtimeCacheKey) || 'null');
                         if (cachedRuntimeState) this.updateBadge(Number(cachedRuntimeState.unread_count || 0));
@@ -2292,8 +2384,6 @@
                     window.clearTimeout(this.timer);
                     if (this.queue.length) {
                         window.setTimeout(() => this.presentNext(), 200);
-                    } else if (reason === 'expired') {
-                        window.location.reload();
                     }
                 },
                 updateBadge(count) {
@@ -2499,6 +2589,7 @@
 
         const requisitionModal = document.getElementById('globalRequestModal');
         requisitionModal?.addEventListener('show.bs.modal', event => {
+            event.currentTarget.scrollTop = 0;
             window.Alpine.$data(event.currentTarget).loadCatalog();
         });
         requisitionModal?.addEventListener('hidden.bs.modal', event => {

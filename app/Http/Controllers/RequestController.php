@@ -1,23 +1,24 @@
 <?php
+
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ArchiveIndexRequest;
-use App\Models\Notification;
-use App\Models\Requisition;
-use App\Models\RequisitionItem;
-use App\Models\SupplyInventoryLog;
-use App\Models\User;
-use App\Models\Supply;
+use App\Mail\RequisitionAlertMail;
 use App\Models\ApprovalLog;
 use App\Models\DigitalSignature;
+use App\Models\EmailLog;
+use App\Models\Notification;
+use App\Models\Requisition;
+use App\Models\Supply;
+use App\Models\SupplyInventoryLog;
+use App\Models\User;
+use App\Services\InventoryAlertService;
+use App\Services\NotificationActionResolver;
+use App\Services\NotificationService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\DB;
-use App\Mail\RequisitionAlertMail;
-use App\Models\EmailLog;
-use App\Services\InventoryAlertService;
-use App\Services\NotificationService;
 use Illuminate\Support\Facades\Mail;
 
 class RequestController extends Controller
@@ -34,7 +35,7 @@ class RequestController extends Controller
     /**
      * One compact response replaces the former notification and refresh pollers.
      */
-    public function runtimeState(Request $request)
+    public function runtimeState(Request $request, NotificationActionResolver $actionResolver)
     {
         $validated = $request->validate(['after_id' => ['nullable', 'integer', 'min:0']]);
         $user = $request->user();
@@ -47,7 +48,14 @@ class RequestController extends Controller
             ->first();
         $notifications = Notification::query()->forUser($user)->unread()
             ->where('id', '>', $afterId)->oldest('id')->limit(10)->get();
-        $payloads = $notifications->map(fn (Notification $notification) => $notification->pollPayload($user))->values();
+        $resolvedActions = $actionResolver->resolve($notifications, $user);
+        $payloads = $notifications->map(
+            fn (Notification $notification) => $notification->pollPayload(
+                $user,
+                $resolvedActions[$notification->id] ?? null,
+                true,
+            )
+        )->values();
         $latestId = (int) $notificationState->latest_id;
 
         return response()->json([
@@ -136,7 +144,7 @@ class RequestController extends Controller
             $query->where('status', $request->status);
         }
         if ($user->role == 'smo' && $request->filled('dept')) {
-            $query->whereHas('user', fn($q) => $q->where('department', $request->dept));
+            $query->whereHas('user', fn ($q) => $q->where('department', $request->dept));
         }
         if ($request->filled('date_from')) {
             $query->whereDate('created_at', '>=', $request->date_from);
@@ -268,7 +276,7 @@ class RequestController extends Controller
         switch ($user->role) {
             case 'dept_head':
                 $query->where('status', 'pending')
-                    ->whereHas('user', fn($u) => $u->where('department', $user->department));
+                    ->whereHas('user', fn ($u) => $u->where('department', $user->department));
                 break;
             case 'vp_finance':
                 $query->where('status', 'approved_dept')->where('request_type', 'minor');
@@ -311,10 +319,10 @@ class RequestController extends Controller
 
         // Dedicated list for requests placed on hold / for clarification
         $clarificationRequests = Requisition::with([
-                'items',
-                'user',
-                'logs' => fn ($query) => $query->orderBy('id'),
-            ])
+            'items',
+            'user',
+            'logs' => fn ($query) => $query->orderBy('id'),
+        ])
             ->where('status', 'for_clarification')
             ->latest()
             ->get();
@@ -349,166 +357,179 @@ class RequestController extends Controller
     public function updateStatus(Request $request, $id, NotificationService $notifications)
     {
         $request->validate([
-            'status'  => 'required|in:approved,rejected,clarification',
+            'status' => 'required|in:approved,rejected,clarification',
             'remarks' => 'nullable|string|max:1000',
         ]);
 
-        $sr = Requisition::with(['items', 'user'])->findOrFail($id);
         $role = Auth::user()->role;
 
-        abort_unless(
-            $this->canReviewRequisition($sr, Auth::user()),
-            403,
-            'This requisition is not assigned to your approval stage.'
-        );
+        DB::beginTransaction();
 
-        $roleTitles = [
-            'dept_head'  => 'Department Head',
-            'vp_finance' => 'VP for Finance',
-            'vp_admin'   => 'VP for Administration',
-            'provost'    => 'School Provost',
-            'president'  => 'School President',
-            'smo'        => 'SMO In-Charge',
-        ];
-        $position = $roleTitles[$role] ?? ucwords(str_replace('_', ' ', $role));
+        try {
+            // Lock the workflow row so two reviewers cannot advance the same
+            // stage concurrently and generate contradictory notifications.
+            $sr = Requisition::with(['items', 'user'])->lockForUpdate()->findOrFail($id);
 
-        $sr->remarks = $request->remarks;
-
-        // 1. REJECTED
-        if ($request->status === 'rejected') {
-            $sr->status = 'rejected';
-            $actionText = 'Rejected by ' . $position;
-
-            $this->sendAlert(
-                $sr->user_id,
-                "Requisition Disapproved",
-                "Your request {$sr->tracking_code} was rejected by {$position}. Reason: {$request->remarks}",
-                'x-circle',
-                'danger',
-                'requisition.rejected',
-                'requisition',
-                $sr->id,
-                "requisition:{$sr->id}:rejected:{$role}"
-            );
-        }
-        // 2. QUESTIONABLE / OFFICE CLARIFICATION
-        elseif ($request->status === 'clarification') {
-            $sr->status = 'for_clarification';
-            $actionText = 'Flagged for Office Clarification by ' . $position;
-
-            // Notify Requestor on Screen
-            $this->sendAlert(
-                $sr->user_id,
-                "⚠️ Office Appearance Requested",
-                "Your request {$sr->tracking_code} requires clarification. Please proceed to the office of {$position} together with SMO. Note: {$request->remarks}",
-                'help-circle',
-                'warning',
-                'requisition.clarification_requested',
-                'requisition',
-                $sr->id,
-                "requisition:{$sr->id}:clarification:{$role}"
+            abort_unless(
+                $this->canReviewRequisition($sr, Auth::user()),
+                403,
+                'This requisition is not assigned to your approval stage.'
             );
 
-            // Notify SMO In-Charge on Screen
-            $smoUsers = User::where('role', 'smo')->get();
-            foreach ($smoUsers as $smo) {
+            $roleTitles = [
+                'dept_head' => 'Department Head',
+                'vp_finance' => 'VP for Finance',
+                'vp_admin' => 'VP for Administration',
+                'provost' => 'School Provost',
+                'president' => 'School President',
+                'smo' => 'SMO In-Charge',
+            ];
+            $position = $roleTitles[$role] ?? ucwords(str_replace('_', ' ', $role));
+
+            $sr->remarks = $request->remarks;
+
+            // 1. REJECTED
+            if ($request->status === 'rejected') {
+                $sr->status = 'rejected';
+                $actionText = 'Rejected by '.$position;
+
                 $this->sendAlert(
-                    $smo->id,
-                    "⚠️ Inquiry on Req {$sr->tracking_code}",
-                    "{$position} requested a meeting regarding {$sr->tracking_code} ({$sr->user->name}). Please coordinate with their office.",
-                    'users',
-                    'warning',
-                    'requisition.clarification_coordination',
+                    $sr->user_id,
+                    'Requisition Disapproved',
+                    "Your request {$sr->tracking_code} was rejected by {$position}. Reason: {$request->remarks}",
+                    'x-circle',
+                    'danger',
+                    'requisition.rejected',
                     'requisition',
                     $sr->id,
-                    "requisition:{$sr->id}:clarification-smo:{$role}"
+                    "requisition:{$sr->id}:rejected:{$role}"
                 );
             }
-        }
-        // 3. APPROVED (Normal Hierarchy)
-        else {
-            if ($role === 'dept_head') {
-                $sr->status = 'approved_dept';
-            } elseif ($role === 'vp_finance' || $role === 'vp_admin') {
-                $sr->status = 'approved_vp';
-            } elseif ($role === 'provost') {
-                $sr->status = 'approved_provost';
-            } elseif ($role === 'president') {
-                $sr->status = 'approved_president';
+            // 2. QUESTIONABLE / OFFICE CLARIFICATION
+            elseif ($request->status === 'clarification') {
+                $sr->status = 'for_clarification';
+                $actionText = 'Flagged for Office Clarification by '.$position;
+
+                // Notify Requestor on Screen
+                $this->sendAlert(
+                    $sr->user_id,
+                    '⚠️ Office Appearance Requested',
+                    "Your request {$sr->tracking_code} requires clarification. Please proceed to the office of {$position} together with SMO. Note: {$request->remarks}",
+                    'help-circle',
+                    'warning',
+                    'requisition.clarification_requested',
+                    'requisition',
+                    $sr->id,
+                    "requisition:{$sr->id}:clarification:{$role}"
+                );
+
+                // Notify SMO In-Charge on Screen
+                $smoUsers = User::where('role', 'smo')->where('account_status', User::ACCOUNT_ACTIVE)->get();
+                foreach ($smoUsers as $smo) {
+                    $this->sendAlert(
+                        $smo->id,
+                        "⚠️ Inquiry on Req {$sr->tracking_code}",
+                        "{$position} requested a meeting regarding {$sr->tracking_code} ({$sr->user->name}). Please coordinate with their office.",
+                        'users',
+                        'warning',
+                        'requisition.clarification_coordination',
+                        'requisition',
+                        $sr->id,
+                        "requisition:{$sr->id}:clarification-smo:{$role}"
+                    );
+                }
             }
-            $actionText = 'Approved by ' . $position;
+            // 3. APPROVED (Normal Hierarchy)
+            else {
+                if ($role === 'dept_head') {
+                    $sr->status = 'approved_dept';
+                } elseif ($role === 'vp_finance' || $role === 'vp_admin') {
+                    $sr->status = 'approved_vp';
+                } elseif ($role === 'provost') {
+                    $sr->status = 'approved_provost';
+                } elseif ($role === 'president') {
+                    $sr->status = 'approved_president';
+                }
+                $actionText = 'Approved by '.$position;
 
-            $this->sendAlert(
-                $sr->user_id,
-                "Requisition Endorsed",
-                "Your request {$sr->tracking_code} has been endorsed by {$position}.",
-                'check-circle',
-                'success',
-                'requisition.endorsed',
-                'requisition',
-                $sr->id,
-                "requisition:{$sr->id}:endorsed:{$role}"
-            );
-        }
-
-        $sr->save();
-
-        // 4. Log the Decision
-        $log = ApprovalLog::create([
-            'requisition_id' => $sr->id,
-            'action'         => $actionText,
-            'role'           => $role,
-            'remarks'        => $request->remarks,
-        ]);
-
-        if ($request->status === 'approved') {
-            $nextRole = $sr->nextReviewerRole();
-
-            if ($nextRole) {
-                $notifications->sendToRole($nextRole, 'requisition.awaiting_approval', 'Requisition Ready for Action',
-                    "Requisition {$sr->tracking_code} is ready for your review.", [
-                        'icon' => 'file-text',
-                        'type' => $nextRole === 'smo' ? 'warning' : 'info',
-                        'action_type' => 'approval_queue',
-                        'action_id' => $sr->id,
-                        'dedupe_key' => "requisition:{$sr->id}:log:{$log->id}:next:{$nextRole}",
-                    ]);
+                $this->sendAlert(
+                    $sr->user_id,
+                    'Requisition Endorsed',
+                    "Your request {$sr->tracking_code} has been endorsed by {$position}.",
+                    'check-circle',
+                    'success',
+                    'requisition.endorsed',
+                    'requisition',
+                    $sr->id,
+                    "requisition:{$sr->id}:endorsed:{$role}"
+                );
             }
-        }
 
-        // 5. Cryptographic Digital Signature Generation (RA 8792 E-Commerce Act Compliance)
-        if ($request->status === 'approved') {
-            $rawPayload = "REQ-{$sr->id}|USER-" . Auth::id() . "|ROLE-{$role}|TIME-" . now()->timestamp . "|SECRET-" . config('app.key');
-            $signatureToken = hash('sha256', $rawPayload);
+            $sr->save();
 
-            DigitalSignature::create([
-                'approval_log_id' => $log->id,
-                'signature_token' => $signatureToken,
-                'signer_name'     => Auth::user()->name,
-                'signer_role'     => $position,
-                'ip_address'      => $request->ip(),
-                'user_agent'      => $request->userAgent(),
-                'signed_at'       => now(),
+            // 4. Log the Decision
+            $log = ApprovalLog::create([
+                'requisition_id' => $sr->id,
+                'action' => $actionText,
+                'role' => $role,
+                'remarks' => $request->remarks,
             ]);
+
+            if ($request->status === 'approved') {
+                $nextRole = $sr->nextReviewerRole();
+
+                if ($nextRole) {
+                    $notifications->sendToRole($nextRole, 'requisition.awaiting_approval', 'Requisition Ready for Action',
+                        "Requisition {$sr->tracking_code} is ready for your review.", [
+                            'icon' => 'file-text',
+                            'type' => $nextRole === 'smo' ? 'warning' : 'info',
+                            'action_type' => 'approval_queue',
+                            'action_id' => $sr->id,
+                            'dedupe_key' => "requisition:{$sr->id}:log:{$log->id}:next:{$nextRole}",
+                        ]);
+                }
+            }
+
+            // 5. Cryptographic Digital Signature Generation (RA 8792 E-Commerce Act Compliance)
+            if ($request->status === 'approved') {
+                $rawPayload = "REQ-{$sr->id}|USER-".Auth::id()."|ROLE-{$role}|TIME-".now()->timestamp.'|SECRET-'.config('app.key');
+                $signatureToken = hash('sha256', $rawPayload);
+
+                DigitalSignature::create([
+                    'approval_log_id' => $log->id,
+                    'signature_token' => $signatureToken,
+                    'signer_name' => Auth::user()->name,
+                    'signer_role' => $position,
+                    'ip_address' => $request->ip(),
+                    'user_agent' => $request->userAgent(),
+                    'signed_at' => now(),
+                ]);
+            }
+
+            DB::commit();
+        } catch (\Throwable $exception) {
+            DB::rollBack();
+
+            throw $exception;
         }
 
         // 6. TRIGGER OUTBOUND EMAIL NOTIFICATION FOR ALL 3 DECISIONS
-        $accent = match($request->status) {
-            'approved'      => '#185b3b', // HTC Green
+        $accent = match ($request->status) {
+            'approved' => '#185b3b', // HTC Green
             'clarification' => '#fd7e14', // Warning Amber
-            default         => '#dc3545'  // Danger Red
+            default => '#dc3545'  // Danger Red
         };
 
-        $headline = match($request->status) {
-            'approved'      => "Requisition Endorsed by {$position}",
+        $headline = match ($request->status) {
+            'approved' => "Requisition Endorsed by {$position}",
             'clarification' => "⚠️ Office Appearance Required: {$position}",
-            default         => "Requisition Disapproved by {$position}"
+            default => "Requisition Disapproved by {$position}"
         };
 
-        $emailMsg = match($request->status) {
-            'approved'      => "Your requisition has been reviewed and endorsed by {$position}. It will now proceed to the next stage.",
-            'clarification' => "The {$position} has requested a consultation regarding this request. Please report to their office together with the SMO In-Charge. Notes: " . ($request->remarks ?? 'None'),
-            default         => "Your requisition was disapproved by {$position}. Reason: " . ($request->remarks ?? 'Not specified')
+        $emailMsg = match ($request->status) {
+            'approved' => "Your requisition has been reviewed and endorsed by {$position}. It will now proceed to the next stage.",
+            'clarification' => "The {$position} has requested a consultation regarding this request. Please report to their office together with the SMO In-Charge. Notes: ".($request->remarks ?? 'None'),
+            default => "Your requisition was disapproved by {$position}. Reason: ".($request->remarks ?? 'Not specified')
         };
 
         $this->sendEmailNotification(
@@ -537,50 +558,90 @@ class RequestController extends Controller
      */
     public function releaseRequest($id, InventoryAlertService $alertService)
     {
-        $sr = Requisition::with('items')->findOrFail($id);
-
-        // 1. Guard against double-releasing
-        if ($sr->status === 'released') {
-            return back()->with('error', 'This requisition has already been released.');
-        }
-
-        // 2. Only SMO can release
+        // Only SMO can release supplies.
         if (Auth::user()->role !== 'smo') {
             return back()->with('error', 'Unauthorized. Only the SMO In-Charge can release supplies.');
         }
 
-        return DB::transaction(function () use ($sr, $alertService) {
+        $outcome = DB::transaction(function () use ($id, $alertService) {
+            $sr = Requisition::with(['items', 'user'])->lockForUpdate()->findOrFail($id);
+
+            if ($sr->status === 'released') {
+                return ['error' => 'This requisition has already been released.'];
+            }
+
+            $isReadyForRelease = ($sr->request_type === 'minor' && $sr->status === 'approved_vp')
+                || ($sr->request_type === 'major' && $sr->status === 'approved_president');
+            if (! $isReadyForRelease) {
+                return ['error' => 'This requisition has not completed its required approval route.'];
+            }
+
             $deductedItems = [];
 
-            // Check and deduct items that exist in our inventory catalog
-         foreach ($sr->items()->get() as $item) {
-             // Prefer the immutable catalog link; keep the name fallback for legacy requests.
-             $inventoryItem = $item->supply_id
-                 ? Supply::find($item->supply_id)
-                 : Supply::where('item_name', 'LIKE', trim($item->item_name))->first();
+            // Lock and aggregate every catalog item before changing stock. This
+            // prevents concurrent releases and avoids partial deductions when
+            // a later line is unavailable or duplicate cart lines share stock.
+            $linkedSupplies = Supply::query()
+                ->whereIn('id', $sr->items->pluck('supply_id')->filter()->unique())
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
+            $legacySupplies = [];
+            $inventoryPlans = [];
 
-             if ($inventoryItem) {
-                 if ($inventoryItem->quantity < $item->quantity) {
-                     return back()->with('error', "Insufficient stock for '{$item->item_name}'. Available: {$inventoryItem->quantity}, Requested: {$item->quantity}.");
-                 }
-                 $wasOut = $inventoryItem->quantity <= 0;
-                 $wasLow = $inventoryItem->quantity <= $inventoryItem->min_stock_level;
-                 $inventoryItem->decrement('quantity', $item->quantity);
-                 $inventoryItem->refresh();
-                 $alertService->notifyIfThresholdCrossed($inventoryItem, $wasLow, $wasOut);
-                 // Record Immutable Inventory Audit Log (3NF Traceability)
-                 \App\Models\SupplyInventoryLog::create([
-                     'supply_id'        => $inventoryItem->id,
-                     'user_id'          => Auth::id(),
-                     'requisition_id'   => $sr->id,
-                     'transaction_type' => 'release_deduction',
-                     'quantity_change'  => -$item->quantity,
-                     'balance_after'    => $inventoryItem->quantity,
-                     'remarks'          => "Fulfillment of {$sr->tracking_code} for {$sr->user->name}",
-                 ]);
-
-                 $deductedItems[] = "{$item->item_name} (-{$item->quantity})";
+            foreach ($sr->items as $item) {
+                if ($item->supply_id) {
+                    $inventoryItem = $linkedSupplies->get($item->supply_id);
+                } else {
+                    $legacyKey = mb_strtolower(trim($item->item_name));
+                    if (! array_key_exists($legacyKey, $legacySupplies)) {
+                        $legacySupplies[$legacyKey] = Supply::query()
+                            ->where('item_name', 'LIKE', trim($item->item_name))
+                            ->lockForUpdate()
+                            ->first();
+                    }
+                    $inventoryItem = $legacySupplies[$legacyKey];
                 }
+
+                if (! $inventoryItem) {
+                    continue;
+                }
+
+                $inventoryPlans[$inventoryItem->id] ??= [
+                    'supply' => $inventoryItem,
+                    'quantity' => 0,
+                ];
+                $inventoryPlans[$inventoryItem->id]['quantity'] += (int) $item->quantity;
+            }
+
+            foreach ($inventoryPlans as $plan) {
+                $inventoryItem = $plan['supply'];
+                $requestedQuantity = $plan['quantity'];
+                if ($inventoryItem->quantity < $requestedQuantity) {
+                    return ['error' => "Insufficient stock for '{$inventoryItem->item_name}'. Available: {$inventoryItem->quantity}, Requested: {$requestedQuantity}."];
+                }
+            }
+
+            foreach ($inventoryPlans as $plan) {
+                $inventoryItem = $plan['supply'];
+                $requestedQuantity = $plan['quantity'];
+                $wasOut = $inventoryItem->quantity <= 0;
+                $wasLow = $inventoryItem->quantity <= $inventoryItem->min_stock_level;
+                $inventoryItem->decrement('quantity', $requestedQuantity);
+                $inventoryItem->refresh();
+                $alertService->notifyIfThresholdCrossed($inventoryItem, $wasLow, $wasOut);
+
+                SupplyInventoryLog::create([
+                    'supply_id' => $inventoryItem->id,
+                    'user_id' => Auth::id(),
+                    'requisition_id' => $sr->id,
+                    'transaction_type' => 'release_deduction',
+                    'quantity_change' => -$requestedQuantity,
+                    'balance_after' => $inventoryItem->quantity,
+                    'remarks' => "Fulfillment of {$sr->tracking_code} for {$sr->user->name}",
+                ]);
+
+                $deductedItems[] = "{$inventoryItem->item_name} (-{$requestedQuantity})";
             }
 
             // Mark Requisition as Released
@@ -589,34 +650,34 @@ class RequestController extends Controller
 
             // Create detailed audit log
             $logRemarks = count($deductedItems) > 0
-                ? 'Released by SMO. Stock deducted: ' . implode(', ', $deductedItems)
+                ? 'Released by SMO. Stock deducted: '.implode(', ', $deductedItems)
                 : 'Released by SMO. Special requisition processed.';
 
             $log = ApprovalLog::create([
                 'requisition_id' => $sr->id,
-                'action'         => 'Released and Fulfilled by SMO In-Charge',
-                'role'           => 'smo',
-                'remarks'        => $logRemarks,
+                'action' => 'Released and Fulfilled by SMO In-Charge',
+                'role' => 'smo',
+                'remarks' => $logRemarks,
             ]);
 
             // Cryptographic Digital Signature for Release
-            $rawPayload = "RELEASE-{$sr->id}|USER-" . Auth::id() . "|TIME-" . now()->timestamp . "|SECRET-" . config('app.key');
+            $rawPayload = "RELEASE-{$sr->id}|USER-".Auth::id().'|TIME-'.now()->timestamp.'|SECRET-'.config('app.key');
             $signatureToken = hash('sha256', $rawPayload);
 
             DigitalSignature::create([
                 'approval_log_id' => $log->id,
                 'signature_token' => $signatureToken,
-                'signer_name'     => Auth::user()->name,
-                'signer_role'     => 'SMO In-Charge',
-                'ip_address'      => request()->ip(),
-                'user_agent'      => request()->userAgent(),
-                'signed_at'       => now(),
+                'signer_name' => Auth::user()->name,
+                'signer_role' => 'SMO In-Charge',
+                'ip_address' => request()->ip(),
+                'user_agent' => request()->userAgent(),
+                'signed_at' => now(),
             ]);
 
             // Notify Requester
             $this->sendAlert(
                 $sr->user_id,
-                "Supplies Ready for Pickup",
+                'Supplies Ready for Pickup',
                 "Your requisition #{$sr->id} has been fulfilled by the SMO and is ready for pickup.",
                 'package-check',
                 'success',
@@ -626,18 +687,25 @@ class RequestController extends Controller
                 "requisition:{$sr->id}:released"
             );
 
-            $this->sendEmailNotification(
-                $sr->user->email,
-                $sr->user,
-                $sr,
-                "Supplies Fulfilled and Ready for Pickup",
-                "Your Supplies Are Ready!",
-                "All requested items under {$sr->tracking_code} have been verified, deducted from inventory, and prepared by the SMO.",
-                '#185b3b'
-            );
-
-            return redirect()->route('admin.approvals')->with('success', "Requisition #{$sr->id} successfully confirmed and released!");
+            return ['requisition' => $sr];
         });
+
+        if (isset($outcome['error'])) {
+            return back()->with('error', $outcome['error']);
+        }
+
+        $sr = $outcome['requisition'];
+        $this->sendEmailNotification(
+            $sr->user->email,
+            $sr->user,
+            $sr,
+            'Supplies Fulfilled and Ready for Pickup',
+            'Your Supplies Are Ready!',
+            "All requested items under {$sr->tracking_code} have been verified, deducted from inventory, and prepared by the SMO.",
+            '#185b3b'
+        );
+
+        return redirect()->route('admin.approvals')->with('success', "Requisition #{$sr->id} successfully confirmed and released!");
     }
 
     public function show(Request $httpRequest, $id)
@@ -668,8 +736,7 @@ class RequestController extends Controller
         $actionType = null,
         $actionId = null,
         $dedupeKey = null,
-    )
-    {
+    ) {
         app(NotificationService::class)->send($userId, $eventType, $title, $message, [
             'icon' => $icon,
             'type' => $type,
@@ -692,21 +759,21 @@ class RequestController extends Controller
 
             // 2. Log successful transmission to database
             EmailLog::create([
-                'user_id'         => $user?->id,
+                'user_id' => $user?->id,
                 'recipient_email' => $recipientEmail,
-                'subject'         => $subject,
-                'status'          => 'sent',
-                'sent_at'         => now(),
+                'subject' => $subject,
+                'status' => 'sent',
+                'sent_at' => now(),
             ]);
         } catch (\Exception $e) {
             // Log failure without crashing the user request
             EmailLog::create([
-                'user_id'         => $user?->id,
+                'user_id' => $user?->id,
                 'recipient_email' => $recipientEmail,
-                'subject'         => $subject,
-                'status'          => 'failed',
-                'error_message'   => $e->getMessage(),
-                'sent_at'         => now(),
+                'subject' => $subject,
+                'status' => 'failed',
+                'error_message' => $e->getMessage(),
+                'sent_at' => now(),
             ]);
         }
     }

@@ -29,4 +29,4 @@
         default => null,
     };
 @endphp
-<title>{{ $browserSection ? $browserSection.' | HTC Supply System' : 'HTC Supply Management System' }}</title>
+<title>{{ $browserSection  }}</title>
