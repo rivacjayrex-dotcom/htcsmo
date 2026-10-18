@@ -270,7 +270,10 @@ class UserManagementTest extends TestCase
         $this->actingAs($smo)->get(route('admin.users.pending', ['search' => 'Matching']))
             ->assertOk()->assertSee('Matching Pending User')->assertSee('value="Matching"', false);
         $this->actingAs($smo)->get(route('admin.users.manage', ['search' => 'Matching']))
-            ->assertOk()->assertSee('Matching Active User')->assertSee('value="Matching"', false);
+            ->assertOk()
+            ->assertSee('Matching Active User')
+            ->assertSee('value="Matching"', false)
+            ->assertSee('type="submit" class="input-group-text', false);
     }
 
     public function test_personnel_registry_can_be_browsed_by_role_category_with_search_state_preserved(): void

@@ -12,20 +12,24 @@
             'pending' => ['label' => 'Awaiting department head', 'tone' => 'warning', 'icon' => 'clock-3'],
             'approved_dept' => ['label' => "Awaiting {$vpTitle}", 'tone' => 'progress', 'icon' => 'hourglass'],
             'approved_vp' => $request->request_type === 'minor'
-                ? ['label' => 'Ready for SMO release', 'tone' => 'ready', 'icon' => 'package-check']
+                ? ['label' => 'Awaiting SMO processing', 'tone' => 'ready', 'icon' => 'package-check']
                 : ['label' => 'Awaiting Provost', 'tone' => 'progress', 'icon' => 'hourglass'],
             'approved_provost' => ['label' => 'Awaiting President', 'tone' => 'progress', 'icon' => 'hourglass'],
-            'approved_president' => ['label' => 'Ready for SMO release', 'tone' => 'ready', 'icon' => 'package-check'],
+            'approved_president' => ['label' => 'Awaiting SMO processing', 'tone' => 'ready', 'icon' => 'package-check'],
+            'processing' => ['label' => 'Processing', 'tone' => 'progress', 'icon' => 'package-open'],
+            'ready_for_pickup' => ['label' => 'Ready for pickup', 'tone' => 'ready', 'icon' => 'package-check'],
+            'completed' => ['label' => 'Completed', 'tone' => 'success', 'icon' => 'badge-check'],
             'released' => ['label' => 'Released', 'tone' => 'success', 'icon' => 'badge-check'],
             'rejected' => ['label' => 'Rejected', 'tone' => 'danger', 'icon' => 'circle-x'],
             'for_clarification' => ['label' => 'Clarification requested', 'tone' => 'clarification', 'icon' => 'message-circle-question'],
             default => ['label' => ucwords(str_replace('_', ' ', $request->status)), 'tone' => 'neutral', 'icon' => 'circle-dot'],
         };
 
-        $isDeptDone = in_array($request->status, ['approved_dept', 'approved_vp', 'approved_provost', 'approved_president', 'released'], true)
+        $fulfillmentStatuses = ['processing', 'ready_for_pickup', 'completed', 'released'];
+        $isDeptDone = in_array($request->status, ['approved_dept', 'approved_vp', 'approved_provost', 'approved_president', ...$fulfillmentStatuses], true)
             || ($request->status === 'for_clarification' && in_array($questioningRole, ['vp_finance', 'vp_admin', 'provost', 'president'], true));
         $isDeptQuestioning = $request->status === 'for_clarification' && ($questioningRole === 'dept_head' || is_null($questioningRole));
-        $isVPDone = in_array($request->status, ['approved_vp', 'approved_provost', 'approved_president', 'released'], true)
+        $isVPDone = in_array($request->status, ['approved_vp', 'approved_provost', 'approved_president', ...$fulfillmentStatuses], true)
             || ($request->status === 'for_clarification' && in_array($questioningRole, ['provost', 'president'], true));
         $isVPQuestioning = $request->status === 'for_clarification' && in_array($questioningRole, ['vp_finance', 'vp_admin'], true);
 
@@ -44,7 +48,7 @@
         ];
 
         if ($request->request_type === 'major') {
-            $isProvostDone = in_array($request->status, ['approved_provost', 'approved_president', 'released'], true)
+            $isProvostDone = in_array($request->status, ['approved_provost', 'approved_president', ...$fulfillmentStatuses], true)
                 || ($request->status === 'for_clarification' && $questioningRole === 'president');
             $isProvostQuestioning = $request->status === 'for_clarification' && $questioningRole === 'provost';
             $steps[] = [
@@ -57,18 +61,28 @@
             $steps[] = [
                 'label' => $isPresidentQuestioning ? 'President inquiry' : 'President',
                 'icon' => $isPresidentQuestioning ? 'help-circle' : 'award',
-                'state' => in_array($request->status, ['approved_president', 'released'], true)
+                'state' => in_array($request->status, ['approved_president', ...$fulfillmentStatuses], true)
                     ? 'completed'
                     : ($isPresidentQuestioning ? 'questioning' : ($request->status === 'approved_provost' ? 'active' : 'pending')),
             ];
         }
 
-        $readyForRelease = ($request->request_type === 'minor' && $request->status === 'approved_vp')
+        $readyForProcessing = ($request->request_type === 'minor' && $request->status === 'approved_vp')
             || ($request->request_type === 'major' && $request->status === 'approved_president');
         $steps[] = [
-            'label' => 'SMO Release',
+            'label' => 'SMO Processing',
+            'icon' => 'package-open',
+            'state' => in_array($request->status, ['ready_for_pickup', 'completed', 'released'], true) ? 'completed' : ($request->status === 'processing' || $readyForProcessing ? 'active' : 'pending'),
+        ];
+        $steps[] = [
+            'label' => 'Ready for Pickup',
             'icon' => 'package-check',
-            'state' => $request->status === 'released' ? 'completed' : ($readyForRelease ? 'active' : 'pending'),
+            'state' => in_array($request->status, ['completed', 'released'], true) ? 'completed' : ($request->status === 'ready_for_pickup' ? 'active' : 'pending'),
+        ];
+        $steps[] = [
+            'label' => 'Completed',
+            'icon' => 'circle-check',
+            'state' => in_array($request->status, ['completed', 'released'], true) ? 'completed' : 'pending',
         ];
     @endphp
 
@@ -91,6 +105,7 @@
                 <div><span>Total value</span><strong>₱{{ number_format($request->grand_total, 2) }}</strong></div>
                 <div><span>Items</span><strong>{{ $request->items->sum('quantity') }}</strong></div>
                 <div><span>Submitted</span><strong>{{ $request->created_at->format('M d, Y') }}</strong></div>
+                <div><span>SLA deadline</span><strong>{{ $request->due_at?->format('M d, Y') ?? 'Not set' }}</strong></div>
             </div>
         </header>
 
@@ -173,10 +188,10 @@
                                 </div>
                             </article>
                         @endforeach
-                        @if($request->status === 'released')
+                        @if(in_array($request->status, ['completed', 'released'], true))
                             <article class="request-audit-entry is-released">
                                 <div class="request-audit-dot"><i data-lucide="package-check"></i></div>
-                                <div><time>{{ ($request->closed_at ?? $request->updated_at)->format('M d, Y · h:i A') }}</time><h3>Fulfillment completed</h3><p>The requisition was released by SMO.</p></div>
+                                <div><time>{{ ($request->closed_at ?? $request->updated_at)->format('M d, Y · h:i A') }}</time><h3>Fulfillment completed</h3><p>The requestor received the prepared supplies.</p></div>
                             </article>
                         @endif
                     </div>

@@ -24,6 +24,9 @@ Route::view('/privacy-policy', 'legal.privacy')->name('legal.privacy');
 // DASHBOARD LOGIC (Updated for Multi-item Requisitions)
 Route::get('/dashboard', function () {
     $user = Auth::user();
+    $validatedFilters = request()->validate([
+        'search' => ['nullable', 'string', 'max:100'],
+    ]);
 
     $activeCount = 0;
     $approvedLast24h = 0;
@@ -32,18 +35,18 @@ Route::get('/dashboard', function () {
     if ($user->role !== 'smo') {
         // 1. BASE COUNTERS (Keep these to show overall health)
         $activeCount = Requisition::where('user_id', $user->id)
-            ->whereNotIn('status', ['released', 'rejected'])
+            ->whereNotIn('status', Requisition::ARCHIVED_STATUSES)
             ->count();
 
         $approvedLast24h = Requisition::where('user_id', $user->id)
-            ->whereIn('status', ['approved_president', 'released'])
+            ->whereIn('status', ['approved_president', 'ready_for_pickup', 'completed', 'released'])
             ->where('updated_at', '>=', now()->subDay())
             ->count();
 
         // 2. EMPLOYEE TABLE: Filter to show ONLY Pending/In-Progress
         $recentRequests = Requisition::with('items')
             ->where('user_id', $user->id)
-            ->whereNotIn('status', ['released', 'rejected']) // <--- THE FILTER
+            ->whereNotIn('status', Requisition::ARCHIVED_STATUSES)
             ->latest()
             ->get();
     }
@@ -75,9 +78,9 @@ Route::get('/dashboard', function () {
 
         $approvalRequests = $approvalQuery->latest()->take(5)->get();
         $approvalDeadlineRequests = Requisition::with(['items', 'user'])
-            ->approvalDeadlineRisks()
+            ->deadlineRisks()
             ->assignedToReviewer($user)
-            ->oldest('stage_started_at')
+            ->oldest('due_at')
             ->take(6)
             ->get();
     }
@@ -91,29 +94,16 @@ Route::get('/dashboard', function () {
 
     if ($user->role == 'smo') {
         $approvalDeadlineRequests = Requisition::with(['items', 'user'])
-            ->approvalDeadlineRisks()
-            ->oldest('stage_started_at')
+            ->deadlineRisks()
+            ->oldest('due_at')
             ->take(6)
             ->get();
-        $requisitionStats = Requisition::query()->selectRaw(
-            'COUNT(*) as total,
-             COALESCE(SUM(CASE WHEN status NOT IN (?, ?) THEN 1 ELSE 0 END), 0) as pending,
-             COALESCE(SUM(CASE WHEN ((request_type = ? AND status = ?) OR (request_type = ? AND status = ?)) AND stage_started_at <= ? THEN 1 ELSE 0 END), 0) as urgent',
-            ['released', 'rejected', 'minor', 'approved_vp', 'major', 'approved_president', now()->subDays(2)]
-        )->first();
-        $stats['total'] = (int) $requisitionStats->total;
-        $stats['pending'] = (int) $requisitionStats->pending;
-        $stats['urgent'] = (int) $requisitionStats->urgent;
+        $stats['total'] = Requisition::count();
+        $stats['pending'] = Requisition::whereNotIn('status', Requisition::ARCHIVED_STATUSES)->count();
+        $stats['urgent'] = Requisition::deadlineRisks()->count();
         $deadlineRequests = Requisition::with(['items', 'user'])
-            ->where(function ($query) {
-                $query->where(function ($minor) {
-                    $minor->where('request_type', 'minor')->where('status', 'approved_vp');
-                })->orWhere(function ($major) {
-                    $major->where('request_type', 'major')->where('status', 'approved_president');
-                });
-            })
-            ->where('stage_started_at', '<=', now()->subDays(2))
-            ->oldest('stage_started_at')
+            ->deadlineRisks()
+            ->oldest('due_at')
             ->take(4)
             ->get();
         $inventoryStats = Supply::query()->selectRaw(
@@ -127,23 +117,19 @@ Route::get('/dashboard', function () {
             ->orderByRaw('(min_stock_level - quantity) DESC')
             ->take(4)
             ->get();
-        $stats['monthly_value'] = Requisition::where('status', 'released')
+        $stats['monthly_value'] = Requisition::whereIn('status', Requisition::FULFILLED_STATUSES)
             ->whereMonth('updated_at', now()->month)->sum('grand_total');
 
         // SMO TABLE: Only pull active items that still need to be processed or released
         $query = Requisition::with(['items', 'user'])
-            ->whereNotIn('status', ['released', 'rejected']); // Exclude historical/released records
+            ->whereNotIn('status', Requisition::ARCHIVED_STATUSES);
+
+        $query->search($validatedFilters['search'] ?? null);
 
         // Filter by Status (Within Active Lifecycle)
         if (request('status')) {
             if (request('status') === 'near_deadline') {
-                $query->where(function ($deadline) {
-                    $deadline->where(function ($minor) {
-                        $minor->where('request_type', 'minor')->where('status', 'approved_vp');
-                    })->orWhere(function ($major) {
-                        $major->where('request_type', 'major')->where('status', 'approved_president');
-                    });
-                })->where('stage_started_at', '<=', now()->subDays(2));
+                $query->deadlineRisks();
             } else {
                 $query->where('status', request('status'));
             }
@@ -183,7 +169,6 @@ Route::get('/dashboard', function () {
 Route::middleware(['auth'])->group(function () {
     Route::get('/requests', [RequestController::class, 'index'])->name('requests.index');
     Route::get('/requests/archive', [RequestController::class, 'archive'])->name('requests.archive');
-    Route::post('/requests', [RequestController::class, 'store'])->name('requests.store');
     Route::get('/requests/{id}/download', [RequestController::class, 'downloadPDF'])->name('requests.download');
     Route::get('/requests/{id}', [RequestController::class, 'show'])->name('requests.show');
 });
@@ -220,7 +205,9 @@ require __DIR__.'/auth.php';
 Route::middleware(['auth', 'role:dept_head,vp_finance,vp_admin,provost,president,smo'])->group(function () {
     Route::get('/admin/approvals', [RequestController::class, 'adminIndex'])->name('admin.approvals');
     Route::post('/admin/requests/{id}/status', [RequestController::class, 'updateStatus'])->name('admin.status.update');
-    Route::post('/admin/requests/{id}/release', [RequestController::class, 'releaseRequest'])->name('admin.requests.release');
+    Route::post('/admin/requests/{id}/processing', [RequestController::class, 'startProcessing'])->name('admin.requests.processing');
+    Route::post('/admin/requests/{id}/ready-for-pickup', [RequestController::class, 'markReadyForPickup'])->name('admin.requests.ready-for-pickup');
+    Route::post('/admin/requests/{id}/complete', [RequestController::class, 'completeRequest'])->name('admin.requests.complete');
     Route::post('/admin/requests/{requisition}/deadline-reminder', [RequestController::class, 'sendApprovalDeadlineReminder'])
         ->middleware('role:smo')->whereNumber('requisition')->name('admin.requests.deadline-reminder');
 });

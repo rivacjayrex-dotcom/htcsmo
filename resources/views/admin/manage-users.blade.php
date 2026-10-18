@@ -51,12 +51,12 @@
                     <input type="hidden" name="category" value="{{ $category }}">
                 @endif
                 <div class="input-group input-group-sm">
-                    <span class="input-group-text bg-white border-end-0 rounded-start-pill text-muted">
+                    <button type="submit" class="input-group-text bg-white border-end-0 rounded-start-pill text-muted" aria-label="Search personnel">
                         <i data-lucide="search" style="width: 14px;"></i>
-                    </span>
+                    </button>
                     <input type="search" name="search" value="{{ request('search') }}"
                         class="form-control border-start-0 rounded-end-pill bg-white shadow-none"
-                        placeholder="Search name, ID, or email" style="min-width: 230px;">
+                        maxlength="100" placeholder="Search name, ID, or email" style="min-width: 230px;">
                 </div>
                 @if(request('search'))
                     <a href="{{ route('admin.users.manage', array_filter(['category' => $category])) }}" class="btn btn-sm btn-link text-danger text-decoration-none">Clear</a>

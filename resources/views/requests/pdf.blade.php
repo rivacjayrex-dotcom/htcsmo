@@ -174,7 +174,7 @@
                         <td>{{ $log->action }}</td>
                         <td>{{ $log->remarks ?: '-' }}</td>
                         <td class="{{ $log->digitalSignature ? 'signed' : 'unsigned' }}">
-                            {{ $log->digitalSignature ? 'Digitally signed' : 'Audit log only' }}
+                            {{ $log->digitalSignature ? 'Audit token recorded' : 'Audit log only' }}
                         </td>
                     </tr>
                 @empty
@@ -185,14 +185,14 @@
     </div>
 
     <div class="section">
-        <div class="section-title">4. Digital Signature Verification</div>
+        <div class="section-title">4. Approval Audit Tokens</div>
         <table class="timeline">
             <thead><tr>
                 <th style="width: 20%;">Signer</th>
                 <th style="width: 19%;">Official Role</th>
                 <th style="width: 18%;">Signed At</th>
                 <th style="width: 15%;">IP Address</th>
-                <th>SHA-256 Verification Token</th>
+                <th>SHA-256 Audit Token</th>
             </tr></thead>
             <tbody>
                 @forelse($signedLogs as $log)
@@ -204,12 +204,12 @@
                         <td class="verification">{{ $log->digitalSignature->signature_token }}</td>
                     </tr>
                 @empty
-                    <tr><td colspan="5" class="text-center muted">No cryptographic digital signatures are attached to this requisition yet.</td></tr>
+                    <tr><td colspan="5" class="text-center muted">No approval audit tokens are attached to this requisition yet.</td></tr>
                 @endforelse
             </tbody>
         </table>
         <div class="attestation">
-            This PDF is a system-generated record of the requisition and its recorded workflow history as of {{ now()->format('F d, Y - h:i A') }}. Verify approval claims against the signature token and the source record in the HTC Supply Management System.
+            This PDF is a system-generated record of the requisition and its recorded workflow history as of {{ now()->format('F d, Y - h:i A') }}. These tokens support the internal audit trail and are not presented as legal-grade electronic signatures. Verify approval claims against the source record in the HTC Supply Management System.
         </div>
     </div>
 </body>

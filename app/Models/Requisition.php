@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use Carbon\Carbon;
+use App\Services\BusinessDaySlaService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,13 +10,18 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Requisition extends Model
 {
-    public const ARCHIVED_STATUSES = ['released', 'rejected'];
+    public const ARCHIVED_STATUSES = ['completed', 'released', 'rejected'];
+
+    public const FULFILLED_STATUSES = ['completed', 'released'];
 
     protected $fillable = [
         'tracking_number', // e.g. MIN-CETE-20000001
         'user_id',
         'request_type',
         'status',
+        'submitted_at',
+        'sla_warning_at',
+        'due_at',
         'stage_started_at',
         'closed_at',
         'purpose',
@@ -27,6 +32,9 @@ class Requisition extends Model
     protected function casts(): array
     {
         return [
+            'submitted_at' => 'datetime',
+            'sla_warning_at' => 'datetime',
+            'due_at' => 'datetime',
             'stage_started_at' => 'datetime',
             'closed_at' => 'datetime',
         ];
@@ -37,6 +45,17 @@ class Requisition extends Model
      */
     protected static function booted()
     {
+        static::creating(function (Requisition $requisition) {
+            if ($requisition->submitted_at && $requisition->sla_warning_at && $requisition->due_at) {
+                return;
+            }
+
+            $milestones = app(BusinessDaySlaService::class)->milestones($requisition->submitted_at ?? now());
+            $requisition->submitted_at ??= $milestones['submitted_at'];
+            $requisition->sla_warning_at ??= $milestones['sla_warning_at'];
+            $requisition->due_at ??= $milestones['due_at'];
+        });
+
         static::saving(function (Requisition $requisition) {
             if (! $requisition->isDirty('status')) {
                 return;
@@ -89,9 +108,40 @@ class Requisition extends Model
         return $user->role === 'smo' ? $query : $query->where('user_id', $user->id);
     }
 
+    /**
+     * Search the human-readable requisition data shown throughout the UI.
+     */
+    public function scopeSearch(Builder $query, ?string $search): Builder
+    {
+        $search = trim((string) $search);
+
+        if ($search === '') {
+            return $query;
+        }
+
+        return $query->where(function (Builder $matches) use ($search) {
+            $like = "%{$search}%";
+
+            $matches->where('tracking_number', 'like', $like)
+                ->orWhere('purpose', 'like', $like)
+                ->orWhere('remarks', 'like', $like)
+                ->orWhereHas('items', function (Builder $items) use ($like) {
+                    $items->where('item_name', 'like', $like)
+                        ->orWhere('specifications', 'like', $like);
+                })
+                ->orWhereHas('user', function (Builder $users) use ($like) {
+                    $users->where('name', 'like', $like)
+                        ->orWhere('school_id', 'like', $like)
+                        ->orWhere('email', 'like', $like)
+                        ->orWhere('department', 'like', $like);
+                });
+        });
+    }
+
     public function scopeWithArchiveFilters(Builder $query, array $filters, bool $allowDepartment = false): Builder
     {
         return $query
+            ->search($filters['search'] ?? null)
             ->when($filters['status'] ?? null, fn (Builder $query, string $status) => $query->where('status', $status))
             ->when(
                 $allowDepartment && ($filters['dept'] ?? null),
@@ -120,8 +170,15 @@ class Requisition extends Model
 
     public function scopeApprovalDeadlineRisks(Builder $query): Builder
     {
-        return $query->awaitingAdministrativeApproval()
-            ->where('stage_started_at', '<=', now()->subDays(2));
+        return $query->deadlineRisks();
+    }
+
+    public function scopeDeadlineRisks(Builder $query): Builder
+    {
+        return $query
+            ->whereNotIn('status', self::ARCHIVED_STATUSES)
+            ->whereNotNull('sla_warning_at')
+            ->where('sla_warning_at', '<=', now());
     }
 
     public function scopeAssignedToReviewer(Builder $query, User $reviewer): Builder
@@ -155,6 +212,7 @@ class Requisition extends Model
             'approved_vp' => $this->request_type === 'minor' ? 'smo' : 'provost',
             'approved_provost' => 'president',
             'approved_president' => 'smo',
+            'processing', 'ready_for_pickup' => 'smo',
             default => null,
         };
     }
@@ -177,7 +235,9 @@ class Requisition extends Model
 
     public function approvalDeadlineDaysElapsed(): int
     {
-        return (int) floor(($this->stage_started_at ?? $this->updated_at)->diffInDays(now()));
+        return app(BusinessDaySlaService::class)->workingDaysElapsed(
+            $this->submitted_at ?? $this->created_at,
+        );
     }
 
     public function isAwaitingAdministrativeApproval(): bool
@@ -188,17 +248,32 @@ class Requisition extends Model
 
     public function isApprovalDeadlineNearing(): bool
     {
-        return $this->isAwaitingAdministrativeApproval()
-            && $this->currentReviewerRole() !== 'smo'
-            && $this->approvalDeadlineDaysElapsed() >= 2
-            && $this->approvalDeadlineDaysElapsed() < 3;
+        return $this->isDeadlineNearing();
     }
 
     public function isApprovalDeadlineOverdue(): bool
     {
-        return $this->isAwaitingAdministrativeApproval()
-            && $this->currentReviewerRole() !== 'smo'
-            && $this->approvalDeadlineDaysElapsed() >= 3;
+        return $this->isDeadlineOverdue();
+    }
+
+    public function isDeadlineNearing(): bool
+    {
+        return $this->isSlaActive()
+            && $this->sla_warning_at !== null
+            && now()->greaterThanOrEqualTo($this->sla_warning_at)
+            && ! $this->isDeadlineOverdue();
+    }
+
+    public function isDeadlineOverdue(): bool
+    {
+        return $this->isSlaActive()
+            && $this->due_at !== null
+            && now()->greaterThanOrEqualTo($this->due_at);
+    }
+
+    public function isSlaActive(): bool
+    {
+        return ! in_array($this->status, self::ARCHIVED_STATUSES, true);
     }
 
     public function canBeViewedBy(User $user): bool
@@ -222,7 +297,8 @@ class Requisition extends Model
             'provost' => $this->status === 'approved_vp' && $this->request_type === 'major',
             'president' => $this->status === 'approved_provost' && $this->request_type === 'major',
             'smo' => ($this->request_type === 'minor' && $this->status === 'approved_vp')
-                || ($this->request_type === 'major' && $this->status === 'approved_president'),
+                || ($this->request_type === 'major' && $this->status === 'approved_president')
+                || in_array($this->status, ['processing', 'ready_for_pickup'], true),
             default => false,
         };
     }
@@ -250,14 +326,7 @@ class Requisition extends Model
      */
     public function isNearingDeadline(): bool
     {
-        $isFullyApproved = ($this->status === 'approved_president') ||
-                           ($this->request_type === 'minor' && $this->status === 'approved_vp');
-
-        if ($isFullyApproved) {
-            return ($this->stage_started_at ?? $this->updated_at)->diffInDays(Carbon::now()) >= 2;
-        }
-
-        return false;
+        return $this->isDeadlineNearing();
     }
 
     /**
@@ -265,13 +334,6 @@ class Requisition extends Model
      */
     public function isOverdue(): bool
     {
-        $isFullyApproved = ($this->status === 'approved_president') ||
-                           ($this->request_type === 'minor' && $this->status === 'approved_vp');
-
-        if ($isFullyApproved) {
-            return ($this->stage_started_at ?? $this->updated_at)->diffInDays(Carbon::now()) >= 3;
-        }
-
-        return false;
+        return $this->isDeadlineOverdue();
     }
 }

@@ -12,6 +12,7 @@ use App\Models\Requisition;
 use App\Models\Supply;
 use App\Models\SupplyInventoryLog;
 use App\Models\User;
+use App\Services\DeadlineNotificationService;
 use App\Services\InventoryAlertService;
 use App\Services\NotificationActionResolver;
 use App\Services\NotificationService;
@@ -101,9 +102,12 @@ class RequestController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
+        $validated = $request->validate([
+            'search' => ['nullable', 'string', 'max:100'],
+        ]);
 
         $scopeQuery = Requisition::query()
-            ->whereNotIn('status', ['released', 'rejected']);
+            ->whereNotIn('status', Requisition::ARCHIVED_STATUSES);
 
         if ($user->role !== 'smo') {
             $scopeQuery->where('user_id', $user->id);
@@ -120,26 +124,12 @@ class RequestController extends Controller
                     $major->where('request_type', 'major')->where('status', 'approved_president');
                 });
             })->count(),
-            'deadline' => (clone $scopeQuery)->where(function ($ready) {
-                $ready->where(function ($minor) {
-                    $minor->where('request_type', 'minor')->where('status', 'approved_vp');
-                })->orWhere(function ($major) {
-                    $major->where('request_type', 'major')->where('status', 'approved_president');
-                });
-            })->where('stage_started_at', '<=', now()->subDays(2))->count(),
+            'deadline' => (clone $scopeQuery)->deadlineRisks()->count(),
         ];
 
         $query = (clone $scopeQuery)->with(['items', 'user']);
 
-        if ($request->filled('search')) {
-            $search = trim((string) $request->search);
-            $query->where(function ($matches) use ($search) {
-                $matches->where('tracking_number', 'like', "%{$search}%")
-                    ->orWhere('purpose', 'like', "%{$search}%")
-                    ->orWhereHas('items', fn ($items) => $items->where('item_name', 'like', "%{$search}%"))
-                    ->orWhereHas('user', fn ($users) => $users->where('name', 'like', "%{$search}%"));
-            });
-        }
+        $query->search($validated['search'] ?? null);
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
@@ -170,7 +160,7 @@ class RequestController extends Controller
             }
 
             $approvalDeadlineRequests = $deadlineQuery
-                ->oldest('stage_started_at')
+                ->oldest('due_at')
                 ->take(8)
                 ->get();
         }
@@ -178,63 +168,26 @@ class RequestController extends Controller
         return view('requests.index', compact('activeRequests', 'requestStats', 'departments', 'approvalDeadlineRequests'));
     }
 
-    public function sendApprovalDeadlineReminder(Request $request, Requisition $requisition, NotificationService $notifications)
+    public function sendApprovalDeadlineReminder(Request $request, Requisition $requisition, DeadlineNotificationService $deadlineNotifications)
     {
         abort_unless($request->user()->role === 'smo', 403);
 
         $requisition->loadMissing(['user', 'items']);
-        if (! $requisition->isApprovalDeadlineNearing() && ! $requisition->isApprovalDeadlineOverdue()) {
-            return back()->with('error', 'This requisition is no longer at an approval deadline risk.');
+        if (! $requisition->isDeadlineNearing() && ! $requisition->isDeadlineOverdue()) {
+            return back()->with('error', 'This requisition is no longer at a deadline risk.');
         }
 
-        $reviewerRole = $requisition->currentReviewerRole();
-        if (! in_array($reviewerRole, ['dept_head', 'vp_finance', 'vp_admin', 'provost', 'president'], true)) {
-            return back()->with('error', 'This requisition no longer has an administrator awaiting action.');
-        }
+        $result = $deadlineNotifications->notify($requisition);
 
-        $recipients = User::query()
-            ->where('role', $reviewerRole)
-            ->where('account_status', User::ACCOUNT_ACTIVE)
-            ->when(
-                $reviewerRole === 'dept_head',
-                fn ($users) => $users->where('department', $requisition->user?->department)
-            )
-            ->get();
-
-        if ($recipients->isEmpty()) {
-            return back()->with('error', 'No active approver is assigned to this requisition stage.');
-        }
-
-        $state = $requisition->isApprovalDeadlineOverdue() ? 'at or past its deadline' : 'nearing its deadline';
-        $created = 0;
-        $delivered = 0;
-        foreach ($recipients as $recipient) {
-            $notification = $notifications->send(
-                $recipient,
-                'deadline.approval_reminder',
-                'SMO Approval Deadline Reminder',
-                "Requisition {$requisition->tracking_code} is {$state} and needs your review. — SMO",
-                [
-                    'icon' => 'clock',
-                    'type' => $requisition->isApprovalDeadlineOverdue() ? 'danger' : 'warning',
-                    'action_type' => 'approval_queue',
-                    'action_id' => $requisition->id,
-                    'dedupe_key' => "deadline-reminder:{$requisition->id}:{$reviewerRole}:".now()->toDateString(),
-                ]
-            );
-            $delivered += (int) ($notification !== null);
-            $created += (int) ($notification?->wasRecentlyCreated === true);
-        }
-
-        if ($delivered === 0) {
+        if ($result['delivered'] === 0) {
             return back()->with('error', 'The reminder could not be delivered. Please try again.');
         }
 
         return back()->with(
             'success',
-            $created > 0
-                ? 'The current approver has been notified about the deadline.'
-                : 'The current approver was already notified about this requisition today.'
+            $result['created'] > 0
+                ? 'The requestor, SMO, and current approver have been notified about the deadline.'
+                : 'All deadline recipients were already notified about this requisition today.'
         );
     }
 
@@ -296,7 +249,7 @@ class RequestController extends Controller
                         $sub->where('request_type', 'minor')->where('status', 'approved_vp');
                     })->orWhere(function ($sub) {
                         $sub->where('status', 'approved_president');
-                    });
+                    })->orWhereIn('status', ['processing', 'ready_for_pickup']);
                 });
                 break;
             default:
@@ -490,7 +443,7 @@ class RequestController extends Controller
                 }
             }
 
-            // 5. Cryptographic Digital Signature Generation (RA 8792 E-Commerce Act Compliance)
+            // 5. Generate an internal approval audit token.
             if ($request->status === 'approved') {
                 $rawPayload = "REQ-{$sr->id}|USER-".Auth::id()."|ROLE-{$role}|TIME-".now()->timestamp.'|SECRET-'.config('app.key');
                 $signatureToken = hash('sha256', $rawPayload);
@@ -554,9 +507,52 @@ class RequestController extends Controller
     }
 
     /**
-     * SMO Confirmation & Release (Fulfillment)
+     * Move a fully approved requisition into active SMO processing.
      */
-    public function releaseRequest($id, InventoryAlertService $alertService)
+    public function startProcessing($id, NotificationService $notifications)
+    {
+        if (Auth::user()->role !== 'smo') {
+            return back()->with('error', 'Unauthorized. Only the SMO In-Charge can process supplies.');
+        }
+
+        $outcome = DB::transaction(function () use ($id, $notifications) {
+            $requisition = Requisition::with(['items', 'user'])->lockForUpdate()->findOrFail($id);
+            $isFullyApproved = ($requisition->request_type === 'minor' && $requisition->status === 'approved_vp')
+                || ($requisition->request_type === 'major' && $requisition->status === 'approved_president');
+
+            if (! $isFullyApproved) {
+                return ['error' => 'This requisition has not completed its required approval route.'];
+            }
+
+            $requisition->update(['status' => 'processing']);
+            ApprovalLog::create([
+                'requisition_id' => $requisition->id,
+                'action' => 'Processing Started by SMO In-Charge',
+                'role' => 'smo',
+                'remarks' => 'The approved requisition entered SMO processing.',
+            ]);
+
+            $notifications->send($requisition->user, 'requisition.processing', 'SMO Processing Started',
+                "Your requisition {$requisition->tracking_code} is now being processed by the SMO.", [
+                    'icon' => 'package-open', 'type' => 'info', 'action_type' => 'requisition',
+                    'action_id' => $requisition->id,
+                    'dedupe_key' => "requisition:{$requisition->id}:processing",
+                ]);
+
+            return ['requisition' => $requisition];
+        });
+
+        if (isset($outcome['error'])) {
+            return back()->with('error', $outcome['error']);
+        }
+
+        return redirect()->route('admin.approvals')->with('success', "Requisition #{$outcome['requisition']->id} is now being processed.");
+    }
+
+    /**
+     * Deduct prepared stock and notify the requestor that pickup is available.
+     */
+    public function markReadyForPickup($id, InventoryAlertService $alertService)
     {
         // Only SMO can release supplies.
         if (Auth::user()->role !== 'smo') {
@@ -566,14 +562,12 @@ class RequestController extends Controller
         $outcome = DB::transaction(function () use ($id, $alertService) {
             $sr = Requisition::with(['items', 'user'])->lockForUpdate()->findOrFail($id);
 
-            if ($sr->status === 'released') {
-                return ['error' => 'This requisition has already been released.'];
+            if (in_array($sr->status, ['ready_for_pickup', 'completed', 'released'], true)) {
+                return ['error' => 'This requisition has already been prepared for pickup.'];
             }
 
-            $isReadyForRelease = ($sr->request_type === 'minor' && $sr->status === 'approved_vp')
-                || ($sr->request_type === 'major' && $sr->status === 'approved_president');
-            if (! $isReadyForRelease) {
-                return ['error' => 'This requisition has not completed its required approval route.'];
+            if ($sr->status !== 'processing') {
+                return ['error' => 'This requisition must enter SMO processing before it can be prepared for pickup.'];
             }
 
             $deductedItems = [];
@@ -644,24 +638,24 @@ class RequestController extends Controller
                 $deductedItems[] = "{$inventoryItem->item_name} (-{$requestedQuantity})";
             }
 
-            // Mark Requisition as Released
-            $sr->status = 'released';
+            // Keep pickup readiness distinct from final completion.
+            $sr->status = 'ready_for_pickup';
             $sr->save();
 
             // Create detailed audit log
             $logRemarks = count($deductedItems) > 0
-                ? 'Released by SMO. Stock deducted: '.implode(', ', $deductedItems)
-                : 'Released by SMO. Special requisition processed.';
+                ? 'Prepared for pickup by SMO. Stock deducted: '.implode(', ', $deductedItems)
+                : 'Prepared for pickup by SMO. Special requisition processed.';
 
             $log = ApprovalLog::create([
                 'requisition_id' => $sr->id,
-                'action' => 'Released and Fulfilled by SMO In-Charge',
+                'action' => 'Marked Ready for Pickup by SMO In-Charge',
                 'role' => 'smo',
                 'remarks' => $logRemarks,
             ]);
 
-            // Cryptographic Digital Signature for Release
-            $rawPayload = "RELEASE-{$sr->id}|USER-".Auth::id().'|TIME-'.now()->timestamp.'|SECRET-'.config('app.key');
+            // Generate an internal fulfillment audit token.
+            $rawPayload = "READY-{$sr->id}|USER-".Auth::id().'|TIME-'.now()->timestamp.'|SECRET-'.config('app.key');
             $signatureToken = hash('sha256', $rawPayload);
 
             DigitalSignature::create([
@@ -681,10 +675,10 @@ class RequestController extends Controller
                 "Your requisition #{$sr->id} has been fulfilled by the SMO and is ready for pickup.",
                 'package-check',
                 'success',
-                'requisition.released',
+                'requisition.ready_for_pickup',
                 'requisition',
                 $sr->id,
-                "requisition:{$sr->id}:released"
+                "requisition:{$sr->id}:ready-for-pickup"
             );
 
             return ['requisition' => $sr];
@@ -705,7 +699,48 @@ class RequestController extends Controller
             '#185b3b'
         );
 
-        return redirect()->route('admin.approvals')->with('success', "Requisition #{$sr->id} successfully confirmed and released!");
+        return redirect()->route('admin.approvals')->with('success', "Requisition #{$sr->id} is ready for pickup.");
+    }
+
+    /**
+     * Close the requisition after the requestor receives the prepared items.
+     */
+    public function completeRequest($id, NotificationService $notifications)
+    {
+        if (Auth::user()->role !== 'smo') {
+            return back()->with('error', 'Unauthorized. Only the SMO In-Charge can complete requests.');
+        }
+
+        $outcome = DB::transaction(function () use ($id, $notifications) {
+            $requisition = Requisition::with('user')->lockForUpdate()->findOrFail($id);
+
+            if ($requisition->status !== 'ready_for_pickup') {
+                return ['error' => 'Only a requisition that is ready for pickup can be completed.'];
+            }
+
+            $requisition->update(['status' => 'completed']);
+            ApprovalLog::create([
+                'requisition_id' => $requisition->id,
+                'action' => 'Completed by SMO In-Charge',
+                'role' => 'smo',
+                'remarks' => 'The prepared supplies were released to the requestor.',
+            ]);
+
+            $notifications->send($requisition->user, 'requisition.completed', 'Requisition Completed',
+                "Your requisition {$requisition->tracking_code} has been released and marked complete.", [
+                    'icon' => 'circle-check', 'type' => 'success', 'action_type' => 'requisition',
+                    'action_id' => $requisition->id,
+                    'dedupe_key' => "requisition:{$requisition->id}:completed",
+                ]);
+
+            return ['requisition' => $requisition];
+        });
+
+        if (isset($outcome['error'])) {
+            return back()->with('error', $outcome['error']);
+        }
+
+        return redirect()->route('admin.approvals')->with('success', "Requisition #{$outcome['requisition']->id} has been completed.");
     }
 
     public function show(Request $httpRequest, $id)

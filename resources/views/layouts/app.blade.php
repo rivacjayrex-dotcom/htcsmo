@@ -1882,7 +1882,7 @@
                 @if($sidebarRole === 'smo')
                     <div class="nav-section-label">Inventory & Fulfillment</div>
                     <a href="{{ route('admin.approvals') }}" class="nav-link-custom {{ request()->routeIs('admin.approvals') ? 'active' : '' }}">
-                        <i data-lucide="package-check"></i> Release Queue
+                        <i data-lucide="package-check"></i> Fulfillment Queue
                     </a>
                     <a href="{{ route('inventory.index') }}" class="nav-link-custom {{ request()->routeIs('inventory.*') ? 'active' : '' }}">
                         <i data-lucide="boxes"></i> Manage Inventory
@@ -2567,8 +2567,15 @@
                 get categories() { return [...new Set(this.tierItems.map(item => item.category))].sort(); },
                 get filteredItems() {
                     const term = this.search.trim().toLowerCase();
-                    return this.tierItems.filter(item => (this.category === 'All' || item.category === this.category)
-                        && (!term || `${item.name} ${item.brand || ''} ${item.specs || ''}`.toLowerCase().includes(term)));
+                    return this.tierItems.filter(item => {
+                        const optionText = Object.entries(item.options || {})
+                            .flatMap(([label, choices]) => [label, ...(choices || [])])
+                            .join(' ');
+                        const searchableText = `${item.name || ''} ${item.brand || ''} ${item.model || ''} ${item.category || ''} ${item.specs || ''} ${optionText}`.toLowerCase();
+
+                        return (this.category === 'All' || item.category === this.category)
+                            && (!term || searchableText.includes(term));
+                    });
                 },
                 get allOptionsSelected() {
                     return this.selectedItem && Object.keys(this.selectedItem.options || {}).every(label => this.selectedOptions[label]);

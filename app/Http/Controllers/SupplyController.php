@@ -15,7 +15,7 @@ class SupplyController extends Controller
         $supplies = Supply::query()
             ->select([
                 'id', 'item_name', 'brand', 'category', 'requisition_tier',
-                'specifications', 'unit', 'unit_price', 'quantity', 'configurable_options',
+                'model_number', 'specifications', 'unit', 'unit_price', 'quantity', 'configurable_options',
             ])
             ->where('quantity', '>', 0)
             ->orderBy('requisition_tier')
@@ -27,6 +27,7 @@ class SupplyController extends Controller
             'name' => $supply->item_name,
             'brand' => $supply->brand,
             'category' => $supply->category,
+            'model' => $supply->model_number,
             'tier' => $supply->requisition_tier ?? 'minor',
             'specs' => $supply->specifications,
             'unit' => $supply->unit,

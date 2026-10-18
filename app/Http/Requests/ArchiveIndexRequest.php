@@ -15,7 +15,8 @@ class ArchiveIndexRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'status' => ['nullable', Rule::in(['released', 'rejected'])],
+            'search' => ['nullable', 'string', 'max:100'],
+            'status' => ['nullable', Rule::in(['completed', 'released', 'rejected'])],
             'dept' => ['nullable', 'string', 'max:100'],
             'date_from' => ['nullable', 'date_format:Y-m-d'],
             'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],

@@ -80,6 +80,11 @@
             @empty
                 <tr><td colspan="6" class="inventory-empty"><i data-lucide="package-open"></i><strong>No {{ $tier }} items yet</strong><span>Register an item and assign it to this tier.</span></td></tr>
             @endforelse
+            @if($items->isNotEmpty())
+                <tr x-cloak x-show="matchingIds('{{ $tier }}').length === 0">
+                    <td colspan="6" class="inventory-empty"><i data-lucide="search-x"></i><strong>No matching {{ $tier }} items</strong><span>Try another search term or stock filter.</span></td>
+                </tr>
+            @endif
         </tbody>
     </table>
 </div>

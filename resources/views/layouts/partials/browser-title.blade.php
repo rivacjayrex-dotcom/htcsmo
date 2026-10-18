@@ -10,7 +10,7 @@
         request()->routeIs('requests.index') => 'Active Requisitions',
         request()->routeIs('notifications') => 'Notification Center',
         request()->routeIs('admin.approvals') => Auth::check() && Auth::user()->role === 'smo'
-            ? 'Release Queue'
+            ? 'Fulfillment Queue'
             : 'Pending Approvals',
         request()->routeIs('admin.users.pending') => 'Access Requests',
         request()->routeIs('admin.users.manage') => 'Manage Personnel',

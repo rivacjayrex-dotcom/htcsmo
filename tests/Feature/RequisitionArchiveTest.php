@@ -68,6 +68,32 @@ class RequisitionArchiveTest extends TestCase
             ->assertDontSee($wrongClosureDate->tracking_code);
     }
 
+    public function test_both_archive_pages_can_search_archived_request_content(): void
+    {
+        $smo = User::factory()->create(['role' => 'smo']);
+        $requestor = User::factory()->create(['name' => 'Archive Search Owner']);
+        $match = $this->requisition($requestor, 'completed', '2026-09-10 08:00:00');
+        $other = $this->requisition($requestor, 'released', '2026-09-11 08:00:00');
+        RequisitionItem::create([
+            'requisition_id' => $match->id,
+            'item_name' => 'Historical projector',
+            'specifications' => 'Archive-only marker',
+            'quantity' => 1,
+            'unit' => 'Unit',
+            'unit_price' => 100,
+            'subtotal' => 100,
+        ]);
+
+        foreach (['requests.archive', 'admin.archive'] as $route) {
+            $this->actingAs($smo)
+                ->get(route($route, ['search' => 'Archive-only marker']))
+                ->assertOk()
+                ->assertSee($match->tracking_code)
+                ->assertDontSee($other->tracking_code)
+                ->assertSee('value="Archive-only marker"', false);
+        }
+    }
+
     public function test_archive_sorts_by_closure_date_and_preserves_filters_across_pagination(): void
     {
         $smo = User::factory()->create(['role' => 'smo']);

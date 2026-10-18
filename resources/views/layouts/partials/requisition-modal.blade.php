@@ -69,7 +69,7 @@
                             <div class="catalog-toolbar">
                                 <button type="button" class="btn btn-sm btn-light border rounded-pill" @click="backToTiers()"><i data-lucide="chevron-left"></i> Tier</button>
                                 <div class="tier-pill" :class="tier" x-text="tierLabel"></div>
-                                <div class="catalog-search"><i data-lucide="search"></i><input type="search" x-model="search" placeholder="Search approved items…" aria-label="Search catalog"></div>
+                                <div class="catalog-search"><i data-lucide="search"></i><input type="search" x-model.debounce.150ms="search" placeholder="Search items, brands, models, or categories…" aria-label="Search catalog"></div>
                             </div>
 
                             <div x-show="notice" x-transition class="catalog-notice" role="status"><i data-lucide="check-circle-2"></i><span x-text="notice"></span></div>

@@ -31,6 +31,9 @@ class DashboardWorkspaceTest extends TestCase
             'grand_total' => 800,
         ]);
         $deadlineRequest->forceFill([
+            'submitted_at' => now()->subDays(4),
+            'sla_warning_at' => now()->subDays(2),
+            'due_at' => now()->subDay(),
             'stage_started_at' => now()->subDays(3),
             'updated_at' => now()->subDays(3),
         ])->saveQuietly();
@@ -63,7 +66,7 @@ class DashboardWorkspaceTest extends TestCase
                 'Notifications',
                 'Requisitions',
                 'Inventory & Fulfillment',
-                'Release Queue',
+                'Fulfillment Queue',
                 'Manage Inventory',
                 'Insights',
                 'Reports & Analytics',
@@ -96,5 +99,34 @@ class DashboardWorkspaceTest extends TestCase
             ->assertSee('My procurement activity')
             ->assertSee($request->tracking_number)
             ->assertSeeInOrder(['Overview', 'Notifications', 'Requisitions', 'Active Requests', 'Request Archive']);
+    }
+
+    public function test_smo_dashboard_search_filters_the_active_pipeline(): void
+    {
+        $smo = User::factory()->create(['role' => 'smo']);
+        $matchingRequestor = User::factory()->create(['name' => 'Dashboard Search Match']);
+        $otherRequestor = User::factory()->create(['name' => 'Dashboard Other User']);
+        $match = Requisition::create([
+            'user_id' => $matchingRequestor->id,
+            'request_type' => 'minor',
+            'status' => 'pending',
+            'purpose' => 'Unique dashboard lookup',
+            'grand_total' => 100,
+        ]);
+        $other = Requisition::create([
+            'user_id' => $otherRequestor->id,
+            'request_type' => 'minor',
+            'status' => 'pending',
+            'purpose' => 'Ordinary supplies',
+            'grand_total' => 100,
+        ]);
+
+        $this->actingAs($smo)
+            ->get(route('dashboard', ['search' => 'Unique dashboard lookup']))
+            ->assertOk()
+            ->assertSee($match->tracking_number)
+            ->assertDontSee($other->tracking_number)
+            ->assertSee('value="Unique dashboard lookup"', false)
+            ->assertSee('type="submit" class="filter-apply"', false);
     }
 }

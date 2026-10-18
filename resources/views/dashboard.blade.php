@@ -14,7 +14,7 @@
                 <h2>{{ $isSmo ? 'GoodHoly, '.$firstName.'.' : 'Welcome back, '.$firstName.'.' }}</h2>
                 <p>
                     @if($isSmo)
-                        Monitor institutional demand, deadline risks, and requests ready for release.
+                        Monitor institutional demand, deadline risks, and requests moving through fulfillment.
                     @else
                         Track requests, review approvals, and submit supply needs from one place.
                     @endif
@@ -27,7 +27,7 @@
 
             <div class="dashboard-hero-actions">
                 @if($isSmo)
-                    <a href="{{ route('admin.approvals') }}" class="hero-btn primary"><i data-lucide="package-check"></i> Release queue</a>
+                    <a href="{{ route('admin.approvals') }}" class="hero-btn primary"><i data-lucide="package-check"></i> Fulfillment queue</a>
                     <a href="{{ route('inventory.index') }}" class="hero-btn secondary"><i data-lucide="boxes"></i> Manage stock</a>
                 @else
                     <button type="button" class="hero-btn primary" data-bs-toggle="modal" data-bs-target="#globalRequestModal"><i data-lucide="plus"></i> New requisition</button>
@@ -47,23 +47,23 @@
                         <span class="priority-symbol"><i data-lucide="{{ $stats['urgent'] > 0 ? 'siren' : 'shield-check' }}"></i></span>
                         <div>
                             <span>Deadline monitor</span>
-                            <h3>{{ $stats['urgent'] > 0 ? $stats['urgent'].' requests need immediate attention' : 'All release deadlines are healthy' }}</h3>
+                            <h3>{{ $stats['urgent'] > 0 ? $stats['urgent'].' requests need immediate attention' : 'All request deadlines are healthy' }}</h3>
                         </div>
                         <a href="{{ route('notifications') }}">View deadline center <i data-lucide="arrow-up-right"></i></a>
                     </div>
                     <div class="priority-list">
                         @forelse($deadlineRequests as $deadlineRequest)
                             @php
-                                $waitingDays = ($deadlineRequest->stage_started_at ?? $deadlineRequest->updated_at)->diffInDays(now());
-                                $deadlineState = $waitingDays >= 3 ? 'overdue' : 'near';
+                                $waitingDays = $deadlineRequest->approvalDeadlineDaysElapsed();
+                                $deadlineState = $deadlineRequest->isDeadlineOverdue() ? 'overdue' : 'near';
                             @endphp
-                            <a href="{{ route('admin.approvals', ['request' => $deadlineRequest->id]) }}" class="priority-row">
-                                <span class="priority-state {{ $deadlineState }}">{{ $waitingDays >= 3 ? 'Overdue' : 'Near deadline' }}</span>
+                            <a href="{{ route('requests.show', $deadlineRequest) }}" class="priority-row">
+                                <span class="priority-state {{ $deadlineState }}">{{ $deadlineRequest->isDeadlineOverdue() ? 'Overdue' : 'Near deadline' }}</span>
                                 <span class="priority-detail"><b>{{ $deadlineRequest->tracking_code }}</b><small>{{ $deadlineRequest->items->first()->item_name ?? 'Supply requisition' }} · {{ $deadlineRequest->user->department ?: 'General' }}</small></span>
                                 <span class="priority-value">Day {{ $waitingDays }}<i data-lucide="chevron-right"></i></span>
                             </a>
                         @empty
-                            <div class="priority-clear"><i data-lucide="circle-check-big"></i><span><b>No near or overdue releases</b><small>SMO fulfillment is currently within the three-day target.</small></span></div>
+                            <div class="priority-clear"><i data-lucide="circle-check-big"></i><span><b>No near or overdue requests</b><small>The institutional workflow is currently within the three-working-day target.</small></span></div>
                         @endforelse
                     </div>
                 </article>
@@ -128,6 +128,10 @@
                     </div>
 
                     <form action="{{ route('dashboard') }}" method="GET" class="dashboard-filter-bar">
+                        <label class="dashboard-search">
+                            <span>Search</span>
+                            <input type="search" name="search" value="{{ request('search') }}" maxlength="100" placeholder="Code, item, or requestor">
+                        </label>
                         <label>
                             <span>Status</span>
                             <select name="status" onchange="this.form.submit()">
@@ -136,7 +140,9 @@
                                 <option value="approved_dept" @selected(request('status') === 'approved_dept')>Pending VP review</option>
                                 <option value="approved_vp" @selected(request('status') === 'approved_vp')>VP approved</option>
                                 <option value="approved_provost" @selected(request('status') === 'approved_provost')>Pending President</option>
-                                <option value="approved_president" @selected(request('status') === 'approved_president')>Ready for major release</option>
+                                <option value="approved_president" @selected(request('status') === 'approved_president')>Major awaiting SMO</option>
+                                <option value="processing" @selected(request('status') === 'processing')>SMO processing</option>
+                                <option value="ready_for_pickup" @selected(request('status') === 'ready_for_pickup')>Ready for pickup</option>
                                 <option value="for_clarification" @selected(request('status') === 'for_clarification')>Needs clarification</option>
                                 <option value="near_deadline" @selected(request('status') === 'near_deadline')>Near deadline / overdue</option>
                             </select>
@@ -165,7 +171,8 @@
                                 <option value="asc" @selected(request('order') === 'asc')>Oldest</option>
                             </select>
                         </label>
-                        @if(request()->anyFilled(['status', 'dept', 'date_from', 'date_to', 'order']))
+                        <button type="submit" class="filter-apply"><i data-lucide="search"></i><span>Search</span></button>
+                        @if(request()->anyFilled(['search', 'status', 'dept', 'date_from', 'date_to', 'order']))
                             <a href="{{ route('dashboard') }}" class="filter-reset" title="Clear filters"><i data-lucide="rotate-ccw"></i><span>Reset</span></a>
                         @endif
                     </form>
@@ -182,7 +189,7 @@
                                         $isNearDeadline = method_exists($req, 'isNearingDeadline') && $req->isNearingDeadline();
                                         $statusTone = match($req->status) {
                                             'for_clarification' => 'warning',
-                                            'approved_vp', 'approved_president' => 'ready',
+                                            'approved_vp', 'approved_president', 'ready_for_pickup' => 'ready',
                                             default => 'pending',
                                         };
                                     @endphp
@@ -288,7 +295,7 @@
                                 @php
                                     $statusTone = match($request->status) {
                                         'for_clarification' => 'warning',
-                                        'approved_vp', 'approved_president' => 'ready',
+                                        'approved_vp', 'approved_president', 'ready_for_pickup' => 'ready',
                                         default => 'pending',
                                     };
                                 @endphp
@@ -896,7 +903,7 @@
 
         .dashboard-filter-bar {
             display: grid;
-            grid-template-columns: 1.45fr 1fr .9fr .9fr .75fr auto;
+            grid-template-columns: 1.45fr 1.2fr 1fr .8fr .8fr .7fr auto auto;
             gap: .55rem;
             align-items: end;
             padding: .8rem 1rem;
@@ -935,21 +942,33 @@
             box-shadow: 0 0 0 3px rgba(34,126,76,.1);
         }
 
+        .filter-apply,
         .filter-reset {
             min-height: 36px;
             display: inline-flex;
             align-items: center;
+            justify-content: center;
             gap: .3rem;
             padding: .4rem .55rem;
-            border: 1px solid #efd1d3;
             border-radius: 8px;
-            color: #af3d44;
-            background: #fff7f7;
             font-size: .58rem;
             font-weight: 800;
+        }
+
+        .filter-apply {
+            border: 1px solid #1b7045;
+            color: #fff;
+            background: #1b7045;
+        }
+
+        .filter-reset {
+            border: 1px solid #efd1d3;
+            color: #af3d44;
+            background: #fff7f7;
             text-decoration: none;
         }
 
+        .filter-apply svg,
         .filter-reset svg {
             width: 13px;
         }
@@ -1276,6 +1295,7 @@
                 grid-template-columns: repeat(3, minmax(0,1fr));
             }
 
+            .filter-apply,
             .filter-reset {
                 justify-content: center;
             }
@@ -1334,6 +1354,7 @@
             }
 
             .sort-filter,
+            .filter-apply,
             .filter-reset {
                 grid-column: auto;
             }

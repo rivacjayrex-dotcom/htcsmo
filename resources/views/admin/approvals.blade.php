@@ -1,6 +1,6 @@
 <x-app-layout>
     <x-slot name="header">
-        {{ Auth::user()->role == 'smo' ? __('Release Queue') : __('Pending Request Approvals') }}
+        {{ Auth::user()->role == 'smo' ? __('Fulfillment Queue') : __('Pending Request Approvals') }}
     </x-slot>
 
     <div class="container-fluid py-2 approval-workspace"
@@ -144,7 +144,7 @@
                                 <!-- Step 2: Dept Head -->
                                 <div class="step-item"
                                     :class="{
-                                        'completed': ['approved_dept', 'approved_vp', 'approved_provost', 'approved_president', 'released'].includes(selectedReq.status)
+                                        'completed': ['approved_dept', 'approved_vp', 'approved_provost', 'approved_president', 'processing', 'ready_for_pickup', 'completed', 'released'].includes(selectedReq.status)
                                             || (selectedReq.status === 'for_clarification' && ['vp_finance', 'vp_admin', 'provost', 'president'].includes(questioningRole)),
                                         'questioning': selectedReq.status === 'for_clarification' && (!questioningRole || questioningRole === 'dept_head'),
                                         'active': selectedReq.status === 'pending'
@@ -158,7 +158,7 @@
                                 <!-- Step 3: VP Finance / Admin -->
                                 <div class="step-item"
                                     :class="{
-                                        'completed': ['approved_vp', 'approved_provost', 'approved_president', 'released'].includes(selectedReq.status)
+                                        'completed': ['approved_vp', 'approved_provost', 'approved_president', 'processing', 'ready_for_pickup', 'completed', 'released'].includes(selectedReq.status)
                                             || (selectedReq.status === 'for_clarification' && ['provost', 'president'].includes(questioningRole)),
                                         'questioning': selectedReq.status === 'for_clarification' && ['vp_finance', 'vp_admin'].includes(questioningRole),
                                         'active': selectedReq.status === 'approved_dept'
@@ -173,7 +173,7 @@
                                 <template x-if="selectedReq.request_type == 'major'">
                                     <div class="step-item"
                                         :class="{
-                                            'completed': ['approved_provost', 'approved_president', 'released'].includes(selectedReq.status)
+                                            'completed': ['approved_provost', 'approved_president', 'processing', 'ready_for_pickup', 'completed', 'released'].includes(selectedReq.status)
                                                 || (selectedReq.status === 'for_clarification' && questioningRole === 'president'),
                                             'questioning': selectedReq.status === 'for_clarification' && questioningRole === 'provost',
                                             'active': selectedReq.status === 'approved_vp'
@@ -189,7 +189,7 @@
                                 <template x-if="selectedReq.request_type == 'major'">
                                     <div class="step-item"
                                         :class="{
-                                            'completed': ['approved_president', 'released'].includes(selectedReq.status),
+                                            'completed': ['approved_president', 'processing', 'ready_for_pickup', 'completed', 'released'].includes(selectedReq.status),
                                             'questioning': selectedReq.status === 'for_clarification' && questioningRole === 'president',
                                             'active': selectedReq.status === 'approved_provost'
                                         }">
@@ -200,10 +200,22 @@
                                     </div>
                                 </template>
 
-                                <!-- Step 6: Released -->
-                                <div class="step-item" :class="selectedReq.status == 'released' ? 'completed' : ''">
-                                    <div class="step-icon"><i data-lucide="package"></i></div>
-                                    <div class="step-label">Released</div>
+                                <!-- Step 6: SMO processing -->
+                                <div class="step-item" :class="{'completed': ['ready_for_pickup', 'completed', 'released'].includes(selectedReq.status), 'active': selectedReq.status === 'processing'}">
+                                    <div class="step-icon"><i data-lucide="package-open"></i></div>
+                                    <div class="step-label">Processing</div>
+                                </div>
+
+                                <!-- Step 7: Pickup -->
+                                <div class="step-item" :class="{'completed': ['completed', 'released'].includes(selectedReq.status), 'active': selectedReq.status === 'ready_for_pickup'}">
+                                    <div class="step-icon"><i data-lucide="package-check"></i></div>
+                                    <div class="step-label">Ready for Pickup</div>
+                                </div>
+
+                                <!-- Step 8: Completed -->
+                                <div class="step-item" :class="['completed', 'released'].includes(selectedReq.status) ? 'completed' : ''">
+                                    <div class="step-icon"><i data-lucide="circle-check"></i></div>
+                                    <div class="step-label">Completed</div>
                                 </div>
                             </div>
                         </div>
@@ -243,12 +255,27 @@
                         <!-- ACTION FORMS -->
                         <div class="mt-4">
                             @if(Auth::user()->role == 'smo')
-                                <!-- SMO FULFILLMENT FORM -->
-                                <template x-if="selectedReq.status !== 'for_clarification'">
-                                    <form :action="'{{ url('/admin/requests') }}/' + selectedReq.id + '/release'" method="POST" @submit="handleReleaseSubmit($event)">
+                                <template x-if="(selectedReq.request_type === 'minor' && selectedReq.status === 'approved_vp') || (selectedReq.request_type === 'major' && selectedReq.status === 'approved_president')">
+                                    <form :action="'{{ url('/admin/requests') }}/' + selectedReq.id + '/processing'" method="POST">
                                         @csrf
                                         <button type="submit" class="btn btn-primary w-100 py-3 fw-bold rounded-3 shadow-sm d-flex align-items-center justify-content-center">
-                                            <i data-lucide="package-check" class="me-2" style="width:18px;"></i> CONFIRM RELEASE
+                                            <i data-lucide="package-open" class="me-2" style="width:18px;"></i> START PROCESSING
+                                        </button>
+                                    </form>
+                                </template>
+                                <template x-if="selectedReq.status === 'processing'">
+                                    <form :action="'{{ url('/admin/requests') }}/' + selectedReq.id + '/ready-for-pickup'" method="POST" @submit="handleReleaseSubmit($event)">
+                                        @csrf
+                                        <button type="submit" class="btn btn-primary w-100 py-3 fw-bold rounded-3 shadow-sm d-flex align-items-center justify-content-center">
+                                            <i data-lucide="package-check" class="me-2" style="width:18px;"></i> MARK READY FOR PICKUP
+                                        </button>
+                                    </form>
+                                </template>
+                                <template x-if="selectedReq.status === 'ready_for_pickup'">
+                                    <form :action="'{{ url('/admin/requests') }}/' + selectedReq.id + '/complete'" method="POST">
+                                        @csrf
+                                        <button type="submit" class="btn btn-success w-100 py-3 fw-bold rounded-3 shadow-sm d-flex align-items-center justify-content-center">
+                                            <i data-lucide="circle-check" class="me-2" style="width:18px;"></i> CONFIRM PICKUP &amp; COMPLETE
                                         </button>
                                     </form>
                                 </template>
@@ -304,15 +331,15 @@
                             <div class="release-confirmation-icon mx-auto mb-3" aria-hidden="true">
                                 <i data-lucide="package-check"></i>
                             </div>
-                            <h5 class="fw-bold text-dark mb-2" id="releaseConfirmationTitle">Confirm supply release?</h5>
+                            <h5 class="fw-bold text-dark mb-2" id="releaseConfirmationTitle">Mark supplies ready for pickup?</h5>
                             <p class="text-muted small mb-3">
-                                You are about to release
+                                You are about to prepare
                                 <strong class="text-dark" x-text="selectedReq.tracking_code || ('Requisition #' + selectedReq.id)"></strong>
                                 for <strong class="text-dark" x-text="requestorName"></strong>.
                             </p>
                             <div class="alert alert-warning border-0 rounded-3 small text-start mb-4">
                                 <i data-lucide="triangle-alert" class="me-2" style="width:16px; vertical-align:middle;"></i>
-                                Inventory quantities will be deducted and this requisition will be marked as released.
+                                Inventory quantities will be deducted and this requisition will be marked ready for pickup.
                             </div>
                             <div class="d-flex flex-column-reverse flex-sm-row gap-2 justify-content-center">
                                 <button type="button" class="btn btn-light border rounded-3 px-4" @click="cancelReleaseConfirmation()">
@@ -320,7 +347,7 @@
                                 </button>
                                 <button type="button" class="btn btn-primary rounded-3 px-4 fw-bold" @click="submitConfirmedRelease()">
                                     <i data-lucide="package-check" class="me-2" style="width:16px;"></i>
-                                    Yes, release supplies
+                                    Yes, mark as ready
                                 </button>
                             </div>
                         </div>

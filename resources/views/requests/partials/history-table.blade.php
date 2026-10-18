@@ -18,18 +18,21 @@
                         $isOverdue = method_exists($req, 'isOverdue') && $req->isOverdue();
                         $isNear = method_exists($req, 'isNearingDeadline') && $req->isNearingDeadline();
                         $statusTone = match($req->status) {
-                            'released' => 'released',
+                            'completed', 'released' => 'released',
                             'rejected' => 'rejected',
                             'for_clarification' => 'clarification',
-                            'approved_vp', 'approved_president' => 'ready',
+                            'approved_vp', 'approved_president', 'ready_for_pickup' => 'ready',
                             default => 'progress',
                         };
                         $stageLabel = match($req->status) {
                             'pending' => 'Department review',
                             'approved_dept' => $req->request_type === 'minor' ? 'VP Finance review' : 'VP Administration review',
-                            'approved_vp' => $req->request_type === 'minor' ? 'Ready for SMO release' : 'Provost review',
+                            'approved_vp' => $req->request_type === 'minor' ? 'Awaiting SMO processing' : 'Provost review',
                             'approved_provost' => 'Presidential review',
-                            'approved_president' => 'Ready for SMO release',
+                            'approved_president' => 'Awaiting SMO processing',
+                            'processing' => 'SMO processing',
+                            'ready_for_pickup' => 'Ready for requestor pickup',
+                            'completed' => 'Pickup completed',
                             'for_clarification' => 'Requestor clarification required',
                             'released' => 'Released and completed',
                             'rejected' => 'Request disapproved',
@@ -68,9 +71,9 @@
                         <td data-label="Status">
                             <span class="history-status {{ $statusTone }}">{{ str_replace('_', ' ', $req->status) }}</span>
                             <small class="history-stage">{{ $stageLabel }}</small>
-                            @if($isOverdue && !in_array($req->status, ['released', 'rejected']))
+                            @if($isOverdue && !in_array($req->status, App\Models\Requisition::ARCHIVED_STATUSES, true))
                                 <span class="history-deadline overdue"><i data-lucide="siren"></i> Overdue</span>
-                            @elseif($isNear && !in_array($req->status, ['released', 'rejected']))
+                            @elseif($isNear && !in_array($req->status, App\Models\Requisition::ARCHIVED_STATUSES, true))
                                 <span class="history-deadline near"><i data-lucide="clock-alert"></i> Day 2 warning</span>
                             @endif
                         </td>

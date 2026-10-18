@@ -21,10 +21,14 @@
         <div class="card border-0 shadow-sm rounded-4 mb-3 archive-filter-card">
             <div class="card-body p-3">
                 <form action="{{ route('admin.archive') }}" method="GET" class="row g-2 align-items-center">
+                    <div class="col-lg-3 col-md-6">
+                        <input type="search" name="search" value="{{ old('search', request('search')) }}" maxlength="100" class="form-control form-control-sm border-0 bg-light rounded-3 shadow-none" placeholder="Search code, item, or requestor" aria-label="Search institutional archive">
+                    </div>
                     <div class="col-lg-2 col-md-4">
                         <select name="status" class="form-select form-select-sm border-0 bg-light rounded-3 shadow-none">
                             <option value="">All archived statuses</option>
-                            <option value="released" @selected(old('status', request('status')) === 'released')>Released / Completed</option>
+                            <option value="completed" @selected(old('status', request('status')) === 'completed')>Completed</option>
+                            <option value="released" @selected(old('status', request('status')) === 'released')>Released (Legacy)</option>
                             <option value="rejected" @selected(old('status', request('status')) === 'rejected')>Rejected / Disapproved</option>
                         </select>
                     </div>
@@ -36,7 +40,7 @@
                             @endforeach
                         </select>
                     </div>
-                    <div class="col-lg-4 col-md-8">
+                    <div class="col-lg-3 col-md-8">
                         <div class="input-group input-group-sm archive-date-range">
                             <span class="input-group-text border-0 bg-light text-muted">FROM</span>
                             <input type="date" name="date_from" value="{{ old('date_from', request('date_from')) }}" class="form-control border-0 bg-light" aria-label="Closure date from">

@@ -135,7 +135,7 @@
                             <label for="status" class="form-label mini-label">Request Status</label>
                             <select id="status" name="status" class="form-select border-0 bg-light rounded-3 shadow-none">
                                 <option value="">All Statuses</option>
-                                @foreach(['pending', 'pending_dept', 'approved_dept', 'approved_vp', 'approved_provost', 'approved_president', 'for_clarification', 'released', 'rejected'] as $status)
+                                @foreach(['pending', 'pending_dept', 'approved_dept', 'approved_vp', 'approved_provost', 'approved_president', 'for_clarification', 'processing', 'ready_for_pickup', 'completed', 'released', 'rejected'] as $status)
                                     <option value="{{ $status }}" @selected(request('status') === $status)>{{ ucwords(str_replace('_', ' ', $status)) }}</option>
                                 @endforeach
                             </select>

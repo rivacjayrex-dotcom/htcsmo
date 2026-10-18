@@ -77,6 +77,7 @@ class RequisitionCatalogTest extends TestCase
         $supply = Supply::create([
             'item_name' => 'Available Bond Paper',
             'brand' => 'PaperOne',
+            'model_number' => 'BP-A4-80',
             'category' => 'Office Supplies',
             'requisition_tier' => 'minor',
             'specifications' => '80 GSM',
@@ -102,9 +103,10 @@ class RequisitionCatalogTest extends TestCase
 
         $catalogItem = $response->json()[0];
         $this->assertSame([
-            'id', 'name', 'brand', 'category', 'tier', 'specs', 'unit', 'price', 'stock', 'options',
+            'id', 'name', 'brand', 'category', 'model', 'tier', 'specs', 'unit', 'price', 'stock', 'options',
         ], array_keys($catalogItem));
         $this->assertSame($supply->id, $catalogItem['id']);
+        $this->assertSame('BP-A4-80', $catalogItem['model']);
         $this->assertSame(20, $catalogItem['stock']);
         $this->assertSame(['Brand' => ['PaperOne'], 'Size' => ['A4']], $catalogItem['options']);
         $this->assertArrayNotHasKey('min_stock_level', $catalogItem);
@@ -174,5 +176,47 @@ class RequisitionCatalogTest extends TestCase
         ])->assertSessionHasErrors('items');
 
         $this->assertDatabaseCount('requisitions', 0);
+    }
+
+    public function test_total_value_enforces_the_minor_and_major_boundary(): void
+    {
+        $user = User::factory()->create();
+        $minorSupply = Supply::create([
+            'item_name' => 'Minor Boundary Item',
+            'category' => 'Office Supplies',
+            'requisition_tier' => 'minor',
+            'quantity' => 2,
+            'unit' => 'Unit(s)',
+            'unit_price' => 500,
+            'min_stock_level' => 1,
+        ]);
+        $majorSupply = Supply::create([
+            'item_name' => 'Misclassified Major Item',
+            'category' => 'Office Supplies',
+            'requisition_tier' => 'major',
+            'quantity' => 2,
+            'unit' => 'Unit(s)',
+            'unit_price' => 500,
+            'min_stock_level' => 1,
+        ]);
+
+        $this->actingAs($user)->post(route('requisitions.store'), [
+            'request_type' => 'minor',
+            'purpose' => 'Verify the exact minor request boundary.',
+            'items' => [['supply_id' => $minorSupply->id, 'qty' => 2]],
+        ])->assertRedirect(route('dashboard'));
+
+        $this->assertDatabaseHas('requisitions', [
+            'request_type' => 'minor',
+            'grand_total' => 1000,
+        ]);
+
+        $this->actingAs($user)->post(route('requisitions.store'), [
+            'request_type' => 'major',
+            'purpose' => 'Reject a major request at the minor boundary.',
+            'items' => [['supply_id' => $majorSupply->id, 'qty' => 2]],
+        ])->assertSessionHasErrors('items');
+
+        $this->assertDatabaseCount('requisitions', 1);
     }
 }

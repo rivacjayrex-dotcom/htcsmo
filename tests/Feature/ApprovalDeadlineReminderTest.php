@@ -12,7 +12,7 @@ class ApprovalDeadlineReminderTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_smo_can_notify_only_the_current_department_approver_once_per_day(): void
+    public function test_smo_notifies_requestor_smo_and_only_the_current_department_approver_once_per_day(): void
     {
         $smo = User::factory()->create(['role' => 'smo']);
         $requestor = User::factory()->create(['role' => 'employee', 'department' => 'CETE']);
@@ -43,16 +43,26 @@ class ApprovalDeadlineReminderTest extends TestCase
 
         $this->assertSame(1, Notification::where([
             'user_id' => $assignedHead->id,
-            'event_type' => 'deadline.approval_reminder',
+            'event_type' => 'deadline.nearing',
+            'action_id' => $requisition->id,
+        ])->count());
+        $this->assertSame(1, Notification::where([
+            'user_id' => $requestor->id,
+            'event_type' => 'deadline.nearing',
+            'action_id' => $requisition->id,
+        ])->count());
+        $this->assertSame(1, Notification::where([
+            'user_id' => $smo->id,
+            'event_type' => 'deadline.nearing',
             'action_id' => $requisition->id,
         ])->count());
         $this->assertDatabaseMissing('notifications', [
             'user_id' => $otherHead->id,
-            'event_type' => 'deadline.approval_reminder',
+            'event_type' => 'deadline.nearing',
         ]);
         $this->assertDatabaseMissing('notifications', [
             'user_id' => $vpAdmin->id,
-            'event_type' => 'deadline.approval_reminder',
+            'event_type' => 'deadline.nearing',
         ]);
     }
 
@@ -101,14 +111,18 @@ class ApprovalDeadlineReminderTest extends TestCase
             ->assertRedirect(route('dashboard'));
     }
 
-    public function test_stage_timestamp_resets_when_a_requisition_moves_to_the_next_approval_stage(): void
+    public function test_stage_timestamp_resets_without_changing_the_submission_deadline(): void
     {
         $requestor = User::factory()->create();
         $requisition = $this->deadlineRequest($requestor, 'pending');
+        $submittedAt = $requisition->submitted_at->copy();
+        $dueAt = $requisition->due_at->copy();
 
         $requisition->update(['status' => 'approved_dept']);
 
         $this->assertTrue($requisition->fresh()->stage_started_at->greaterThan(now()->subMinute()));
+        $this->assertTrue($requisition->fresh()->submitted_at->equalTo($submittedAt));
+        $this->assertTrue($requisition->fresh()->due_at->equalTo($dueAt));
     }
 
     private function deadlineRequest(User $requestor, string $status): Requisition
@@ -120,7 +134,12 @@ class ApprovalDeadlineReminderTest extends TestCase
             'purpose' => 'Deadline reminder feature verification.',
             'grand_total' => 1500,
         ]);
-        $requisition->forceFill(['stage_started_at' => now()->subDays(2)->subHour()])->saveQuietly();
+        $requisition->forceFill([
+            'submitted_at' => now()->subDays(2),
+            'sla_warning_at' => now()->subHour(),
+            'due_at' => now()->addDay(),
+            'stage_started_at' => now()->subHour(),
+        ])->saveQuietly();
 
         return $requisition->fresh();
     }

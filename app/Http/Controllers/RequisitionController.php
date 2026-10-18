@@ -78,6 +78,12 @@ class RequisitionController extends Controller
             ]);
         }
 
+        if ($validated['request_type'] === 'major' && $calculatedGrandTotal <= 1000) {
+            throw ValidationException::withMessages([
+                'items' => 'Major requisitions must exceed PHP 1,000. Requests totaling PHP 1,000 or less are Minor.',
+            ]);
+        }
+
         // Start after the requestor's own approval office so nobody approves
         // their own requisition or sends it backward to a lower office.
         $initialStatus = Requisition::initialStatusFor($user);

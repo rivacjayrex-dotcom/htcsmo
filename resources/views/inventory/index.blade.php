@@ -164,7 +164,7 @@
                     <p>Out-of-stock and low-stock items always appear at the top of each list.</p>
                 </div>
                 <div class="inventory-filters">
-                    <div class="inventory-search"><i data-lucide="search"></i><input type="search" x-model="query" placeholder="Search item, brand, or category…"></div>
+                    <div class="inventory-search"><i data-lucide="search"></i><input type="search" x-model.debounce.150ms="query" placeholder="Search item, brand, model, category, or specifications…" aria-label="Search inventory"></div>
                     <select x-model="stockFilter" aria-label="Filter by stock status"><option value="all">All stock</option><option value="attention">Needs attention</option><option value="out">Out of stock</option><option value="low">Low stock</option><option value="healthy">Healthy stock</option></select>
                 </div>
             </div>

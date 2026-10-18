@@ -93,11 +93,11 @@
                                 <article class="notification-deadline-item">
                                     <div><span>Action required</span><small>#{{ $req->id }}</small></div>
                                     <h3>{{ $req->items->first()->item_name ?? 'Multiple requested items' }}</h3>
-                                    <p>This approved requisition requires immediate release.</p>
-                                    <a href="{{ route('admin.approvals', ['request' => $req->id]) }}">Process request <i data-lucide="arrow-up-right"></i></a>
+                                    <p>This requisition has reached its end-to-end processing deadline.</p>
+                                    <a href="{{ route('requests.show', $req) }}">View request <i data-lucide="arrow-up-right"></i></a>
                                 </article>
                             @empty
-                                <div class="notification-insight-empty"><i data-lucide="shield-check"></i><span>No critical release deadlines.</span></div>
+                                <div class="notification-insight-empty"><i data-lucide="shield-check"></i><span>No critical request deadlines.</span></div>
                             @endforelse
                         </div>
                     </section>
@@ -107,7 +107,7 @@
                         <div class="notification-stat-grid">
                             <div><strong>{{ $personalStats['total'] }}</strong><span>Total</span></div>
                             <div><strong>{{ $personalStats['pending'] }}</strong><span>Pending</span></div>
-                            <div><strong>{{ $personalStats['released'] }}</strong><span>Released</span></div>
+                            <div><strong>{{ $personalStats['released'] }}</strong><span>Completed</span></div>
                         </div>
                     </section>
                     <section class="notification-guide-card">
@@ -117,7 +117,7 @@
                         <ul>
                             <li><i data-lucide="check-circle"></i><span><strong>Minor:</strong> Department Head and VP Finance approval.</span></li>
                             <li><i data-lucide="check-circle"></i><span><strong>Major:</strong> VP Admin, Provost, and President approval.</span></li>
-                            <li><i data-lucide="package-check"></i><span><strong>Fulfillment:</strong> Visit SMO after the request is released.</span></li>
+                            <li><i data-lucide="package-check"></i><span><strong>Fulfillment:</strong> Visit SMO only after the request is marked ready for pickup.</span></li>
                         </ul>
                     </section>
                 @endif

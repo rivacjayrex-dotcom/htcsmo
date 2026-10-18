@@ -46,26 +46,26 @@ class ReportController extends Controller
 
         [$semesterStart, $semesterEnd, $semesterLabel] = $this->currentSemester();
 
-        $releasedThisSemester = Requisition::where('status', 'released')
+        $releasedThisSemester = Requisition::whereIn('status', Requisition::FULFILLED_STATUSES)
             ->whereBetween('updated_at', [$semesterStart, $semesterEnd]);
 
         $stats = [
-            'week' => Requisition::where('status', 'released')->where('updated_at', '>=', now()->startOfWeek())->count(),
-            'month' => Requisition::where('status', 'released')->where('updated_at', '>=', now()->startOfMonth())->count(),
-            'year' => Requisition::where('status', 'released')->where('updated_at', '>=', now()->startOfYear())->count(),
+            'week' => Requisition::whereIn('status', Requisition::FULFILLED_STATUSES)->where('updated_at', '>=', now()->startOfWeek())->count(),
+            'month' => Requisition::whereIn('status', Requisition::FULFILLED_STATUSES)->where('updated_at', '>=', now()->startOfMonth())->count(),
+            'year' => Requisition::whereIn('status', Requisition::FULFILLED_STATUSES)->where('updated_at', '>=', now()->startOfYear())->count(),
             'semester' => (clone $releasedThisSemester)->count(),
             'users' => User::where('account_status', User::ACCOUNT_ACTIVE)->count(),
             'inventory_items' => Supply::count(),
         ];
 
         $costs = [
-            'total_spent' => Requisition::where('status', 'released')->sum('grand_total'),
+            'total_spent' => Requisition::whereIn('status', Requisition::FULFILLED_STATUSES)->sum('grand_total'),
             'semester_spent' => (clone $releasedThisSemester)->sum('grand_total'),
-            'avg_per_req' => Requisition::where('status', 'released')->avg('grand_total') ?? 0,
+            'avg_per_req' => Requisition::whereIn('status', Requisition::FULFILLED_STATUSES)->avg('grand_total') ?? 0,
             'inventory_value' => Supply::selectRaw('COALESCE(SUM(quantity * unit_price), 0) as value')->value('value') ?? 0,
         ];
 
-        $monthlyData = Requisition::where('status', 'released')
+        $monthlyData = Requisition::whereIn('status', Requisition::FULFILLED_STATUSES)
             ->whereYear('updated_at', now()->year)
             ->get(['updated_at'])
             ->groupBy(fn (Requisition $requisition) => $requisition->updated_at->month)
@@ -79,13 +79,13 @@ class ReportController extends Controller
 
         $deptSpending = User::join('requisitions', 'users.id', '=', 'requisitions.user_id')
             ->select('users.department', DB::raw('SUM(requisitions.grand_total) as total'))
-            ->where('requisitions.status', 'released')
+            ->whereIn('requisitions.status', Requisition::FULFILLED_STATUSES)
             ->groupBy('users.department')
             ->get();
 
         $topItems = RequisitionItem::select('item_name', DB::raw('SUM(quantity) as total_qty'))
             ->join('requisitions', 'requisition_items.requisition_id', '=', 'requisitions.id')
-            ->where('requisitions.status', 'released')
+            ->whereIn('requisitions.status', Requisition::FULFILLED_STATUSES)
             ->groupBy('item_name')
             ->orderByDesc('total_qty')
             ->take(5)
@@ -284,7 +284,7 @@ class ReportController extends Controller
                 DB::raw('SUM(requisitions.grand_total) as total_spent'),
                 DB::raw('AVG(requisitions.grand_total) as avg_cost'),
             )
-            ->where('requisitions.status', 'released');
+            ->whereIn('requisitions.status', Requisition::FULFILLED_STATUSES);
 
         if ($request->filled('dept')) {
             $query->where('users.department', $request->dept);
@@ -378,7 +378,7 @@ class ReportController extends Controller
                 DB::raw('SUM(requisition_items.subtotal) as total_cost'),
                 DB::raw('AVG(requisition_items.unit_price) as average_unit_price'),
             )
-            ->where('requisitions.status', 'released');
+            ->whereIn('requisitions.status', Requisition::FULFILLED_STATUSES);
 
         if ($request->filled('dept')) {
             $query->where('users.department', $request->dept);

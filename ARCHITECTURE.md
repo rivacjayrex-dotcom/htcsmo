@@ -123,20 +123,22 @@ sequenceDiagram
 | Current state                                    | Eligible reviewer                                  | Approval result                            |
 | ------------------------------------------------ | -------------------------------------------------- | ------------------------------------------ |
 | `pending`                                        | `dept_head` whose department matches the requestor | `approved_dept`                            |
-| `approved_dept` + `minor`                        | `vp_finance`                                       | `approved_vp` (release-ready minor)        |
+| `approved_dept` + `minor`                        | `vp_finance`                                       | `approved_vp` (SMO-ready minor)            |
 | `approved_dept` + `major`                        | `vp_admin`                                         | `approved_vp`                              |
 | `approved_vp` + `major`                          | `provost`                                          | `approved_provost`                         |
-| `approved_provost` + `major`                     | `president`                                        | `approved_president` (release-ready major) |
-| `approved_vp` + `minor`, or `approved_president` | SMO release action                                 | `released`                                 |
+| `approved_provost` + `major`                     | `president`                                        | `approved_president` (SMO-ready major)     |
+| `approved_vp` + `minor`, or `approved_president` | SMO starts fulfillment                             | `processing`                               |
+| `processing`                                     | SMO prepares and deducts stock                     | `ready_for_pickup`                         |
+| `ready_for_pickup`                               | SMO confirms handoff                               | `completed`                                |
 | A reviewable state                               | Its current reviewer                               | `rejected` or `for_clarification`          |
 
 Every decision updates requisition status/remarks and creates an `ApprovalLog`; approval decisions additionally create a `DigitalSignature`. Clarification notifications go to the requestor and all SMO users. Each decision also attempts an email and records sent/failed status. The approval decision itself is not wrapped in a transaction, unlike requisition create/update and stock release.
 
-### 4.4 SMO stock release and alerts
+### 4.4 SMO fulfillment and SLA alerts
 
-`RequestController::releaseRequest` checks for an already-released request and checks the acting role. In a DB transaction it resolves each line item by its saved `supply_id` (with a legacy name fallback), rejects insufficient stock, decrements matching catalog quantities, detects low/out-of-stock threshold crossings, writes `SupplyInventoryLog` deductions, changes status to `released`, creates the approval/release log and SHA-256 token record, and sends in-app/email pickup notices. A line item with no matching supply record is treated as a special/non-catalog item and does not decrement stock.
+SMO fulfillment is split into `startProcessing`, `markReadyForPickup`, and `completeRequest`. The preparation transaction resolves each line item by its saved `supply_id` (with a legacy name fallback), rejects insufficient stock, decrements matching catalog quantities, detects low/out-of-stock threshold crossings, writes `SupplyInventoryLog` deductions, changes status to `ready_for_pickup`, creates the audit/signature record, and sends pickup notices. Completion is recorded only after SMO confirms the handoff. A line item with no matching supply record is treated as a special/non-catalog item and does not decrement stock.
 
-`InventoryAlertService::notifyIfThresholdCrossed` only sends alerts when an item newly crosses into low or out-of-stock state. `CheckDeadlineSla::handle` scans release-ready requests daily; it sends a day-2 warning or day-3 overdue notice to SMO users, avoiding duplicate same-day alerts for each request.
+`InventoryAlertService::notifyIfThresholdCrossed` only sends alerts when an item newly crosses into low or out-of-stock state. `BusinessDaySlaService` fixes the deadline at submission, skips weekends and configured institutional holidays, and does not reset it as approvals advance. `CheckDeadlineSla::handle` scans all active requests daily and notifies the requestor, SMO, and current approver while avoiding duplicate same-day alerts.
 
 ### 4.5 Inventory and forecasting
 
@@ -218,11 +220,13 @@ The notes below describe the purpose of each declared application method/functio
 | `runtimeState`          | Combines the fingerprint, latest notification cursor, and next unread notification for the authenticated user.                             |
 | `runtimeVersion`        | Hashes aggregate update markers from requisitions, approval logs, and supplies for lightweight change detection.                           |
 | `index`                 | Lists active requisitions with owner privacy, search/status/department/date filters, counts and pagination.                                |
-| `archive`               | Lists released/rejected requisitions, scoped to the owner unless SMO, with filters and pagination.                                         |
+| `archive`               | Lists completed/rejected requisitions, scoped to the owner unless SMO, with filters and pagination.                                        |
 | `adminIndex`            | Builds role-specific approval queues and clarification lists; only deep-links to an item already in the current approval queue.            |
 | `updateStatus`          | Validates approval/rejection/clarification, checks reviewer authority, changes state, writes log/signature, and sends notifications/email. |
 | `canReviewRequisition`  | Encodes the valid role and request-state transition, including department and clarification-origin checks.                                 |
-| `releaseRequest`        | SMO-only fulfillment transaction: guards duplicate release/stock levels, deducts inventory, audits, signs, and notifies.                   |
+| `startProcessing`       | SMO-only transition from final approval into active fulfillment.                                                                           |
+| `markReadyForPickup`    | SMO-only preparation transaction: checks stock, deducts inventory, audits, signs, and sends pickup notices.                               |
+| `completeRequest`       | SMO-only confirmation that the prepared supplies were handed to the requestor.                                                             |
 | `NotificationController::index` | Loads and categorizes personal notifications, resolves action targets in batches, and returns either the full center or an AJAX feed fragment. |
 | `show`                  | Loads a request with owner/items/log signatures and renders tracking details.                                                              |
 | `downloadPDF`           | Renders a request with its history and signatures into a portrait PDF download.                                                            |
@@ -331,7 +335,7 @@ The notes below describe the purpose of each declared application method/functio
 | `Requisition::booted`                                                  | Creates tracking number after insert using tier, requestor department and row ID.                                                          |
 | `Requisition::items/user/logs`                                         | Declares has-many line/log and belongs-to requestor relationships.                                                                         |
 | `Requisition::getTrackingCodeAttribute/getTrackingCodeFallback`        | Exposes stored tracking number with a deterministic fallback for old rows/views.                                                           |
-| `Requisition::isNearingDeadline/isOverdue`                             | Checks release-ready state and compares update age against two-/three-day threshold.                                                       |
+| `Requisition::isNearingDeadline/isOverdue`                             | Checks the fixed submission SLA against its two-working-day warning and three-working-day deadline.                                       |
 | `RequisitionItem::requisition/supply`                                  | Belongs-to relationships to header and optional inventory record.                                                                          |
 | `Supply::requestOptions`                                               | Reconstructs Brand and configurable choice groups, falling back to legacy brand text.                                                      |
 | `Supply::supplyCategory/inventoryLogs`                                 | Category belongs-to and movement has-many relationships.                                                                                   |
@@ -346,7 +350,7 @@ The notes below describe the purpose of each declared application method/functio
 | `AppLayout::render`, `GuestLayout::render`                             | Resolve the authenticated and guest layout Blade views.                                                                                    |
 | `AppServiceProvider::register`                                         | No application bindings currently registered.                                                                                              |
 | `AppServiceProvider::boot`                                             | Enables Bootstrap 5 pagination and shares active catalog items/unread count with authenticated layout.                                     |
-| `CheckDeadlineSla::handle`                                             | Finds release-ready requests aged 2/3 days, sends deduplicated daily SMO alerts, reports count.                                            |
+| `CheckDeadlineSla::handle`                                             | Finds active requests at SLA risk, sends deduplicated alerts to stakeholders, and reports the count.                                      |
 | `DatabaseSeeder::run`                                                  | Runs department then account seeders.                                                                                                      |
 | `AccountSeeder::run`                                                   | Idempotently seeds approved workflow signatories and department heads with environment-configured password.                                |
 

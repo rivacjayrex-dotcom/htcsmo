@@ -13,7 +13,7 @@ class Notification extends Model
     public const ICONS = [
         'bell', 'send', 'check-circle', 'x-circle', 'help-circle', 'users',
         'user-plus', 'user-check', 'user-cog', 'shield-check', 'triangle-alert', 'alert-triangle', 'package-x',
-        'package-check', 'zap', 'clock', 'file-text',
+        'package-check', 'package-open', 'circle-check', 'zap', 'clock', 'file-text',
     ];
 
     public const ACTION_TYPES = ['requisition', 'approval_queue', 'inventory', 'pending_users', 'profile'];

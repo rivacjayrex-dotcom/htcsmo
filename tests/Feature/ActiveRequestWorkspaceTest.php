@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Requisition;
+use App\Models\RequisitionItem;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -50,6 +51,36 @@ class ActiveRequestWorkspaceTest extends TestCase
             ->assertSee($match->tracking_number)
             ->assertDontSee($other->tracking_number)
             ->assertSee('Searchable Requestor');
+    }
+
+    public function test_active_request_search_covers_item_details_and_requestor_identity(): void
+    {
+        $smo = User::factory()->create(['role' => 'smo']);
+        $matchingRequestor = User::factory()->create([
+            'name' => 'Angela Reyes',
+            'school_id' => 'HTC-SEARCH-42',
+            'department' => 'CETE',
+        ]);
+        $otherRequestor = User::factory()->create(['name' => 'Unrelated Requestor', 'department' => 'CAS']);
+        $match = $this->requisition($matchingRequestor, 'pending');
+        $other = $this->requisition($otherRequestor, 'pending');
+        RequisitionItem::create([
+            'requisition_id' => $match->id,
+            'item_name' => 'Laser Printer',
+            'specifications' => 'Duplex network model ZX-900',
+            'quantity' => 1,
+            'unit' => 'Unit',
+            'unit_price' => 100,
+            'subtotal' => 100,
+        ]);
+
+        foreach (['ZX-900', 'HTC-SEARCH-42', 'CETE'] as $search) {
+            $this->actingAs($smo)
+                ->get(route('requests.index', ['search' => $search]))
+                ->assertOk()
+                ->assertSee($match->tracking_number)
+                ->assertDontSee($other->tracking_number);
+        }
     }
 
     public function test_active_request_pagination_uses_bootstrap_and_preserves_filters(): void

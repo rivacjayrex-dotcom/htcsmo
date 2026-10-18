@@ -29,7 +29,7 @@
             <form method="GET" action="{{ route('requests.index') }}" class="request-filters">
                 <label class="request-search">
                     <span>Search requests</span>
-                    <div><i data-lucide="search"></i><input type="search" name="search" value="{{ request('search') }}" placeholder="Tracking code, item, purpose, or requestor"></div>
+                    <div><i data-lucide="search"></i><input type="search" name="search" value="{{ request('search') }}" maxlength="100" placeholder="Code, item, purpose, requestor, or department"></div>
                 </label>
                 <label>
                     <span>Status</span>

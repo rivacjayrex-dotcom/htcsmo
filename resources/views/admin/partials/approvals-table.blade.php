@@ -38,7 +38,7 @@
                     <td class="pe-4 text-end" data-label="Action">
                         <button class="btn btn-sm {{ Auth::user()->role == 'smo' ? 'btn-primary' : 'btn-htc' }} px-3 rounded-pill shadow-sm"
                                 @click="openDetails({{ $req }}, {{ $req->items }}, '{{ addslashes($req->user->name) }}', '{{ $req->user->department }}')">
-                            {{ Auth::user()->role == 'smo' ? 'Review & Release' : 'See More & Review' }}
+                            {{ Auth::user()->role == 'smo' ? 'Review & Process' : 'See More & Review' }}
                         </button>
                     </td>
                 </tr>

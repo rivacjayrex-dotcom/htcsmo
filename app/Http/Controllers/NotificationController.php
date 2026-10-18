@@ -45,12 +45,8 @@ class NotificationController extends Controller
 
         $criticalRequests = $user->role === 'smo'
             ? Requisition::with('items')
-                ->where(function ($query) {
-                    $query->where(fn ($minor) => $minor->where('request_type', 'minor')->where('status', 'approved_vp'))
-                        ->orWhere(fn ($major) => $major->where('request_type', 'major')->where('status', 'approved_president'));
-                })
-                ->where('stage_started_at', '<=', now()->subDays(2))
-                ->oldest('stage_started_at')
+                ->deadlineRisks()
+                ->oldest('due_at')
                 ->get()
             : collect();
         $lowStockSupplies = $user->role === 'smo'
@@ -62,7 +58,7 @@ class NotificationController extends Controller
         $personalStats = [
             'total' => Requisition::where('user_id', $user->id)->count(),
             'pending' => Requisition::where('user_id', $user->id)->where('status', 'pending')->count(),
-            'released' => Requisition::where('user_id', $user->id)->where('status', 'released')->count(),
+            'released' => Requisition::where('user_id', $user->id)->whereIn('status', Requisition::FULFILLED_STATUSES)->count(),
         ];
 
         return view('notifications', compact(

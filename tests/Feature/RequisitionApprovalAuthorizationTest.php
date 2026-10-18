@@ -84,7 +84,7 @@ class RequisitionApprovalAuthorizationTest extends TestCase
         $this
             ->actingAs($smo)
             ->from(route('admin.approvals'))
-            ->post(route('admin.requests.release', $requisition))
+            ->post(route('admin.requests.processing', $requisition))
             ->assertRedirect(route('admin.approvals'))
             ->assertSessionHas('error', 'This requisition has not completed its required approval route.');
 
@@ -94,7 +94,7 @@ class RequisitionApprovalAuthorizationTest extends TestCase
         ]);
         $this->assertDatabaseMissing('approval_logs', [
             'requisition_id' => $requisition->id,
-            'action' => 'Released and Fulfilled by SMO In-Charge',
+            'action' => 'Processing Started by SMO In-Charge',
         ]);
     }
 
@@ -116,7 +116,7 @@ class RequisitionApprovalAuthorizationTest extends TestCase
         $requisition = Requisition::create([
             'user_id' => $requestor->id,
             'request_type' => 'minor',
-            'status' => 'approved_vp',
+            'status' => 'processing',
             'grand_total' => 600,
         ]);
 
@@ -135,16 +135,16 @@ class RequisitionApprovalAuthorizationTest extends TestCase
         $this
             ->actingAs($smo)
             ->from(route('admin.approvals'))
-            ->post(route('admin.requests.release', $requisition))
+            ->post(route('admin.requests.ready-for-pickup', $requisition))
             ->assertRedirect(route('admin.approvals'))
             ->assertSessionHas('error', "Insufficient stock for 'Bond Paper'. Available: 5, Requested: 6.");
 
         $this->assertSame(5, $supply->fresh()->quantity);
-        $this->assertSame('approved_vp', $requisition->fresh()->status);
+        $this->assertSame('processing', $requisition->fresh()->status);
         $this->assertDatabaseMissing('supply_inventory_logs', ['requisition_id' => $requisition->id]);
         $this->assertDatabaseMissing('approval_logs', [
             'requisition_id' => $requisition->id,
-            'action' => 'Released and Fulfilled by SMO In-Charge',
+            'action' => 'Marked Ready for Pickup by SMO In-Charge',
         ]);
     }
 
@@ -182,11 +182,17 @@ class RequisitionApprovalAuthorizationTest extends TestCase
 
         $this
             ->actingAs($smo)
-            ->post(route('admin.requests.release', $requisition))
+            ->post(route('admin.requests.processing', $requisition))
             ->assertRedirect(route('admin.approvals'))
             ->assertSessionHas('success');
 
-        $this->assertSame('released', $requisition->fresh()->status);
+        $this
+            ->actingAs($smo)
+            ->post(route('admin.requests.ready-for-pickup', $requisition))
+            ->assertRedirect(route('admin.approvals'))
+            ->assertSessionHas('success');
+
+        $this->assertSame('ready_for_pickup', $requisition->fresh()->status);
         $this->assertSame(8, $supply->fresh()->quantity);
         $this->assertDatabaseHas('supply_inventory_logs', [
             'requisition_id' => $requisition->id,
@@ -196,8 +202,14 @@ class RequisitionApprovalAuthorizationTest extends TestCase
         ]);
         $this->assertDatabaseHas('notifications', [
             'user_id' => $requestor->id,
-            'event_type' => 'requisition.released',
+            'event_type' => 'requisition.ready_for_pickup',
             'action_id' => $requisition->id,
         ]);
+
+        $this->actingAs($smo)
+            ->post(route('admin.requests.complete', $requisition))
+            ->assertSessionHas('success');
+
+        $this->assertSame('completed', $requisition->fresh()->status);
     }
 }

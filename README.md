@@ -251,7 +251,7 @@ composer run dev
 
 ## Scheduled SLA alerts
 
-The `smo:check-deadlines` command checks approved, unreleased requisitions and creates Day 2 and Day 3+ notifications. Laravel schedules it to run daily at 8:00 AM in the configured application timezone (`Asia/Manila` by default). Read notifications older than one year are pruned by a separate daily task.
+The `smo:check-deadlines` command checks every active requisition against one fixed SLA that starts at initial submission. It warns after two working days and marks the request overdue after three working days, excluding weekends and dates stored in `institutional_holidays`. Alerts go to the requestor, all active SMO users, and the approver currently responsible for the request. Laravel schedules the command daily at 8:00 AM in the configured application timezone (`Asia/Manila` by default). Read notifications older than one year are pruned by a separate daily task.
 
 During local development, keep the scheduler running:
 

@@ -53,7 +53,7 @@ class InventoryNotificationTest extends TestCase
             ->assertJsonPath('latest_id', $new->id);
     }
 
-    public function test_critical_deadline_links_open_the_exact_release_ready_request(): void
+    public function test_critical_deadline_center_links_to_every_at_risk_request(): void
     {
         $smo = User::factory()->create(['role' => 'smo']);
         $requestor = User::factory()->create(['role' => 'employee']);
@@ -66,6 +66,9 @@ class InventoryNotificationTest extends TestCase
             'updated_at' => now()->subDays(3),
         ]);
         $readyMinor->forceFill([
+            'submitted_at' => now()->subDays(4),
+            'sla_warning_at' => now()->subDays(2),
+            'due_at' => now()->subDay(),
             'stage_started_at' => now()->subDays(3),
             'updated_at' => now()->subDays(3),
         ])->saveQuietly();
@@ -77,6 +80,9 @@ class InventoryNotificationTest extends TestCase
             'updated_at' => now()->subDays(3),
         ]);
         $unfinishedMajor->forceFill([
+            'submitted_at' => now()->subDays(4),
+            'sla_warning_at' => now()->subDays(2),
+            'due_at' => now()->subDay(),
             'stage_started_at' => now()->subDays(3),
             'updated_at' => now()->subDays(3),
         ])->saveQuietly();
@@ -84,8 +90,8 @@ class InventoryNotificationTest extends TestCase
         $notifications = $this->actingAs($smo)->get(route('notifications'));
 
         $notifications->assertOk()
-            ->assertSee(route('admin.approvals', ['request' => $readyMinor->id]), false)
-            ->assertDontSee(route('admin.approvals', ['request' => $unfinishedMajor->id]), false);
+            ->assertSee(route('requests.show', $readyMinor), false)
+            ->assertSee(route('requests.show', $unfinishedMajor), false);
 
         $this->actingAs($smo)
             ->get(route('admin.approvals', ['request' => $readyMinor->id]))
