@@ -11,7 +11,7 @@ class ReportWorkspaceTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_smo_can_view_analytics_and_report_builder_on_one_page(): void
+    public function test_smo_can_view_operational_analytics_on_its_own_page(): void
     {
         $smo = User::factory()->create(['role' => 'smo']);
 
@@ -20,24 +20,33 @@ class ReportWorkspaceTest extends TestCase
             ->get(route('admin.reports.index'))
             ->assertOk()
             ->assertSee('Operational Analytics')
-            ->assertSee('Comprehensive Report Center')
-            ->assertSee('Requisition Transactions');
+            ->assertSee('Open Report Center')
+            ->assertDontSee('Comprehensive Report Center');
     }
 
-    public function test_old_report_pages_redirect_to_the_unified_workspace(): void
+    public function test_smo_can_open_the_comprehensive_report_center_separately(): void
+    {
+        $smo = User::factory()->create(['role' => 'smo']);
+
+        $this
+            ->actingAs($smo)
+            ->get(route('admin.reports.builder'))
+            ->assertOk()
+            ->assertSee('Comprehensive Report Center')
+            ->assertSee('Requisition Transactions')
+            ->assertDontSee('Fulfillment Volume');
+    }
+
+    public function test_old_analytics_bookmark_redirects_to_operational_analytics(): void
     {
         $smo = User::factory()->create(['role' => 'smo']);
 
         $this->actingAs($smo)
             ->get(route('admin.reports.analytics'))
             ->assertRedirect('/admin/reports');
-
-        $this->actingAs($smo)
-            ->get(route('admin.reports.builder'))
-            ->assertRedirect('/admin/reports');
     }
 
-    public function test_each_report_type_renders_inside_the_unified_workspace(): void
+    public function test_each_report_type_renders_inside_the_report_center(): void
     {
         $smo = User::factory()->create(['role' => 'smo']);
 
@@ -53,7 +62,7 @@ class ReportWorkspaceTest extends TestCase
         ] as $reportType) {
             $this
                 ->actingAs($smo)
-                ->get(route('admin.reports.index', ['report_type' => $reportType]))
+                ->get(route('admin.reports.builder', ['report_type' => $reportType]))
                 ->assertOk()
                 ->assertSee('matching records');
         }
@@ -75,7 +84,7 @@ class ReportWorkspaceTest extends TestCase
         ] as $reportType) {
             $this
                 ->actingAs($smo)
-                ->get(route('admin.reports.index', [
+                ->get(route('admin.reports.builder', [
                     'report_type' => $reportType,
                     'download_pdf' => 1,
                 ]))
@@ -90,7 +99,7 @@ class ReportWorkspaceTest extends TestCase
 
         $this
             ->actingAs($smo)
-            ->get(route('admin.reports.index', [
+            ->get(route('admin.reports.builder', [
                 'report_type' => 'users',
                 'period' => 'all',
                 'export' => 'csv',
@@ -115,7 +124,7 @@ class ReportWorkspaceTest extends TestCase
 
         $this
             ->actingAs($smo)
-            ->get(route('admin.reports.index', [
+            ->get(route('admin.reports.builder', [
                 'report_type' => 'dept_spending',
                 'period' => 'current_semester',
             ]))

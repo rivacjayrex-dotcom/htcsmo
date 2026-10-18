@@ -250,11 +250,11 @@ Route::middleware('auth')->group(function () {
 // SMO REPORTING & ANALYTICS
 Route::middleware(['auth', 'role:smo'])->group(function () {
     Route::get('/admin/reports', [ReportController::class, 'index'])->name('admin.reports.index');
+    Route::get('/admin/reports/builder', [ReportController::class, 'builder'])->name('admin.reports.builder');
     Route::get('/admin/reports/generate', [ReportController::class, 'generate'])->name('admin.reports.generate');
 
-    // Preserve existing bookmarks while directing users to the unified workspace.
+    // Preserve the old analytics bookmark; the main reports URL is now the analytics page.
     Route::redirect('/admin/reports/analytics', '/admin/reports')->name('admin.reports.analytics');
-    Route::redirect('/admin/reports/builder', '/admin/reports')->name('admin.reports.builder');
 });
 
 Route::get('/admin/archive', [ArchiveController::class, 'index'])

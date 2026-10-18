@@ -22,18 +22,24 @@
     ];
 @endphp
 
-<section class="report-builder mt-5 pt-4 border-top" id="report-builder">
+<section class="report-builder" id="report-builder">
     <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
         <div>
             <h4 class="fw-black text-dark mb-1">Comprehensive Report Center</h4>
             <p class="text-muted small mb-0">Filter institutional records, preview the results, and export them for Excel or printing.</p>
         </div>
-        <a href="{{ route('admin.reports.index') }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3 no-print">
-            Reset Report
-        </a>
+        <div class="d-flex flex-wrap gap-2 no-print">
+            <a href="{{ route('admin.reports.index') }}" class="btn btn-sm btn-outline-success rounded-pill px-3">
+                <i data-lucide="chart-no-axes-combined" class="me-1" style="width: 15px;"></i>
+                Operational Analytics
+            </a>
+            <a href="{{ route('admin.reports.builder') }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3">
+                Reset Report
+            </a>
+        </div>
     </div>
 
-    <form action="{{ route('admin.reports.index') }}" method="GET" id="reportForm" class="no-print">
+    <form action="{{ route('admin.reports.builder') }}" method="GET" id="reportForm" class="no-print">
         <div class="report-type-grid row g-3 mb-4">
             @foreach($reportOptions as $value => [$label, $description, $icon])
                 <div class="report-type-option col-xl-3 col-md-6">

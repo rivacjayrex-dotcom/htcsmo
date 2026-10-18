@@ -5,8 +5,16 @@
 
     <div class="container-fluid py-2 reports-workspace">
         <div class="mb-4">
-            <h4 class="fw-black text-dark mb-1">Operational Analytics</h4>
-            <p class="text-muted small mb-0">Monitor institutional supply activity, then build and export detailed reports below.</p>
+            <div class="d-flex flex-wrap justify-content-between align-items-end gap-3">
+                <div>
+                    <h4 class="fw-black text-dark mb-1">Operational Analytics</h4>
+                    <p class="text-muted small mb-0">Monitor institutional supply activity and fulfillment performance.</p>
+                </div>
+                <a href="{{ route('admin.reports.builder') }}" class="btn btn-success rounded-pill px-4">
+                    <i data-lucide="file-chart-column" class="me-2" style="width: 17px;"></i>
+                    Open Report Center
+                </a>
+            </div>
         </div>
 
         <div class="row g-3 mb-4">
@@ -107,7 +115,6 @@
             </div>
         </div>
 
-        @include('admin.reports.index')
     </div>
 
     <script>

@@ -32,18 +32,10 @@ class ReportController extends Controller
     ];
 
     /**
-     * Display operational analytics and the report builder in one workspace.
+     * Display the operational analytics dashboard.
      */
     public function index(Request $request)
     {
-        $request->validate([
-            'report_type' => ['nullable', 'in:'.implode(',', self::REPORT_TYPES)],
-            'period' => ['nullable', 'in:current_semester,this_month,this_year,all,custom'],
-            'date_from' => ['nullable', 'date'],
-            'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
-            'account_status' => ['nullable', 'in:pending,active,suspended'],
-        ]);
-
         [$semesterStart, $semesterEnd, $semesterLabel] = $this->currentSemester();
 
         $releasedThisSemester = Requisition::whereIn('status', Requisition::FULFILLED_STATUSES)
@@ -91,6 +83,29 @@ class ReportController extends Controller
             ->take(5)
             ->get();
 
+        return view('admin.reports', [
+            'stats' => $stats,
+            'costs' => $costs,
+            'semesterLabel' => $semesterLabel,
+            'monthlyData' => $monthlyData,
+            'deptSpending' => $deptSpending,
+            'topItems' => $topItems,
+        ]);
+    }
+
+    /**
+     * Display the report builder and handle its preview/export requests.
+     */
+    public function builder(Request $request)
+    {
+        $request->validate([
+            'report_type' => ['nullable', 'in:'.implode(',', self::REPORT_TYPES)],
+            'period' => ['nullable', 'in:current_semester,this_month,this_year,all,custom'],
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
+            'account_status' => ['nullable', 'in:pending,active,suspended'],
+        ]);
+
         $report = $this->buildReport($request);
 
         if ($request->get('export') === 'csv') {
@@ -108,15 +123,7 @@ class ReportController extends Controller
             return $pdf->download('HTC_SMO_'.$report['reportType'].'_'.date('Ymd_His').'.pdf');
         }
 
-        return view('admin.reports', [
-            'stats' => $stats,
-            'costs' => $costs,
-            'semesterLabel' => $semesterLabel,
-            'monthlyData' => $monthlyData,
-            'deptSpending' => $deptSpending,
-            'topItems' => $topItems,
-            ...$report,
-        ]);
+        return view('admin.reports.builder', $report);
     }
 
     /**
@@ -124,7 +131,7 @@ class ReportController extends Controller
      */
     public function generate(Request $request)
     {
-        return $this->index($request);
+        return $this->builder($request);
     }
 
     /**

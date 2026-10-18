@@ -1889,8 +1889,11 @@
                     </a>
 
                     <div class="nav-section-label">Insights</div>
-                    <a href="{{ route('admin.reports.index') }}" class="nav-link-custom {{ request()->routeIs('admin.reports.*') ? 'active' : '' }}">
-                        <i data-lucide="chart-no-axes-combined"></i> Reports & Analytics
+                    <a href="{{ route('admin.reports.index') }}" class="nav-link-custom {{ request()->routeIs('admin.reports.index', 'admin.reports.analytics') ? 'active' : '' }}">
+                        <i data-lucide="chart-no-axes-combined"></i> Operational Analytics
+                    </a>
+                    <a href="{{ route('admin.reports.builder') }}" class="nav-link-custom {{ request()->routeIs('admin.reports.builder', 'admin.reports.generate') ? 'active' : '' }}">
+                        <i data-lucide="file-chart-column"></i> Report Center
                     </a>
                 @endif
 
