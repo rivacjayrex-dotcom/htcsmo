@@ -26,7 +26,7 @@
                 @endif
             </div>
 
-            <form method="GET" action="{{ route('requests.index') }}" class="request-filters">
+            <form method="GET" action="{{ route('requests.index') }}" class="request-filters" data-dynamic-search>
                 <label class="request-search">
                     <span>Search requests</span>
                     <div><i data-lucide="search"></i><input type="search" name="search" value="{{ request('search') }}" maxlength="100" placeholder="Code, item, purpose, requestor, or department"></div>

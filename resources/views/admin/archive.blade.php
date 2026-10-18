@@ -20,7 +20,7 @@
 
         <div class="card border-0 shadow-sm rounded-4 mb-3 archive-filter-card">
             <div class="card-body p-3">
-                <form action="{{ route('admin.archive') }}" method="GET" class="row g-2 align-items-center">
+            <form action="{{ route('admin.archive') }}" method="GET" class="row g-2 align-items-center" data-dynamic-search>
                     <div class="col-lg-3 col-md-6">
                         <input type="search" name="search" value="{{ old('search', request('search')) }}" maxlength="100" class="form-control form-control-sm border-0 bg-light rounded-3 shadow-none" placeholder="Search code, item, or requestor" aria-label="Search institutional archive">
                     </div>

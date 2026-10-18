@@ -46,7 +46,7 @@
                 </p>
             </div>
 
-            <form action="{{ route('admin.users.manage') }}" method="GET" class="personnel-search d-flex align-items-center gap-2">
+            <form action="{{ route('admin.users.manage') }}" method="GET" class="personnel-search d-flex align-items-center gap-2" data-dynamic-search>
                 @if($category)
                     <input type="hidden" name="category" value="{{ $category }}">
                 @endif

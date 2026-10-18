@@ -127,7 +127,7 @@
                         <a href="{{ route('admin.approvals') }}" class="panel-action"><i data-lucide="arrow-up-right"></i> View All</a>
                     </div>
 
-                    <form action="{{ route('dashboard') }}" method="GET" class="dashboard-filter-bar">
+                    <form action="{{ route('dashboard') }}" method="GET" class="dashboard-filter-bar" data-dynamic-search>
                         <label class="dashboard-search">
                             <span>Search</span>
                             <input type="search" name="search" value="{{ request('search') }}" maxlength="100" placeholder="Code, item, or requestor">

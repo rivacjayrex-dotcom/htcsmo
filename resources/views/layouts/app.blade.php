@@ -2242,6 +2242,7 @@
     </div>
 
     @include('layouts.partials.runtime-guard')
+    @include('layouts.partials.dynamic-search')
 
     <!-- Scripts -->
     <script>

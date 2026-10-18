@@ -7,7 +7,7 @@
         <div class="mb-4 animate__animated animate__fadeIn">
             <h4 class="fw-black text-dark mb-1">Pending Registrations</h4>
             <p class="text-muted small mb-3">Verify institutional identity before activating a new Faculty / Staff account.</p>
-            <form action="{{ route('admin.users.pending') }}" method="GET" class="d-flex flex-wrap gap-2" role="search">
+            <form action="{{ route('admin.users.pending') }}" method="GET" class="d-flex flex-wrap gap-2" role="search" data-dynamic-search>
                 <input type="search" name="search" value="{{ request('search') }}" class="form-control" maxlength="100" placeholder="Search name, school ID, or email" aria-label="Search access requests">
                 <button class="btn btn-htc" type="submit">Search</button>
                 @if(request()->filled('search'))
