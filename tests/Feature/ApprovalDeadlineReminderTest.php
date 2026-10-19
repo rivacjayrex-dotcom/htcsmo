@@ -20,19 +20,36 @@ class ApprovalDeadlineReminderTest extends TestCase
         $otherHead = User::factory()->create(['role' => 'dept_head', 'department' => 'CTE']);
         $vpAdmin = User::factory()->create(['role' => 'vp_admin']);
         $requisition = $this->deadlineRequest($requestor, 'pending');
+        $routineRequisition = Requisition::create([
+            'user_id' => $requestor->id,
+            'request_type' => 'minor',
+            'status' => 'pending',
+            'purpose' => 'Routine request outside the deadline window.',
+            'grand_total' => 100,
+        ]);
 
         $this->actingAs($smo)
             ->get(route('dashboard'))
             ->assertOk()
             ->assertSee('Approvals needing follow-up')
             ->assertSee($requisition->tracking_code)
+            ->assertSee('See all deadline requests')
+            ->assertSee('Details')
+            ->assertSee('View full request')
             ->assertSee(route('admin.requests.deadline-reminder', $requisition), false);
 
         $this->actingAs($smo)
             ->get(route('requests.index'))
             ->assertOk()
             ->assertSee($requisition->tracking_code)
-            ->assertSee('Notify approver');
+            ->assertSee('Notify');
+
+        $this->actingAs($smo)
+            ->get(route('requests.index', ['status' => 'deadline']))
+            ->assertOk()
+            ->assertSee($requisition->tracking_code)
+            ->assertDontSee($routineRequisition->tracking_code)
+            ->assertSee('value="deadline" selected', false);
 
         $this->actingAs($smo)
             ->post(route('admin.requests.deadline-reminder', $requisition))

@@ -15,7 +15,6 @@ class DynamicSearchWorkspaceTest extends TestCase
         $smo = User::factory()->create(['role' => 'smo']);
 
         foreach ([
-            'dashboard',
             'requests.index',
             'requests.archive',
             'admin.archive',

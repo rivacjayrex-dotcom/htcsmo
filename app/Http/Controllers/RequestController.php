@@ -131,7 +131,9 @@ class RequestController extends Controller
 
         $query->search($validated['search'] ?? null);
         if ($request->filled('status')) {
-            $query->where('status', $request->status);
+            $request->status === 'deadline'
+                ? $query->deadlineRisks()
+                : $query->where('status', $request->status);
         }
         if ($user->role == 'smo' && $request->filled('dept')) {
             $query->whereHas('user', fn ($q) => $q->where('department', $request->dept));

@@ -24,9 +24,6 @@ Route::view('/privacy-policy', 'legal.privacy')->name('legal.privacy');
 // DASHBOARD LOGIC (Updated for Multi-item Requisitions)
 Route::get('/dashboard', function () {
     $user = Auth::user();
-    $validatedFilters = request()->validate([
-        'search' => ['nullable', 'string', 'max:100'],
-    ]);
 
     $activeCount = 0;
     $approvedLast24h = 0;
@@ -121,39 +118,11 @@ Route::get('/dashboard', function () {
             ->whereMonth('updated_at', now()->month)->sum('grand_total');
 
         // SMO TABLE: Only pull active items that still need to be processed or released
-        $query = Requisition::with(['items', 'user'])
-            ->whereNotIn('status', Requisition::ARCHIVED_STATUSES);
-
-        $query->search($validatedFilters['search'] ?? null);
-
-        // Filter by Status (Within Active Lifecycle)
-        if (request('status')) {
-            if (request('status') === 'near_deadline') {
-                $query->deadlineRisks();
-            } else {
-                $query->where('status', request('status'));
-            }
-        }
-
-        // Filter by Department
-        if (request('dept')) {
-            $query->whereHas('user', function ($q) {
-                $q->where('department', request('dept'));
-            });
-        }
-
-        // Filter by Date Range
-        if (request('date_from')) {
-            $query->whereDate('created_at', '>=', request('date_from'));
-        }
-        if (request('date_to')) {
-            $query->whereDate('created_at', '<=', request('date_to'));
-        }
-
-        // Sorting
-        $sort = request('sort', 'created_at');
-        $order = request('order', 'desc');
-        $allStaffRequests = $query->orderBy($sort, $order)->paginate(20)->withQueryString();
+        $allStaffRequests = Requisition::with(['items', 'user'])
+            ->whereNotIn('status', Requisition::ARCHIVED_STATUSES)
+            ->latest()
+            ->take(10)
+            ->get();
 
         $recentActivity = Notification::where('user_id', $user->id)->latest()->take(5)->get();
     }

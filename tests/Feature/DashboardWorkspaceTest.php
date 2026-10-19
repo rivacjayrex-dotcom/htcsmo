@@ -117,32 +117,34 @@ class DashboardWorkspaceTest extends TestCase
             ->assertSeeInOrder(['Overview', 'Notifications', 'Requisitions', 'Active Requests', 'Request Archive']);
     }
 
-    public function test_smo_dashboard_search_filters_the_active_pipeline(): void
+    public function test_smo_dashboard_shows_only_the_ten_most_recent_active_requisitions_without_filters(): void
     {
         $smo = User::factory()->create(['role' => 'smo']);
-        $matchingRequestor = User::factory()->create(['name' => 'Dashboard Search Match']);
-        $otherRequestor = User::factory()->create(['name' => 'Dashboard Other User']);
-        $match = Requisition::create([
-            'user_id' => $matchingRequestor->id,
-            'request_type' => 'minor',
-            'status' => 'pending',
-            'purpose' => 'Unique dashboard lookup',
-            'grand_total' => 100,
-        ]);
-        $other = Requisition::create([
-            'user_id' => $otherRequestor->id,
-            'request_type' => 'minor',
-            'status' => 'pending',
-            'purpose' => 'Ordinary supplies',
-            'grand_total' => 100,
-        ]);
+        $requestor = User::factory()->create(['name' => 'Dashboard Requestor']);
+        $requests = collect(range(1, 11))->map(function (int $position) use ($requestor) {
+            $request = Requisition::create([
+                'user_id' => $requestor->id,
+                'request_type' => 'minor',
+                'status' => 'pending',
+                'purpose' => "Dashboard request {$position}",
+                'grand_total' => 100,
+            ]);
+            $request->forceFill([
+                'created_at' => now()->subMinutes(11 - $position),
+                'updated_at' => now()->subMinutes(11 - $position),
+            ])->saveQuietly();
+
+            return $request;
+        });
 
         $this->actingAs($smo)
-            ->get(route('dashboard', ['search' => 'Unique dashboard lookup']))
+            ->get(route('dashboard'))
             ->assertOk()
-            ->assertSee($match->tracking_number)
-            ->assertDontSee($other->tracking_number)
-            ->assertSee('value="Unique dashboard lookup"', false)
-            ->assertSee('type="submit" class="filter-apply"', false);
+            ->assertViewHas('allStaffRequests', fn ($activeRequests) => $activeRequests->count() === 10
+                && $activeRequests->first()->is($requests->last()))
+            ->assertDontSee($requests->first()->tracking_number)
+            ->assertSee($requests->last()->tracking_number)
+            ->assertDontSee('dashboard-filter-bar', false)
+            ->assertDontSee('filter-apply', false);
     }
 }

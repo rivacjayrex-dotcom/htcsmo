@@ -30,7 +30,12 @@
                     : 'These requisitions are nearing or have passed the three-day approval-stage target.' }}
             </p>
         </div>
-        <span class="approval-deadline-heading__icon"><i data-lucide="alarm-clock"></i></span>
+        <div class="approval-deadline-heading__actions">
+            <a href="{{ $isSmoDeadlineView ? route('requests.index', ['status' => 'deadline']) : route('admin.approvals') }}">
+                See all deadline requests <i data-lucide="arrow-up-right"></i>
+            </a>
+            <span class="approval-deadline-heading__icon"><i data-lucide="alarm-clock"></i></span>
+        </div>
     </div>
 
     <div class="approval-deadline-list">
@@ -40,7 +45,7 @@
                 $isOverdue = $deadlineRequest->isApprovalDeadlineOverdue();
                 $reviewerRole = $deadlineRequest->currentReviewerRole();
             @endphp
-            <article class="approval-deadline-item {{ $isOverdue ? 'overdue' : 'near' }}">
+            <article class="approval-deadline-item {{ $isOverdue ? 'overdue' : 'near' }}" x-data="{ expanded: false }">
                 <span class="approval-deadline-state">
                     <i data-lucide="{{ $isOverdue ? 'siren' : 'clock-alert' }}"></i>
                     {{ $isOverdue ? 'At deadline' : 'Nearing deadline' }}
@@ -58,11 +63,15 @@
                     <span>in this stage</span>
                 </div>
                 <div class="approval-deadline-action">
+                    <button type="button" class="deadline-detail-toggle" @click="expanded = !expanded" :aria-expanded="expanded.toString()" aria-controls="deadline-details-{{ $deadlineRequest->id }}">
+                        <i data-lucide="panel-bottom-open"></i>
+                        <span x-text="expanded ? 'Hide details' : 'Details'">Details</span>
+                    </button>
                     @if($isSmoDeadlineView)
                         <form method="POST" action="{{ route('admin.requests.deadline-reminder', $deadlineRequest) }}">
                             @csrf
                             <button type="submit" data-loading-text="Notifying…">
-                                <i data-lucide="send"></i> Notify approver
+                                <i data-lucide="send"></i> Notify
                             </button>
                         </form>
                     @else
@@ -70,6 +79,35 @@
                             Review now <i data-lucide="arrow-right"></i>
                         </a>
                     @endif
+                </div>
+                <div id="deadline-details-{{ $deadlineRequest->id }}" class="approval-deadline-details" x-show="expanded" x-cloak>
+                    <div class="deadline-detail-block purpose">
+                        <small>Purpose</small>
+                        <strong>{{ $deadlineRequest->purpose }}</strong>
+                    </div>
+                    <div class="deadline-detail-block">
+                        <small>Requested items</small>
+                        <strong>{{ $deadlineRequest->items->sum('quantity') }} total</strong>
+                        <span>
+                            {{ $deadlineRequest->items->pluck('item_name')->take(3)->implode(', ') ?: 'No item details' }}
+                            @if($deadlineRequest->items->count() > 3)
+                                +{{ $deadlineRequest->items->count() - 3 }} more
+                            @endif
+                        </span>
+                    </div>
+                    <div class="deadline-detail-block">
+                        <small>Submitted</small>
+                        <strong>{{ ($deadlineRequest->submitted_at ?? $deadlineRequest->created_at)->format('M d, Y · g:i A') }}</strong>
+                        <span>Stage target: {{ $deadlineRequest->due_at?->format('M d, Y · g:i A') ?? 'Not set' }}</span>
+                    </div>
+                    <div class="deadline-detail-block">
+                        <small>Request value</small>
+                        <strong>₱{{ number_format((float) $deadlineRequest->grand_total, 2) }}</strong>
+                        <span>{{ ucfirst($deadlineRequest->request_type) }} requisition</span>
+                    </div>
+                    <a class="deadline-full-details" href="{{ $isSmoDeadlineView ? route('requests.show', $deadlineRequest) : route('admin.approvals', ['request' => $deadlineRequest->id]) }}">
+                        View full request <i data-lucide="arrow-right"></i>
+                    </a>
                 </div>
             </article>
         @empty
@@ -91,6 +129,10 @@
     .approval-deadline-heading h3 { margin: 0; color: #493b24; font-size: .92rem; font-weight: 850; }
     .approval-deadline-heading h3 em { display: inline-grid; min-width: 24px; height: 24px; margin-left: .3rem; place-items: center; border-radius: 999px; color: #8a5c0b; background: #f7e4b8; font-size: .6rem; font-style: normal; }
     .approval-deadline-heading p { margin: .25rem 0 0; color: #87775d; font-size: .62rem; }
+    .approval-deadline-heading__actions { display: flex; align-items: center; gap: .55rem; }
+    .approval-deadline-heading__actions > a { min-height: 36px; display: inline-flex; align-items: center; gap: .35rem; padding: .45rem .65rem; border: 1px solid #e3c98e; border-radius: 9px; color: #805207; background: rgba(255,255,255,.7); font-size: .56rem; font-weight: 850; text-decoration: none; white-space: nowrap; }
+    .approval-deadline-heading__actions > a:hover { border-color: #9a6811; color: #fff; background: #9a6811; }
+    .approval-deadline-heading__actions > a svg { width: 13px; height: 13px; }
     .approval-deadline-heading__icon { width: 40px; height: 40px; flex: 0 0 40px; display: grid; place-items: center; border-radius: 12px; color: #9a6811; background: #f8e7bd; }
     .approval-deadline-heading__icon svg { width: 19px; }
     .approval-deadline-list { padding: .35rem 1rem; }
@@ -104,17 +146,29 @@
     .approval-deadline-request strong { color: #2f4938; font-family: ui-monospace,SFMono-Regular,Menlo,monospace; font-size: .68rem; }
     .approval-deadline-request span, .approval-deadline-owner small, .approval-deadline-age span { margin-top: .12rem; color: #8a958e; font-size: .54rem; }
     .approval-deadline-owner strong, .approval-deadline-age strong { color: #526359; font-size: .62rem; }
-    .approval-deadline-action { text-align: right; }
+    .approval-deadline-action { display: flex; justify-content: flex-end; gap: .35rem; text-align: right; }
     .approval-deadline-action form { margin: 0; }
     .approval-deadline-action :is(button,a) { min-height: 34px; display: inline-flex; align-items: center; justify-content: center; gap: .35rem; padding: .45rem .65rem; border: 1px solid #d6a84e; border-radius: 9px; color: #805207; background: #fff9ea; font-size: .56rem; font-weight: 850; text-decoration: none; white-space: nowrap; }
     .approval-deadline-action :is(button,a):hover { color: #fff; background: #9a6811; }
+    .approval-deadline-action .deadline-detail-toggle { border-color: #dce5df; color: #526359; background: #f8faf9; }
+    .approval-deadline-action .deadline-detail-toggle:hover { border-color: #526359; color: #fff; background: #526359; }
     .approval-deadline-action svg { width: 13px; height: 13px; }
+    .approval-deadline-details { grid-column: 1/-1; display: grid; grid-template-columns: minmax(180px,1.4fr) repeat(3,minmax(130px,.8fr)) auto; gap: .65rem; align-items: stretch; margin: .15rem 0 .25rem; padding: .8rem; border: 1px solid #eadfc5; border-radius: 12px; background: linear-gradient(135deg,#fffdf8,#fbfaf7); }
+    .deadline-detail-block { min-width: 0; padding-right: .65rem; border-right: 1px solid #ebe5d8; }
+    .deadline-detail-block small,.deadline-detail-block strong,.deadline-detail-block span { display: block; }
+    .deadline-detail-block small { margin-bottom: .2rem; color: #998b70; font-size: .5rem; font-weight: 850; letter-spacing: .05em; text-transform: uppercase; }
+    .deadline-detail-block strong { overflow-wrap: anywhere; color: #3f5046; font-size: .61rem; line-height: 1.45; }
+    .deadline-detail-block span { margin-top: .12rem; color: #849087; font-size: .52rem; line-height: 1.45; }
+    .deadline-full-details { min-height: 36px; align-self: center; display: inline-flex; align-items: center; justify-content: center; gap: .35rem; padding: .45rem .65rem; border-radius: 9px; color: #fff; background: #28714a; font-size: .56rem; font-weight: 850; text-decoration: none; white-space: nowrap; }
+    .deadline-full-details:hover { color: #fff; background: #185b3b; }
+    .deadline-full-details svg { width: 13px; height: 13px; }
     .approval-deadline-empty { min-height: 92px; display: flex; align-items: center; justify-content: center; gap: .75rem; padding: 1rem; text-align: left; }
     .approval-deadline-empty > span { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 11px; color: #277048; background: #e6f3ea; }
     .approval-deadline-empty svg { width: 18px; }
     .approval-deadline-empty strong { color: #46594d; font-size: .66rem; }
     .approval-deadline-empty p { margin: .15rem 0 0; color: #8b978f; font-size: .56rem; }
+    @media(max-width: 1199.98px) { .approval-deadline-details { grid-template-columns: repeat(2,minmax(0,1fr)); }.deadline-full-details { align-self: stretch; }.deadline-detail-block:nth-child(2) { border-right: 0; } }
     @media(max-width: 991.98px) { .approval-deadline-item { grid-template-columns: 120px minmax(180px,1fr) minmax(140px,.8fr) auto; }.approval-deadline-age { display: none; } }
-    @media(max-width: 767.98px) { .approval-deadline-list { display: grid; gap: .65rem; padding: .75rem; }.approval-deadline-item { display: grid; grid-template-columns: 1fr auto; gap: .65rem; padding: .85rem; border: 1px solid #e8e2d3!important; border-radius: 13px; }.approval-deadline-state { grid-column: 1/-1; }.approval-deadline-owner { grid-column: 1/2; }.approval-deadline-action { grid-column: 2/3; grid-row: 2/4; align-self: end; }.approval-deadline-action :is(button,a) { white-space: normal; }.approval-deadline-heading { padding: 1rem; } }
-    @media(max-width: 479.98px) { .approval-deadline-item { grid-template-columns: 1fr; }.approval-deadline-action { grid-column: auto; grid-row: auto; text-align: left; }.approval-deadline-action :is(button,a) { width: 100%; }.approval-deadline-heading__icon { display: none; } }
+    @media(max-width: 767.98px) { .approval-deadline-list { display: grid; gap: .65rem; padding: .75rem; }.approval-deadline-item { display: grid; grid-template-columns: 1fr auto; gap: .65rem; padding: .85rem; border: 1px solid #e8e2d3!important; border-radius: 13px; }.approval-deadline-state { grid-column: 1/-1; }.approval-deadline-owner { grid-column: 1/2; }.approval-deadline-action { grid-column: 1/-1; grid-row: auto; align-self: end; justify-content: flex-start; }.approval-deadline-action :is(button,a) { white-space: normal; }.approval-deadline-details { grid-template-columns: 1fr; }.deadline-detail-block { padding: 0 0 .55rem; border-right: 0; border-bottom: 1px solid #ebe5d8; }.approval-deadline-heading { padding: 1rem; }.approval-deadline-heading__actions { align-items: flex-end; flex-direction: column-reverse; } }
+    @media(max-width: 479.98px) { .approval-deadline-heading { align-items: stretch; }.approval-deadline-heading__actions { align-items: stretch; }.approval-deadline-heading__actions > a { justify-content: center; }.approval-deadline-item { grid-template-columns: 1fr; }.approval-deadline-action { grid-column: auto; grid-row: auto; display: grid; grid-template-columns: 1fr 1fr; text-align: left; }.approval-deadline-action :is(button,a) { width: 100%; }.approval-deadline-heading__icon { display: none; } }
 </style>

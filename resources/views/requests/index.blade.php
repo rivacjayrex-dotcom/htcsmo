@@ -41,6 +41,7 @@
                         <option value="approved_provost" @selected(request('status') === 'approved_provost')>Provost approved</option>
                         <option value="approved_president" @selected(request('status') === 'approved_president')>President approved</option>
                         <option value="for_clarification" @selected(request('status') === 'for_clarification')>Needs clarification</option>
+                        <option value="deadline" @selected(request('status') === 'deadline')>Deadline risks</option>
                     </select>
                 </label>
                 @if(Auth::user()->role === 'smo')

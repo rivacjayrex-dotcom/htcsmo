@@ -124,58 +124,8 @@
                         <div>
                             <h3>Active requisitions</h3>
                         </div>
-                        <a href="{{ route('admin.approvals') }}" class="panel-action"><i data-lucide="arrow-up-right"></i> View All</a>
+                        <a href="{{ route('requests.index') }}" class="panel-action"><i data-lucide="arrow-up-right"></i> View All</a>
                     </div>
-
-                    <form action="{{ route('dashboard') }}" method="GET" class="dashboard-filter-bar" data-dynamic-search>
-                        <label class="dashboard-search">
-                            <span>Search</span>
-                            <input type="search" name="search" value="{{ request('search') }}" maxlength="100" placeholder="Code, item, or requestor">
-                        </label>
-                        <label>
-                            <span>Status</span>
-                            <select name="status" onchange="this.form.submit()">
-                                <option value="">All active requests</option>
-                                <option value="pending" @selected(request('status') === 'pending')>Pending Department Head</option>
-                                <option value="approved_dept" @selected(request('status') === 'approved_dept')>Pending VP review</option>
-                                <option value="approved_vp" @selected(request('status') === 'approved_vp')>VP approved</option>
-                                <option value="approved_provost" @selected(request('status') === 'approved_provost')>Pending President</option>
-                                <option value="approved_president" @selected(request('status') === 'approved_president')>Major awaiting SMO</option>
-                                <option value="processing" @selected(request('status') === 'processing')>SMO processing</option>
-                                <option value="ready_for_pickup" @selected(request('status') === 'ready_for_pickup')>Ready for pickup</option>
-                                <option value="for_clarification" @selected(request('status') === 'for_clarification')>Needs clarification</option>
-                                <option value="near_deadline" @selected(request('status') === 'near_deadline')>Near deadline / overdue</option>
-                            </select>
-                        </label>
-                        <label>
-                            <span>Department</span>
-                            <select name="dept" onchange="this.form.submit()">
-                                <option value="">All departments</option>
-                                @foreach(['CETE', 'CTE', 'CBMA', 'CCJE', 'CAS'] as $department)
-                                    <option value="{{ $department }}" @selected(request('dept') === $department)>{{ $department }}</option>
-                                @endforeach
-                            </select>
-                        </label>
-                        <label>
-                            <span>From</span>
-                            <input type="date" name="date_from" value="{{ request('date_from') }}" onchange="this.form.submit()">
-                        </label>
-                        <label>
-                            <span>To</span>
-                            <input type="date" name="date_to" value="{{ request('date_to') }}" onchange="this.form.submit()">
-                        </label>
-                        <label class="sort-filter">
-                            <span>Order</span>
-                            <select name="order" onchange="this.form.submit()">
-                                <option value="desc" @selected(request('order', 'desc') === 'desc')>Newest</option>
-                                <option value="asc" @selected(request('order') === 'asc')>Oldest</option>
-                            </select>
-                        </label>
-                        <button type="submit" class="filter-apply"><i data-lucide="search"></i><span>Search</span></button>
-                        @if(request()->anyFilled(['search', 'status', 'dept', 'date_from', 'date_to', 'order']))
-                            <a href="{{ route('dashboard') }}" class="filter-reset" title="Clear filters"><i data-lucide="rotate-ccw"></i><span>Reset</span></a>
-                        @endif
-                    </form>
 
                     <div class="table-responsive dashboard-table-wrap">
                         <table class="table dashboard-table responsive-dashboard-table">
@@ -209,12 +159,11 @@
                                         <td data-label="Action"><a href="{{ route('requests.show', $req->id) }}" class="row-action" aria-label="View {{ $req->tracking_code }}"><i data-lucide="arrow-right"></i></a></td>
                                     </tr>
                                 @empty
-                                    <tr><td colspan="5"><div class="dashboard-empty"><i data-lucide="inbox"></i><strong>No matching requisitions</strong><span>Adjust the filters to see more requests.</span></div></td></tr>
+                                    <tr><td colspan="5"><div class="dashboard-empty"><i data-lucide="inbox"></i><strong>No active requisitions</strong><span>New active requests will appear here.</span></div></td></tr>
                                 @endforelse
                             </tbody>
                         </table>
                     </div>
-                    @if($allStaffRequests->hasPages())<div class="panel-pagination">{{ $allStaffRequests->links() }}</div>@endif
                 </section>
 
                 <aside class="dashboard-panel activity-panel">
@@ -901,78 +850,6 @@
             width: 14px;
         }
 
-        .dashboard-filter-bar {
-            display: grid;
-            grid-template-columns: 1.45fr 1.2fr 1fr .8fr .8fr .7fr auto auto;
-            gap: .55rem;
-            align-items: end;
-            padding: .8rem 1rem;
-            border-bottom: 1px solid #e7ede9;
-            background: #fafcfb;
-        }
-
-        .dashboard-filter-bar label {
-            min-width: 0;
-        }
-
-        .dashboard-filter-bar label > span {
-            display: block;
-            margin: 0 0 .3rem .15rem;
-            color: #78867d;
-            font-size: .52rem;
-            font-weight: 800;
-            letter-spacing: .05em;
-            text-transform: uppercase;
-        }
-
-        .dashboard-filter-bar :is(select, input) {
-            width: 100%;
-            min-height: 36px;
-            padding: .42rem .55rem;
-            border: 1px solid #dae5de;
-            border-radius: 8px;
-            outline: 0;
-            color: #46584d;
-            background-color: #fff;
-            font-size: .62rem;
-        }
-
-        .dashboard-filter-bar :is(select, input):focus {
-            border-color: #31865a;
-            box-shadow: 0 0 0 3px rgba(34,126,76,.1);
-        }
-
-        .filter-apply,
-        .filter-reset {
-            min-height: 36px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: .3rem;
-            padding: .4rem .55rem;
-            border-radius: 8px;
-            font-size: .58rem;
-            font-weight: 800;
-        }
-
-        .filter-apply {
-            border: 1px solid #1b7045;
-            color: #fff;
-            background: #1b7045;
-        }
-
-        .filter-reset {
-            border: 1px solid #efd1d3;
-            color: #af3d44;
-            background: #fff7f7;
-            text-decoration: none;
-        }
-
-        .filter-apply svg,
-        .filter-reset svg {
-            width: 13px;
-        }
-
         .dashboard-table-wrap {
             border: 0 !important;
             border-radius: 0 !important;
@@ -1126,11 +1003,6 @@
         .table-date {
             color: #718078;
             font-size: .62rem;
-        }
-
-        .panel-pagination {
-            padding: .75rem 1rem;
-            border-top: 1px solid #e6ece8;
         }
 
         .activity-panel {
@@ -1291,14 +1163,6 @@
                 margin-bottom: 1rem;
             }
 
-            .dashboard-filter-bar {
-                grid-template-columns: repeat(3, minmax(0,1fr));
-            }
-
-            .filter-apply,
-            .filter-reset {
-                justify-content: center;
-            }
         }
 
         @media (max-width: 767.98px) {
@@ -1347,16 +1211,6 @@
 
             .modern-metric > strong {
                 font-size: 1.5rem;
-            }
-
-            .dashboard-filter-bar {
-                grid-template-columns: repeat(2, minmax(0,1fr));
-            }
-
-            .sort-filter,
-            .filter-apply,
-            .filter-reset {
-                grid-column: auto;
             }
 
             .panel-heading {
@@ -1463,15 +1317,6 @@
             .dashboard-hero-meta {
                 flex-direction: column;
                 gap: .45rem;
-            }
-
-            .dashboard-filter-bar {
-                grid-template-columns: 1fr;
-            }
-
-            .filter-reset {
-                width: 100%;
-                justify-content: center;
             }
 
             .responsive-dashboard-table td {
