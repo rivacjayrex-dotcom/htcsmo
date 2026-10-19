@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>{{ $title }}</title>
+    <title>{{ $documentTitle }}</title>
     <style>
         @page { margin: 25px 28px 42px; }
         * { box-sizing: border-box; }
@@ -49,6 +49,18 @@
         .data-table td { padding: 3.5px 3px; border: 1px solid #d6dfd9; color: #344139; font-size: 5.7px; vertical-align: top; overflow-wrap: anywhere; }
         .data-table tbody tr:nth-child(even) td { background: #f7f9f8; }
         .data-table tfoot td { padding: 4px; border: 1px solid #b9c7be; background: #edf3ef; font-weight: bold; }
+        .data-table .category-row td { padding: 5px 6px; border-color: #9eb4a5; background: #dfeae3; color: #174d32; font-size: 6.2px; font-weight: bold; letter-spacing: .35px; text-transform: uppercase; }
+        .category-meta { float: right; color: #536b5b; font-size: 5.4px; font-weight: normal; letter-spacing: 0; text-transform: none; }
+        .item-name { color: #26372d; font-weight: bold; }
+        .item-spec { margin-top: 1px; color: #718078; font-size: 5.1px; line-height: 1.25; }
+        .register-table th:nth-child(1) { width: 21%; }
+        .register-table th:nth-child(2) { width: 4.5%; }
+        .register-table th:nth-child(3) { width: 5.5%; }
+        .register-table th:nth-child(4), .register-table th:nth-child(5) { width: 8%; }
+        .register-table th:nth-child(6) { width: 7.5%; }
+        .register-table th:nth-child(7) { width: 14%; }
+        .register-table th:nth-child(8) { width: 12%; }
+        .register-table th:nth-child(9) { width: 11%; }
         .text-right { text-align: right !important; }
         .empty { padding: 20px !important; color: #708078 !important; text-align: center; }
         .notes { margin: 0; padding-left: 14px; color: #536159; }
@@ -82,7 +94,7 @@
             <td>
                 <div class="institution">HOLY TRINITY COLLEGE OF GENERAL SANTOS CITY</div>
                 <div class="office">Supply Management Office</div>
-                <div class="report-title">{{ $title }}</div>
+                <div class="report-title">{{ $documentTitle }}</div>
                 <div class="report-period">Reporting period: {{ $periodLabel }}</div>
             </td>
             <td class="control-box">
@@ -148,36 +160,74 @@
         </div>
     @endif
 
-    <div class="detail-title">4. Detailed Records</div>
-    <table class="data-table">
+    <div class="detail-title">4. {{ $detailTitle }}</div>
+    <table class="data-table {{ $usesCategoryRegister ? 'register-table' : '' }}">
         <thead><tr>
-            @foreach($columns as $column)
+            @foreach($detailColumns as $column)
                 <th class="{{ in_array($column['type'], ['money', 'number']) ? 'text-right' : '' }}">{{ $column['label'] }}</th>
             @endforeach
         </tr></thead>
-        <tbody>
-            @forelse($rows as $row)
-                <tr>
-                    @foreach($columns as $column)
-                        @php($value = $row[$column['key']] ?? null)
-                        <td class="{{ in_array($column['type'], ['money', 'number']) ? 'text-right' : '' }}">
-                            @if($column['type'] === 'money')
-                                PHP {{ number_format((float) $value, 2) }}
-                            @elseif($column['type'] === 'number')
-                                {{ number_format((float) $value) }}
-                            @else
-                                {{ filled($value) ? $value : '-' }}
-                            @endif
+        @if($usesCategoryRegister && $detailGroups->isNotEmpty())
+            @foreach($detailGroups as $group)
+                <tbody>
+                    <tr class="category-row">
+                        <td colspan="{{ count($detailColumns) }}">
+                            {{ $group['label'] }}
+                            <span class="category-meta">
+                                {{ number_format($group['requests']) }} request(s) &bull;
+                                {{ number_format($group['quantity']) }} unit(s) &bull;
+                                PHP {{ number_format((float) $group['total'], 2) }}
+                            </span>
                         </td>
+                    </tr>
+                    @foreach($group['rows'] as $row)
+                        <tr>
+                            @foreach($detailColumns as $column)
+                                @php($value = $row[$column['key']] ?? null)
+                                <td class="{{ in_array($column['type'], ['money', 'number']) ? 'text-right' : '' }}">
+                                    @if($column['key'] === 'item')
+                                        <div class="item-name">{{ filled($value) ? $value : '-' }}</div>
+                                        @if(filled($row['specifications'] ?? null) && $row['specifications'] !== 'Not specified')
+                                            <div class="item-spec">{{ $row['specifications'] }}</div>
+                                        @endif
+                                    @elseif($column['type'] === 'money')
+                                        PHP {{ number_format((float) $value, 2) }}
+                                    @elseif($column['type'] === 'number')
+                                        {{ number_format((float) $value) }}
+                                    @else
+                                        {{ filled($value) ? $value : '-' }}
+                                    @endif
+                                </td>
+                            @endforeach
+                        </tr>
                     @endforeach
-                </tr>
-            @empty
-                <tr><td colspan="{{ count($columns) }}" class="empty">No records matched the selected period and filters.</td></tr>
-            @endforelse
-        </tbody>
+                </tbody>
+            @endforeach
+        @else
+            <tbody>
+                @forelse($rows as $row)
+                    <tr>
+                        @foreach($detailColumns as $column)
+                            @php($value = $row[$column['key']] ?? null)
+                            <td class="{{ in_array($column['type'], ['money', 'number']) ? 'text-right' : '' }}">
+                                @if($column['type'] === 'money')
+                                    PHP {{ number_format((float) $value, 2) }}
+                                @elseif($column['type'] === 'number')
+                                    {{ number_format((float) $value) }}
+                                @else
+                                    {{ filled($value) ? $value : '-' }}
+                                @endif
+                            </td>
+                        @endforeach
+                    </tr>
+                @empty
+                    <tr><td colspan="{{ count($detailColumns) }}" class="empty">No records matched the selected period and filters.</td></tr>
+                @endforelse
+            </tbody>
+        @endif
         @if($rows->isNotEmpty())
             <tfoot><tr>
-                <td colspan="{{ count($columns) }}" class="text-right">
+                <td colspan="{{ count($detailColumns) }}" class="text-right">
                     {{ $summaryLabel }}:
                     {{ $summaryType === 'money' ? 'PHP '.number_format((float) $summaryValue, 2) : number_format((float) $summaryValue) }}
                 </td>

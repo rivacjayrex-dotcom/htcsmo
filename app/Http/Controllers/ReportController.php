@@ -168,7 +168,7 @@ class ReportController extends Controller
 
     private function requisitionReport(Request $request, ?Carbon $dateFrom, ?Carbon $dateTo): array
     {
-        $query = Requisition::with(['user', 'items']);
+        $query = Requisition::with(['user', 'items.supply']);
 
         if ($request->filled('dept')) {
             $query->whereHas('user', fn (Builder $userQuery) => $userQuery->where('department', $request->dept));
@@ -191,10 +191,12 @@ class ReportController extends Controller
             return $items->map(fn ($item) => [
                 'tracking' => $requisition->tracking_code,
                 'submitted' => $requisition->created_at->format('Y-m-d H:i'),
+                'request_date' => $requisition->created_at->format('M d, Y'),
                 'requestor' => $requisition->user?->name ?? 'Unknown',
                 'department' => $requisition->user?->department ?? 'Unassigned',
                 'tier' => strtoupper($requisition->request_type),
                 'purpose' => $requisition->purpose ?: 'Not specified',
+                'category' => $item?->supply?->category ?: 'Uncategorized / Manual Entry',
                 'item' => $item?->item_name ?? 'No line item',
                 'specifications' => $item?->specifications ?: 'Not specified',
                 'quantity' => (int) ($item?->quantity ?? 0),
@@ -671,6 +673,38 @@ class ReportController extends Controller
             ->sortByDesc(fn (array $group) => $group['value'] ?? $group['records'])
             ->values();
 
+        // The SMO's established workbook is a category-based request register
+        // with Item, Qty, Unit, Unit Price, Total, Date, and Requested By as its
+        // core columns. Keep the richer system record, but use that familiar
+        // reading order in the PDF so the exported document remains practical.
+        $detailColumns = $type === 'requisitions'
+            ? [
+                $this->column('item', 'Item / Specification'),
+                $this->column('quantity', 'Qty', 'number'),
+                $this->column('unit', 'Unit'),
+                $this->column('unit_price', 'Unit Price', 'money'),
+                $this->column('line_total', 'Total', 'money'),
+                $this->column('request_date', 'Date'),
+                $this->column('requestor', 'Requested By'),
+                $this->column('tracking', 'Tracking No.'),
+                $this->column('status', 'Status'),
+            ]
+            : $report['columns'];
+
+        $detailGroups = $type === 'requisitions'
+            ? $rows
+                ->groupBy(fn (array $row) => $row['category'])
+                ->map(fn (Collection $groupRows, string $label) => [
+                    'label' => $label,
+                    'rows' => $groupRows,
+                    'requests' => $groupRows->pluck('tracking')->unique()->count(),
+                    'quantity' => $groupRows->sum('quantity'),
+                    'total' => $groupRows->sum('line_total'),
+                ])
+                ->sortKeys()
+                ->values()
+            : collect();
+
         return [
             'purpose' => $definition['purpose'],
             'reportBasis' => $definition['basis'],
@@ -682,6 +716,23 @@ class ReportController extends Controller
             'metrics' => $this->reportMetrics($type, $rows, $report),
             'breakdownTitle' => $groupLabel,
             'breakdown' => $breakdown,
+            'detailColumns' => $detailColumns,
+            'detailGroups' => $detailGroups,
+            'usesCategoryRegister' => $type === 'requisitions',
+            'documentTitle' => $type === 'requisitions'
+                ? match ($request->input('tier')) {
+                    'minor' => 'Minor Request Register',
+                    'major' => 'Major Request Register',
+                    default => 'Requisition Request Register',
+                }
+                : $report['title'],
+            'detailTitle' => $type === 'requisitions'
+                ? match ($request->input('tier')) {
+                    'minor' => 'Minor Request Register',
+                    'major' => 'Major Request Register',
+                    default => 'Request Register',
+                }
+                : 'Detailed Records',
             'notes' => $this->reportNotes($type, $rows, $report),
         ];
     }
@@ -752,7 +803,7 @@ class ReportController extends Controller
         ];
 
         $notes[] = match ($type) {
-            'requisitions' => 'Each item is printed on its own row; the same tracking number may therefore appear more than once.',
+            'requisitions' => 'Items are grouped by catalog category and printed one per row; the same tracking number may therefore appear more than once.',
             'inventory' => 'Stock health is based on the current quantity compared with the configured minimum stock level.',
             'dept_spending', 'item_consumption' => 'Only released requisitions contribute to expenditure and distribution figures.',
             'approval_audit' => 'Actions without a digital signature remain visible and are explicitly identified as unsigned.',

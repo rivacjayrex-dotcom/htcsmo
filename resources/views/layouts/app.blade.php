@@ -730,6 +730,54 @@
             overflow: hidden;
         }
 
+        .requisition-confirmation {
+            position: absolute;
+            inset: 0;
+            z-index: 20;
+            display: grid;
+            place-items: center;
+            padding: 1.25rem;
+            overflow-y: auto;
+            background: rgba(8, 34, 19, .58);
+            backdrop-filter: blur(4px);
+        }
+
+        .requisition-confirmation__dialog {
+            width: min(100%, 470px);
+            padding: 2rem;
+            border: 1px solid rgba(255, 255, 255, .72);
+            border-radius: 22px;
+            background: #fff;
+            text-align: center;
+            box-shadow: 0 28px 70px rgba(8, 34, 19, .28);
+        }
+
+        .requisition-confirmation__icon {
+            width: 58px;
+            height: 58px;
+            display: grid;
+            place-items: center;
+            margin: 0 auto .9rem;
+            border-radius: 18px;
+            background: #e3f4e9;
+            color: #187044;
+        }
+
+        .requisition-confirmation__icon svg { width: 28px; height: 28px; }
+        .requisition-confirmation__eyebrow { color: #187044; font-size: .68rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+        .requisition-confirmation h5 { margin: .3rem 0 .4rem; color: #17291f; font-weight: 800; }
+        .requisition-confirmation p { margin-bottom: 1.25rem; color: #6c7c73; font-size: .82rem; }
+        .requisition-confirmation__summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; padding: 1rem; border: 1px solid #dce9e1; border-radius: 14px; background: #f5faf7; text-align: left; }
+        .requisition-confirmation__summary .wide { grid-column: 1 / -1; }
+        .requisition-confirmation__summary span { display: block; margin-bottom: .18rem; color: #718078; font-size: .64rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+        .requisition-confirmation__summary strong { display: block; color: #26382e; font-size: .88rem; overflow-wrap: anywhere; }
+        .requisition-confirmation__actions { display: flex; justify-content: center; gap: .65rem; margin-top: 1.25rem; }
+        .requisition-confirmation__actions .btn { min-height: 44px; padding-inline: 1.15rem; }
+        .requisition-confirmation__actions svg { width: 16px; margin-right: .35rem; }
+        .requisition-confirmation__loading { padding-block: 2.5rem; }
+        .requisition-loading-circle { width: 52px; height: 52px; display: block; margin: 0 auto 1.15rem; border: 5px solid #dcebe2; border-top-color: #187044; border-radius: 50%; animation: requisition-loading-spin .72s linear infinite; }
+        @keyframes requisition-loading-spin { to { transform: rotate(360deg); } }
+
         .requisition-workspace {
             flex: 1;
             min-height: 0;
@@ -2461,6 +2509,10 @@
                 purpose: previousRequest.purpose || '',
                 notice: '',
                 noticeTimer: null,
+                confirmationOpen: false,
+                submissionConfirmed: false,
+                submitting: false,
+                pendingForm: null,
 
                 init() {
                     if (!['minor', 'major'].includes(previousRequest.tier)) return;
@@ -2558,6 +2610,33 @@
                 },
                 formatMoney(value) { return Number(value || 0).toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2}); },
                 refreshIcons() { setTimeout(() => lucide.createIcons(), 30); },
+                handleRequisitionSubmit(event) {
+                    if (this.submissionConfirmed) return;
+
+                    event.preventDefault();
+                    if (!this.canSubmit || !event.currentTarget.reportValidity()) return;
+
+                    this.pendingForm = event.currentTarget;
+                    this.confirmationOpen = true;
+                    this.$nextTick(() => {
+                        this.refreshIcons();
+                        this.$refs.confirmRequisitionButton?.focus();
+                    });
+                },
+                cancelRequisitionConfirmation() {
+                    this.confirmationOpen = false;
+                    this.pendingForm = null;
+                    this.$nextTick(() => this.$refs.requisitionForm?.querySelector('button[type="submit"]')?.focus());
+                },
+                confirmRequisitionSubmit() {
+                    if (!this.pendingForm || this.submissionConfirmed) return;
+
+                    this.submissionConfirmed = true;
+                    this.confirmationOpen = false;
+                    this.submitting = true;
+                    this.pendingForm.dataset.noUnloadLoader = '';
+                    this.$nextTick(() => window.requestAnimationFrame(() => this.pendingForm?.requestSubmit()));
+                },
                 resetModal() {
                     this.tier = null;
                     this.view = 'selection';
@@ -2565,6 +2644,12 @@
                     this.selectedItem = null;
                     this.purpose = '';
                     this.notice = '';
+                    this.confirmationOpen = false;
+                    this.submissionConfirmed = false;
+                    this.submitting = false;
+                    this.pendingForm = null;
+                    this.$refs.requisitionForm?.setAttribute('data-no-loader', '');
+                    this.$refs.requisitionForm?.removeAttribute('data-no-unload-loader');
                 },
                 get tierLabel() { return this.tier === 'major' ? 'Major requisition' : 'Minor requisition'; },
                 get tierItems() { return this.catalog.filter(item => item.tier === this.tier); },

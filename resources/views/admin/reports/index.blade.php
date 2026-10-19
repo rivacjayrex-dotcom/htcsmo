@@ -23,49 +23,58 @@
 @endphp
 
 <section class="report-builder" id="report-builder">
-    <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
-        <div>
-            <h4 class="fw-black text-dark mb-1">Comprehensive Report Center</h4>
-            <p class="text-muted small mb-0">Filter institutional records, preview the results, and export them for Excel or printing.</p>
+    <div class="report-center-hero mb-4">
+        <div class="report-center-hero__content">
+            <span class="report-center-hero__icon"><i data-lucide="file-chart-column-increasing"></i></span>
+            <div>
+                <span class="report-center-eyebrow">Institutional reporting workspace</span>
+                <h3 class="mb-1">Comprehensive Report Center</h3>
+                <p class="mb-0">Choose a dataset, refine its scope, then preview or export a controlled report.</p>
+            </div>
         </div>
-        <div class="d-flex flex-wrap gap-2 no-print">
-            <a href="{{ route('admin.reports.index') }}" class="btn btn-sm btn-outline-success rounded-pill px-3">
+        <div class="report-center-hero__actions no-print">
+            <a href="{{ route('admin.reports.index') }}" class="btn btn-light rounded-pill px-3">
                 <i data-lucide="chart-no-axes-combined" class="me-1" style="width: 15px;"></i>
                 Operational Analytics
             </a>
-            <a href="{{ route('admin.reports.builder') }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3">
+            <a href="{{ route('admin.reports.builder') }}" class="btn btn-outline-light rounded-pill px-3">
+                <i data-lucide="rotate-ccw" class="me-1" style="width: 14px;"></i>
                 Reset Report
             </a>
         </div>
     </div>
 
-    <form action="{{ route('admin.reports.builder') }}" method="GET" id="reportForm" class="no-print">
+    <form action="{{ route('admin.reports.builder') }}" method="GET" id="reportForm" class="report-control-panel no-print">
+        <div class="report-section-heading">
+            <span>1</span>
+            <div><h5>Select a report</h5><p>Choose the institutional dataset you want to review.</p></div>
+        </div>
         <div class="report-type-grid row g-3 mb-4">
             @foreach($reportOptions as $value => [$label, $description, $icon])
                 <div class="report-type-option col-xl-3 col-md-6">
-                    <label class="card report-type-card shadow-sm rounded-4 p-3 w-100 h-100 cursor-pointer {{ $reportType === $value ? 'border-success border-2 bg-success-subtle' : 'border-0 bg-white' }}">
-                        <div class="d-flex align-items-start gap-3">
-                            <input type="radio" name="report_type" value="{{ $value }}" class="form-check-input mt-1" @checked($reportType === $value) onchange="this.form.submit()">
-                            <i data-lucide="{{ $icon }}" class="text-success flex-shrink-0" style="width: 20px;"></i>
-                            <div>
-                                <div class="fw-bold text-dark small">{{ $label }}</div>
-                                <small class="text-muted d-block mt-1" style="line-height: 1.25;">{{ $description }}</small>
-                            </div>
-                        </div>
+                    <label class="report-type-card {{ $reportType === $value ? 'is-selected' : '' }}">
+                        <input type="radio" name="report_type" value="{{ $value }}" class="visually-hidden" @checked($reportType === $value) onchange="this.form.submit()">
+                        <span class="report-type-card__icon"><i data-lucide="{{ $icon }}"></i></span>
+                        <span class="report-type-card__copy">
+                            <strong>{{ $label }}</strong>
+                            <small>{{ $description }}</small>
+                        </span>
+                        <span class="report-type-card__check" aria-hidden="true"><i data-lucide="check"></i></span>
                     </label>
                 </div>
             @endforeach
         </div>
 
-        <div class="card border-0 shadow-sm rounded-4 mb-4 bg-white">
-            <div class="card-header bg-white border-bottom p-4">
-                <h6 class="fw-bold mb-0 d-flex align-items-center">
-                    <i data-lucide="sliders-horizontal" class="me-2 text-success" style="width: 18px;"></i>
-                    Report Filters
-                </h6>
+        <div class="report-filter-card mb-4">
+            <div class="report-filter-card__header">
+                <div class="report-section-heading mb-0">
+                    <span>2</span>
+                    <div><h5>Refine the report</h5><p>Use only the filters needed for this export.</p></div>
+                </div>
+                <span class="report-current-type"><i data-lucide="database"></i>{{ $reportOptions[$reportType][0] }}</span>
             </div>
 
-            <div class="card-body p-4">
+            <div class="report-filter-card__body">
                 <div class="row g-3 mb-4">
                     <div class="col-lg-4">
                         <label for="period" class="form-label mini-label">Reporting Period</label>
@@ -185,26 +194,30 @@
                 @endif
             </div>
 
-            <div class="report-actions card-footer bg-light border-0 p-4 d-flex flex-wrap justify-content-between gap-3">
-                <button type="submit" class="btn btn-outline-dark px-4 rounded-pill fw-bold">
-                    <i data-lucide="filter" class="me-1" style="width: 14px;"></i> Apply Filters
-                </button>
-
-                <div class="report-export-actions d-flex flex-wrap gap-2">
-                    <button type="submit" name="export" value="csv" class="btn btn-outline-success rounded-pill fw-bold px-4">
-                        <i data-lucide="sheet" class="me-1" style="width: 16px;"></i> Export for Excel
+            <div class="report-actions">
+                <div class="report-section-heading mb-0">
+                    <span>3</span>
+                    <div><h5>Preview or export</h5><p>Apply filters before downloading the final document.</p></div>
+                </div>
+                <div class="report-export-actions">
+                    <button type="submit" class="btn btn-outline-dark rounded-pill fw-bold px-4">
+                        <i data-lucide="scan-search" class="me-1" style="width: 15px;"></i> Refresh Preview
                     </button>
-                    <button type="submit" name="download_pdf" value="1" class="btn btn-htc rounded-pill fw-bold px-4">
-                        <i data-lucide="file-down" class="me-1" style="width: 16px;"></i> Download PDF
+                    <button type="submit" name="export" value="csv" class="btn btn-outline-success rounded-pill fw-bold px-4">
+                        <i data-lucide="sheet" class="me-1" style="width: 16px;"></i> Export Excel CSV
+                    </button>
+                    <button type="button" id="downloadPdfButton" class="btn btn-htc rounded-pill fw-bold px-4">
+                        <i data-lucide="file-down" class="me-1" style="width: 16px;"></i> Generate PDF
                     </button>
                 </div>
             </div>
         </div>
     </form>
 
-    <div id="report-preview" class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
-        <div class="report-preview-header card-header bg-white border-bottom p-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
+    <div id="report-preview" class="report-preview-card">
+        <div class="report-preview-header">
             <div>
+                <span class="report-preview-kicker"><i data-lucide="eye"></i> Live preview</span>
                 <div class="d-flex align-items-center gap-2 mb-1">
                     <h5 class="fw-black mb-0">{{ $title }}</h5>
                     <span class="badge bg-success-subtle text-success rounded-pill">{{ $periodLabel }}</span>
@@ -229,7 +242,7 @@
             </div>
         </div>
 
-        <div class="table-responsive">
+        <div class="table-responsive report-table-wrap">
             <table class="table table-hover align-middle mb-0 report-table report-responsive-table" style="font-size: 0.82rem;">
                 <thead class="bg-light small text-muted text-uppercase">
                     <tr>
@@ -266,10 +279,100 @@
             </table>
         </div>
     </div>
+
+    <div class="modal fade" id="pdfGenerationModal" tabindex="-1" aria-hidden="true" aria-labelledby="pdfGenerationTitle" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content pdf-generation-modal border-0">
+                <div class="modal-body text-center">
+                    <div id="pdfGenerationSpinner" class="pdf-generation-spinner" aria-hidden="true"></div>
+                    <div id="pdfGenerationErrorIcon" class="pdf-generation-error" hidden aria-hidden="true"><i data-lucide="file-warning"></i></div>
+                    <span class="pdf-generation-eyebrow">Report export</span>
+                    <h5 id="pdfGenerationTitle">Generating PDF report…</h5>
+                    <p id="pdfGenerationMessage">Preparing the selected records and formatting your document.</p>
+                    <div class="pdf-generation-progress" id="pdfGenerationProgress"><span></span></div>
+                    <div class="d-flex gap-2 justify-content-center mt-4">
+                        <button type="button" id="cancelPdfGeneration" class="btn btn-light border rounded-pill px-4">Cancel</button>
+                        <button type="button" id="retryPdfGeneration" class="btn btn-htc rounded-pill px-4" hidden>Try again</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </section>
 
 <style>
+    .report-builder { max-width: 1500px; margin: 0 auto; }
+    .report-center-hero { position: relative; isolation: isolate; display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; overflow: hidden; padding: 1.65rem 1.8rem; border-radius: 22px; background: linear-gradient(135deg, #0d4329 0%, #17633e 56%, #238654 100%); color: #fff; box-shadow: 0 18px 45px rgba(13, 67, 41, .2); }
+    .report-center-hero::after { content: ''; position: absolute; z-index: -1; width: 260px; height: 260px; top: -145px; right: 18%; border: 45px solid rgba(255,255,255,.055); border-radius: 50%; }
+    .report-center-hero__content { display: flex; align-items: center; gap: 1rem; min-width: 0; }
+    .report-center-hero__icon { width: 58px; height: 58px; flex: 0 0 58px; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.16); border-radius: 17px; background: rgba(255,255,255,.12); }
+    .report-center-hero__icon svg { width: 28px; height: 28px; }
+    .report-center-eyebrow { display: block; margin-bottom: .25rem; color: #bde7cc; font-size: .67rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+    .report-center-hero h3 { color: #fff; font-size: 1.45rem; font-weight: 800; }
+    .report-center-hero p { color: rgba(255,255,255,.72); font-size: .82rem; }
+    .report-center-hero__actions { display: flex; flex: 0 0 auto; gap: .55rem; }
+    .report-center-hero__actions .btn { display: inline-flex; align-items: center; min-height: 40px; font-size: .76rem; font-weight: 700; }
+
+    .report-control-panel { padding: 1.35rem; border: 1px solid #dfe9e3; border-radius: 22px; background: #f8fbf9; box-shadow: 0 10px 30px rgba(17, 62, 38, .06); }
+    .report-section-heading { display: flex; align-items: center; gap: .75rem; margin-bottom: 1rem; }
+    .report-section-heading > span { width: 30px; height: 30px; flex: 0 0 30px; display: grid; place-items: center; border-radius: 10px; background: #dff2e6; color: #17633e; font-size: .76rem; font-weight: 800; }
+    .report-section-heading h5 { margin: 0; color: #1c3025; font-size: .92rem; font-weight: 800; }
+    .report-section-heading p { margin: .12rem 0 0; color: #76847c; font-size: .72rem; }
+
+    .report-type-card { position: relative; display: flex; align-items: flex-start; gap: .8rem; width: 100%; height: 100%; min-height: 108px; padding: 1rem; overflow: hidden; border: 1px solid #dfe8e3; border-radius: 15px; background: #fff; cursor: pointer; transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease; }
+    .report-type-card:hover { border-color: #7bb795; transform: translateY(-2px); box-shadow: 0 9px 22px rgba(20, 83, 45, .09); }
+    .report-type-card.is-selected { border-color: #218653; background: linear-gradient(145deg, #f4fbf7, #eaf7ef); box-shadow: 0 0 0 2px rgba(33, 134, 83, .1); }
+    .report-type-card__icon { width: 38px; height: 38px; flex: 0 0 38px; display: grid; place-items: center; border-radius: 11px; background: #edf5f0; color: #17633e; }
+    .report-type-card.is-selected .report-type-card__icon { background: #17633e; color: #fff; }
+    .report-type-card__icon svg { width: 18px; height: 18px; }
+    .report-type-card__copy { min-width: 0; padding-right: .6rem; }
+    .report-type-card__copy strong { display: block; margin-bottom: .28rem; color: #22352a; font-size: .78rem; }
+    .report-type-card__copy small { display: block; color: #78867e; font-size: .68rem; line-height: 1.45; }
+    .report-type-card__check { position: absolute; top: .65rem; right: .65rem; width: 19px; height: 19px; display: none; place-items: center; border-radius: 50%; background: #218653; color: #fff; }
+    .report-type-card.is-selected .report-type-card__check { display: grid; }
+    .report-type-card__check svg { width: 11px; height: 11px; stroke-width: 3; }
+
+    .report-filter-card { overflow: hidden; border: 1px solid #dfe8e3; border-radius: 18px; background: #fff; }
+    .report-filter-card__header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.1rem 1.2rem; border-bottom: 1px solid #e7eee9; }
+    .report-filter-card__body { padding: 1.2rem; }
+    .report-current-type { display: inline-flex; align-items: center; gap: .4rem; padding: .4rem .7rem; border-radius: 999px; background: #eef7f1; color: #17633e; font-size: .68rem; font-weight: 800; white-space: nowrap; }
+    .report-current-type svg { width: 13px; height: 13px; }
+    #reportForm .form-select, #reportForm .form-control { min-height: 44px; border: 1px solid #dde7e1 !important; background-color: #f8faf9 !important; }
+    #reportForm .form-select:focus, #reportForm .form-control:focus { border-color: #3a9b66 !important; background-color: #fff !important; box-shadow: 0 0 0 3px rgba(33, 134, 83, .1) !important; }
+    .report-actions { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.1rem 1.2rem; border-top: 1px solid #e3ebe6; background: #f6f9f7; }
+    .report-export-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .55rem; }
+    .report-export-actions .btn { min-height: 42px; display: inline-flex; align-items: center; justify-content: center; }
+
+    .report-preview-card { margin-top: 1.25rem; overflow: hidden; border: 1px solid #dfe8e3; border-radius: 20px; background: #fff; box-shadow: 0 12px 32px rgba(17, 62, 38, .07); }
+    .report-preview-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.25rem 1.35rem; border-bottom: 1px solid #e5ece7; background: linear-gradient(180deg, #fff, #fbfdfc); }
+    .report-preview-kicker { display: inline-flex; align-items: center; gap: .35rem; margin-bottom: .4rem; color: #218653; font-size: .64rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+    .report-preview-kicker svg { width: 13px; height: 13px; }
+    .report-table-wrap { max-height: 620px; }
+    .report-table thead { position: sticky; top: 0; z-index: 2; }
+    .report-table th { border-bottom: 1px solid #dce6e0; background: #f3f7f4; color: #65756c; font-size: .63rem; letter-spacing: .045em; }
+    .report-table td { padding-top: .8rem; padding-bottom: .8rem; border-color: #edf1ef; color: #34473c; }
+
+    .pdf-generation-modal { border-radius: 22px !important; }
+    .pdf-generation-modal .modal-body { padding: 2rem 1.6rem; }
+    .pdf-generation-spinner { width: 56px; height: 56px; margin: 0 auto 1rem; border: 5px solid #dcebe2; border-top-color: #187044; border-radius: 50%; animation: pdf-generation-spin .72s linear infinite; }
+    .pdf-generation-error { width: 56px; height: 56px; display: grid; place-items: center; margin: 0 auto 1rem; border-radius: 17px; background: #feeceb; color: #b42318; }
+    .pdf-generation-error svg { width: 27px; height: 27px; }
+    .pdf-generation-eyebrow { color: #218653; font-size: .65rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+    .pdf-generation-modal h5 { margin: .35rem 0 .45rem; color: #1d3025; font-weight: 800; }
+    .pdf-generation-modal p { margin: 0; color: #6d7d74; font-size: .76rem; line-height: 1.55; }
+    .pdf-generation-progress { height: 4px; margin-top: 1.25rem; overflow: hidden; border-radius: 999px; background: #e4eee8; }
+    .pdf-generation-progress span { display: block; width: 42%; height: 100%; border-radius: inherit; background: #218653; animation: pdf-generation-progress 1.2s ease-in-out infinite; }
+    @keyframes pdf-generation-spin { to { transform: rotate(360deg); } }
+    @keyframes pdf-generation-progress { 0% { transform: translateX(-120%); } 100% { transform: translateX(340%); } }
+
     @media screen and (max-width: 767.98px) {
+        .report-center-hero { align-items: stretch; flex-direction: column; padding: 1.2rem; border-radius: 17px; }
+        .report-center-hero__content { align-items: flex-start; }
+        .report-center-hero__icon { width: 46px; height: 46px; flex-basis: 46px; border-radius: 13px; }
+        .report-center-hero h3 { font-size: 1.12rem; }
+        .report-center-hero__actions { display: grid; grid-template-columns: 1fr 1fr; }
+        .report-center-hero__actions .btn { justify-content: center; padding-inline: .7rem !important; font-size: .68rem; }
+        .report-control-panel { padding: .9rem; border-radius: 17px; }
         .reports-workspace > .row.g-3 { --bs-gutter-x: .65rem; --bs-gutter-y: .65rem; }
         .reports-workspace > .row.g-3 .card { padding: .85rem !important; }
         .reports-workspace > .row.g-3 h4 { font-size: 1.05rem; overflow-wrap: anywhere; }
@@ -291,6 +394,8 @@
         }
         .report-type-option { width: auto; padding-right: 0; padding-left: 0; scroll-snap-align: start; }
         .report-type-card { min-height: 105px; }
+        .report-filter-card__header { align-items: flex-start; flex-direction: column; }
+        .report-current-type { white-space: normal; }
         #reportForm .card-header,
         #reportForm .card-body,
         #reportForm .card-footer { padding: 1rem !important; }
@@ -345,6 +450,17 @@
     (() => {
         const period = document.getElementById('period');
         const customDateFields = document.querySelectorAll('.custom-date-field');
+        const reportForm = document.getElementById('reportForm');
+        const pdfButton = document.getElementById('downloadPdfButton');
+        const pdfModalElement = document.getElementById('pdfGenerationModal');
+        const cancelPdfButton = document.getElementById('cancelPdfGeneration');
+        const retryPdfButton = document.getElementById('retryPdfGeneration');
+        const pdfTitle = document.getElementById('pdfGenerationTitle');
+        const pdfMessage = document.getElementById('pdfGenerationMessage');
+        const pdfSpinner = document.getElementById('pdfGenerationSpinner');
+        const pdfErrorIcon = document.getElementById('pdfGenerationErrorIcon');
+        const pdfProgress = document.getElementById('pdfGenerationProgress');
+        let pdfRequest = null;
 
         const toggleCustomDates = () => {
             const isCustom = period?.value === 'custom';
@@ -356,5 +472,87 @@
 
         period?.addEventListener('change', toggleCustomDates);
         toggleCustomDates();
+
+        if (!reportForm || !pdfButton || !pdfModalElement) return;
+
+        document.body.appendChild(pdfModalElement);
+        const pdfModal = bootstrap.Modal.getOrCreateInstance(pdfModalElement);
+
+        const setPdfState = (state) => {
+            const failed = state === 'error';
+            pdfTitle.textContent = failed ? 'PDF generation failed' : 'Generating PDF report…';
+            pdfMessage.textContent = failed
+                ? 'The report could not be generated. Check your connection and try again.'
+                : 'Preparing the selected records and formatting your document.';
+            pdfSpinner.hidden = failed;
+            pdfErrorIcon.hidden = !failed;
+            pdfProgress.hidden = failed;
+            retryPdfButton.hidden = !failed;
+            cancelPdfButton.textContent = failed ? 'Close' : 'Cancel';
+            window.lucide?.createIcons();
+        };
+
+        const filenameFrom = (response) => {
+            const disposition = response.headers.get('Content-Disposition') || '';
+            const encoded = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+            const plain = disposition.match(/filename="?([^";]+)"?/i)?.[1];
+            return decodeURIComponent(encoded || plain || `HTC_SMO_Report_${Date.now()}.pdf`);
+        };
+
+        const generatePdf = async () => {
+            if (pdfRequest) return;
+
+            setPdfState('loading');
+            pdfButton.disabled = true;
+            pdfRequest = new AbortController();
+            pdfModal.show();
+
+            const query = new URLSearchParams(new FormData(reportForm));
+            query.delete('export');
+            query.set('download_pdf', '1');
+            const url = new URL(reportForm.action, window.location.href);
+            url.search = query.toString();
+
+            try {
+                const response = await fetch(url, {
+                    method: 'GET',
+                    credentials: 'same-origin',
+                    headers: {Accept: 'application/pdf'},
+                    signal: pdfRequest.signal,
+                });
+                if (!response.ok) throw new Error(`PDF request failed with status ${response.status}`);
+
+                const filename = filenameFrom(response);
+                const blob = await response.blob();
+                const objectUrl = URL.createObjectURL(blob);
+                const download = document.createElement('a');
+                download.href = objectUrl;
+                download.download = filename;
+                document.body.appendChild(download);
+
+                pdfRequest = null;
+                pdfModal.hide();
+                download.click();
+                download.remove();
+                window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+            } catch (error) {
+                if (error.name !== 'AbortError') setPdfState('error');
+            } finally {
+                pdfButton.disabled = false;
+                if (pdfRequest?.signal.aborted) pdfRequest = null;
+            }
+        };
+
+        pdfButton.addEventListener('click', generatePdf);
+        retryPdfButton.addEventListener('click', () => {
+            pdfRequest = null;
+            generatePdf();
+        });
+        cancelPdfButton.addEventListener('click', () => {
+            pdfRequest?.abort();
+            pdfRequest = null;
+            pdfButton.disabled = false;
+            pdfModal.hide();
+        });
     })();
 </script>

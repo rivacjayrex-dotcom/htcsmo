@@ -111,6 +111,7 @@
         const nativeSubmit = HTMLFormElement.prototype.submit;
         let runtimeLocked = false;
         let logoutPending = false;
+        let skipNextUnloadLoader = false;
         let previousFocus = null;
 
         // Legacy form.submit() skips submit events. Route it through requestSubmit()
@@ -185,7 +186,11 @@
 
         document.addEventListener('submit', event => {
             const form = event.target;
-            if (!(form instanceof HTMLFormElement) || event.defaultPrevented || form.dataset.noLoader !== undefined) return;
+            if (!(form instanceof HTMLFormElement) || event.defaultPrevented) return;
+            if (form.dataset.noLoader !== undefined) {
+                skipNextUnloadLoader = form.dataset.noUnloadLoader !== undefined;
+                return;
+            }
 
             if (form.dataset.runtimeSubmitting === 'true') {
                 event.preventDefault();
@@ -271,9 +276,10 @@
         });
 
         window.addEventListener('beforeunload', () => {
-            if (!logoutPending) showLoader('Loading page…');
+            if (!logoutPending && !skipNextUnloadLoader) showLoader('Loading page…');
         });
         window.addEventListener('pageshow', () => {
+            skipNextUnloadLoader = false;
             lockedForms.forEach(unlockForm);
             hideLoader();
         });

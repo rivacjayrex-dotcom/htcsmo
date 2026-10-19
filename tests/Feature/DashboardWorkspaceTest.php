@@ -12,6 +12,21 @@ class DashboardWorkspaceTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_requisition_form_uses_a_confirmation_modal_before_submission(): void
+    {
+        $employee = User::factory()->create(['role' => 'employee']);
+
+        $this->actingAs($employee)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('data-no-loader @submit="handleRequisitionSubmit($event)"', false)
+            ->assertSee('id="requisitionConfirmationTitle"', false)
+            ->assertSee('Submit this requisition?')
+            ->assertSee('Submitting requisition…')
+            ->assertSee('requisition-loading-circle', false)
+            ->assertSee('confirmRequisitionSubmit()', false);
+    }
+
     public function test_smo_sees_the_modern_command_center_and_active_pipeline(): void
     {
         $smo = User::factory()->create(['role' => 'smo']);

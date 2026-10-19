@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\Requisition;
+use App\Models\RequisitionItem;
+use App\Models\Supply;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -34,6 +36,10 @@ class ReportWorkspaceTest extends TestCase
             ->assertOk()
             ->assertSee('Comprehensive Report Center')
             ->assertSee('Requisition Transactions')
+            ->assertSee('id="downloadPdfButton"', false)
+            ->assertSee('id="pdfGenerationModal"', false)
+            ->assertSee('Generating PDF report…')
+            ->assertSee('new AbortController()', false)
             ->assertDontSee('Fulfillment Volume');
     }
 
@@ -91,6 +97,50 @@ class ReportWorkspaceTest extends TestCase
                 ->assertOk()
                 ->assertHeader('content-type', 'application/pdf');
         }
+    }
+
+    public function test_minor_request_pdf_supports_catalog_category_registers(): void
+    {
+        $smo = User::factory()->create(['role' => 'smo']);
+        $requestor = User::factory()->create(['department' => 'CETE']);
+        $supply = Supply::create([
+            'item_name' => 'A4 Bond Paper',
+            'category' => 'Bond Paper',
+            'requisition_tier' => 'minor',
+            'quantity' => 25,
+            'unit' => 'Ream',
+            'unit_price' => 245,
+            'min_stock_level' => 5,
+        ]);
+        $requisition = Requisition::create([
+            'user_id' => $requestor->id,
+            'request_type' => 'minor',
+            'status' => 'pending',
+            'purpose' => 'Office printing',
+            'grand_total' => 490,
+        ]);
+        RequisitionItem::create([
+            'requisition_id' => $requisition->id,
+            'supply_id' => $supply->id,
+            'item_name' => $supply->item_name,
+            'specifications' => '80 gsm, white',
+            'quantity' => 2,
+            'unit' => 'Ream',
+            'unit_price' => 245,
+            'subtotal' => 490,
+        ]);
+
+        $this
+            ->actingAs($smo)
+            ->get(route('admin.reports.builder', [
+                'report_type' => 'requisitions',
+                'tier' => 'minor',
+                'period' => 'all',
+                'download_pdf' => 1,
+            ]))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf')
+            ->assertDownload();
     }
 
     public function test_excel_compatible_csv_export_works(): void
