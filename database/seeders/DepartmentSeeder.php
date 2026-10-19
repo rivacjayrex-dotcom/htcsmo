@@ -2,9 +2,8 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\Department;
-use App\Models\User;
+use Illuminate\Database\Seeder;
 
 class DepartmentSeeder extends Seeder
 {
@@ -19,10 +18,7 @@ class DepartmentSeeder extends Seeder
         ];
 
         foreach ($depts as $d) {
-            $dept = Department::firstOrCreate(['dept_code' => $d['dept_code']], $d);
-
-            // Automatically link existing users whose 'department' string matches this code
-            User::where('department', $d['dept_code'])->update(['department_id' => $dept->id]);
+            Department::firstOrCreate(['dept_code' => $d['dept_code']], $d);
         }
     }
 }

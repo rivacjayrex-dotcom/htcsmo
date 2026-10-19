@@ -19,7 +19,7 @@ class SupplyInventoryLog extends Model
 
     public function supply(): BelongsTo
     {
-        return $this->belongsTo(Supply::class);
+        return $this->belongsTo(Supply::class)->withTrashed();
     }
 
     public function user(): BelongsTo

@@ -79,7 +79,7 @@ class DeadlineNotificationService
                 ->where('account_status', User::ACCOUNT_ACTIVE)
                 ->when(
                     $reviewerRole === 'dept_head',
-                    fn ($users) => $users->where('department', $requisition->user?->department)
+                    fn ($users) => $users->where('department_id', $requisition->user?->department_id)
                 )
                 ->get();
             $recipients = $recipients->merge($reviewers);

@@ -279,7 +279,7 @@ SELECT
     r.request_type,
     r.status,
     u.name AS requestor,
-    u.department,
+    d.dept_code AS department,
     r.grand_total,
     r.created_at,
     r.updated_at,
@@ -288,10 +288,11 @@ SELECT
     COUNT(DISTINCT al.id) AS audit_log_count
 FROM requisitions r
 INNER JOIN users u ON u.id = r.user_id
+LEFT JOIN departments d ON d.id = u.department_id
 LEFT JOIN requisition_items ri ON ri.requisition_id = r.id
 LEFT JOIN approval_logs al ON al.requisition_id = r.id
 WHERE r.tracking_number LIKE 'DEMO-%'
-GROUP BY r.id, r.tracking_number, r.request_type, r.status, u.name, u.department,
+GROUP BY r.id, r.tracking_number, r.request_type, r.status, u.name, d.dept_code,
          r.grand_total, r.created_at, r.updated_at
 ORDER BY r.created_at DESC;
 

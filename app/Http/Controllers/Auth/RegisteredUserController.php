@@ -110,12 +110,10 @@ class RegisteredUserController extends Controller
             'name' => $validated['name'],
             'username' => $validated['username'],
             'school_id' => $validated['school_id'],
-            'department' => $validated['department'],
             'department_id' => $department->id,
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'role' => 'employee',
-            'is_approved' => false,
             'account_status' => User::ACCOUNT_PENDING,
         ]);
 

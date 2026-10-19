@@ -3,19 +3,22 @@
 namespace App\Http\Controllers;
 
 use App\Models\Supply;
-use App\Services\InventoryForecastService;
+use App\Models\SupplyCategory;
 use App\Services\InventoryAlertService;
+use App\Services\InventoryForecastService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class SupplyController extends Controller
 {
     public function requisitionCatalog()
     {
         $supplies = Supply::query()
+            ->with(['supplyCategory', 'supplyUnit', 'options.values'])
             ->select([
-                'id', 'item_name', 'brand', 'category', 'requisition_tier',
-                'model_number', 'specifications', 'unit', 'unit_price', 'quantity', 'configurable_options',
+                'id', 'supply_category_id', 'supply_unit_id', 'item_name', 'requisition_tier',
+                'model_number', 'specifications', 'unit_price', 'quantity',
             ])
             ->where('quantity', '>', 0)
             ->orderBy('requisition_tier')
@@ -83,18 +86,18 @@ class SupplyController extends Controller
     public function store(Request $request, InventoryAlertService $alertService)
     {
         $validated = $request->validate([
-            'item_name'       => 'required|string|max:255|unique:supplies,item_name',
-            'category'        => 'required|in:Cleaning Supplies,Construction Supplies,Drugs and Medicines,Maintenance Supplies,Medical Supplies,Non-Medical Supplies,Office Supplies',
-            'requisition_tier'=> 'required|in:minor,major',
-            'specifications'  => 'required|string|min:3',
-            'quantity'        => 'required|integer|min:0',
-            'unit'            => 'required|string|max:50',
-            'unit_price'      => 'required|numeric|min:0.01',
+            'item_name' => 'required|string|max:255|unique:supplies,item_name',
+            'category' => 'required|in:Cleaning Supplies,Construction Supplies,Drugs and Medicines,Maintenance Supplies,Medical Supplies,Non-Medical Supplies,Office Supplies',
+            'requisition_tier' => 'required|in:minor,major',
+            'specifications' => 'required|string|min:3',
+            'quantity' => 'required|integer|min:0',
+            'unit' => 'required|string|max:50',
+            'unit_price' => 'required|numeric|min:0.01',
             'min_stock_level' => 'required|integer|min:0',
-            'model_number'    => 'nullable|string|max:100',
-            'option_names'    => 'nullable|array|max:5',
-            'option_names.*'  => ['nullable', 'string', 'max:50', 'regex:/^[A-Za-z0-9 _-]+$/'],
-            'option_values'   => 'nullable|array|max:5',
+            'model_number' => 'nullable|string|max:100',
+            'option_names' => 'nullable|array|max:5',
+            'option_names.*' => ['nullable', 'string', 'max:50', 'regex:/^[A-Za-z0-9 _-]+$/'],
+            'option_values' => 'nullable|array|max:5',
             'option_values.*' => 'nullable|string|max:500',
         ]);
 
@@ -102,11 +105,8 @@ class SupplyController extends Controller
         $validated['brand'] = $this->brandSummary($validated['configurable_options']);
         unset($validated['option_names'], $validated['option_values']);
 
-        // Link the foreign key supply_category_id automatically
-        $categoryRecord = \App\Models\SupplyCategory::where('category_name', $validated['category'])->first();
-        if ($categoryRecord) {
-            $validated['supply_category_id'] = $categoryRecord->id;
-        }
+        $validated['supply_category_id'] = SupplyCategory::where('category_name', $validated['category'])->value('id');
+        unset($validated['category']);
 
         $supply = Supply::create($validated);
         $alertService->notifyIfThresholdCrossed($supply, false, false);
@@ -120,6 +120,7 @@ class SupplyController extends Controller
     public function edit($id)
     {
         $item = Supply::findOrFail($id);
+
         return view('inventory.edit', compact('item'));
     }
 
@@ -133,18 +134,18 @@ class SupplyController extends Controller
         $wasLow = $item->quantity <= $item->min_stock_level;
 
         $validated = $request->validate([
-            'item_name'       => 'required|string|max:255|unique:supplies,item_name,' . $id,
-            'category'        => 'required|in:Cleaning Supplies,Construction Supplies,Drugs and Medicines,Maintenance Supplies,Medical Supplies,Non-Medical Supplies,Office Supplies',
-            'requisition_tier'=> 'required|in:minor,major',
-            'specifications'  => 'required|string|min:3',
-            'quantity'        => 'required|integer|min:0',
-            'unit'            => 'required|string|max:50',
-            'unit_price'      => 'required|numeric|min:0.01',
+            'item_name' => 'required|string|max:255|unique:supplies,item_name,'.$id,
+            'category' => 'required|in:Cleaning Supplies,Construction Supplies,Drugs and Medicines,Maintenance Supplies,Medical Supplies,Non-Medical Supplies,Office Supplies',
+            'requisition_tier' => 'required|in:minor,major',
+            'specifications' => 'required|string|min:3',
+            'quantity' => 'required|integer|min:0',
+            'unit' => 'required|string|max:50',
+            'unit_price' => 'required|numeric|min:0.01',
             'min_stock_level' => 'required|integer|min:0',
-            'model_number'    => 'nullable|string|max:100',
-            'option_names'    => 'nullable|array|max:5',
-            'option_names.*'  => ['nullable', 'string', 'max:50', 'regex:/^[A-Za-z0-9 _-]+$/'],
-            'option_values'   => 'nullable|array|max:5',
+            'model_number' => 'nullable|string|max:100',
+            'option_names' => 'nullable|array|max:5',
+            'option_names.*' => ['nullable', 'string', 'max:50', 'regex:/^[A-Za-z0-9 _-]+$/'],
+            'option_values' => 'nullable|array|max:5',
             'option_values.*' => 'nullable|string|max:500',
         ]);
 
@@ -152,11 +153,8 @@ class SupplyController extends Controller
         $validated['brand'] = $this->brandSummary($validated['configurable_options']);
         unset($validated['option_names'], $validated['option_values']);
 
-        // Keep category foreign key synced
-        $categoryRecord = \App\Models\SupplyCategory::where('category_name', $validated['category'])->first();
-        if ($categoryRecord) {
-            $validated['supply_category_id'] = $categoryRecord->id;
-        }
+        $validated['supply_category_id'] = SupplyCategory::where('category_name', $validated['category'])->value('id');
+        unset($validated['category']);
 
         $item->update($validated);
         $alertService->notifyIfThresholdCrossed($item->fresh(), $wasLow, $wasOut);
@@ -216,7 +214,7 @@ class SupplyController extends Controller
         }
 
         if (empty($groups['Brand'])) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
+            throw ValidationException::withMessages([
                 'option_values' => 'Add at least one Brand under Requestor Choices.',
             ]);
         }
@@ -232,7 +230,7 @@ class SupplyController extends Controller
         $summary = collect($options['Brand'] ?? [])->implode(', ');
 
         if (mb_strlen($summary) > 255) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
+            throw ValidationException::withMessages([
                 'option_values' => 'The combined Brand choices must not exceed 255 characters.',
             ]);
         }
@@ -242,7 +240,8 @@ class SupplyController extends Controller
 
     private function orderedSupplies()
     {
-        return Supply::orderByRaw('CASE WHEN quantity <= 0 THEN 0 WHEN quantity <= min_stock_level THEN 1 ELSE 2 END')
+        return Supply::with(['supplyCategory', 'supplyUnit', 'options.values'])
+            ->orderByRaw('CASE WHEN quantity <= 0 THEN 0 WHEN quantity <= min_stock_level THEN 1 ELSE 2 END')
             ->orderBy('item_name')
             ->get();
     }

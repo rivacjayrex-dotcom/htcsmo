@@ -41,6 +41,33 @@
         @endif
 
         @if($isSmo)
+            <section class="dashboard-metric-grid four">
+                <article class="modern-metric neutral">
+                    <div class="metric-top"><span class="metric-icon"><i data-lucide="files"></i></span><span class="metric-trend">All time</span></div>
+                    <strong x-data="countUp({{ $stats['total'] }})" x-text="current">0</strong>
+                    <h3>Total requisitions</h3>
+                    <p>Every recorded institutional request.</p>
+                </article>
+                <article class="modern-metric amber">
+                    <div class="metric-top"><span class="metric-icon"><i data-lucide="workflow"></i></span><span class="metric-trend">In progress</span></div>
+                    <strong x-data="countUp({{ $stats['pending'] }})" x-text="current">0</strong>
+                    <h3>Active pipeline</h3>
+                    <p>Awaiting approval or fulfillment.</p>
+                </article>
+                <article class="modern-metric {{ $stats['urgent'] > 0 ? 'red urgent' : 'green' }}">
+                    <div class="metric-top"><span class="metric-icon"><i data-lucide="{{ $stats['urgent'] > 0 ? 'siren' : 'shield-check' }}"></i></span><span class="metric-trend">3-day SLA</span></div>
+                    <strong x-data="countUp({{ $stats['urgent'] }})" x-text="current">0</strong>
+                    <h3>{{ $stats['urgent'] > 0 ? 'Deadline risks' : 'SLA healthy' }}</h3>
+                    <p>{{ $stats['urgent'] > 0 ? 'Near-deadline or overdue releases.' : 'No requests require deadline action.' }}</p>
+                </article>
+                <article class="modern-metric green">
+                    <div class="metric-top"><span class="metric-icon"><i data-lucide="circle-dollar-sign"></i></span><span class="metric-trend">This month</span></div>
+                    <strong class="money">₱<span x-data="countUp({{ (float) $stats['monthly_value'] }})" x-text="Math.round(current).toLocaleString()">0</span></strong>
+                    <h3>Released value</h3>
+                    <p>Value of fulfilled institutional supplies.</p>
+                </article>
+            </section>
+
             <section class="priority-watch" aria-label="Urgent operational warnings">
                 <article class="priority-panel deadline {{ $stats['urgent'] > 0 ? 'has-alerts' : 'is-clear' }}">
                     <div class="priority-heading">
@@ -88,33 +115,6 @@
                             <div class="priority-clear"><i data-lucide="circle-check-big"></i><span><b>No low-stock items</b><small>Every inventory item is currently above its minimum level.</small></span></div>
                         @endforelse
                     </div>
-                </article>
-            </section>
-
-            <section class="dashboard-metric-grid four">
-                <article class="modern-metric neutral">
-                    <div class="metric-top"><span class="metric-icon"><i data-lucide="files"></i></span><span class="metric-trend">All time</span></div>
-                    <strong x-data="countUp({{ $stats['total'] }})" x-text="current">0</strong>
-                    <h3>Total requisitions</h3>
-                    <p>Every recorded institutional request.</p>
-                </article>
-                <article class="modern-metric amber">
-                    <div class="metric-top"><span class="metric-icon"><i data-lucide="workflow"></i></span><span class="metric-trend">In progress</span></div>
-                    <strong x-data="countUp({{ $stats['pending'] }})" x-text="current">0</strong>
-                    <h3>Active pipeline</h3>
-                    <p>Awaiting approval or fulfillment.</p>
-                </article>
-                <article class="modern-metric {{ $stats['urgent'] > 0 ? 'red urgent' : 'green' }}">
-                    <div class="metric-top"><span class="metric-icon"><i data-lucide="{{ $stats['urgent'] > 0 ? 'siren' : 'shield-check' }}"></i></span><span class="metric-trend">3-day SLA</span></div>
-                    <strong x-data="countUp({{ $stats['urgent'] }})" x-text="current">0</strong>
-                    <h3>{{ $stats['urgent'] > 0 ? 'Deadline risks' : 'SLA healthy' }}</h3>
-                    <p>{{ $stats['urgent'] > 0 ? 'Near-deadline or overdue releases.' : 'No requests require deadline action.' }}</p>
-                </article>
-                <article class="modern-metric green">
-                    <div class="metric-top"><span class="metric-icon"><i data-lucide="circle-dollar-sign"></i></span><span class="metric-trend">This month</span></div>
-                    <strong class="money">₱<span x-data="countUp({{ (float) $stats['monthly_value'] }})" x-text="Math.round(current).toLocaleString()">0</span></strong>
-                    <h3>Released value</h3>
-                    <p>Value of fulfilled institutional supplies.</p>
                 </article>
             </section>
 

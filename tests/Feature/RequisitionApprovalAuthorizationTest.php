@@ -205,6 +205,11 @@ class RequisitionApprovalAuthorizationTest extends TestCase
             'event_type' => 'requisition.ready_for_pickup',
             'action_id' => $requisition->id,
         ]);
+        $this->assertDatabaseHas('approval_logs', [
+            'requisition_id' => $requisition->id,
+            'acted_by_user_id' => $smo->id,
+            'action' => 'Marked Ready for Pickup by SMO In-Charge',
+        ]);
 
         $this->actingAs($smo)
             ->post(route('admin.requests.complete', $requisition))

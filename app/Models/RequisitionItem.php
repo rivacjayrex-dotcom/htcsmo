@@ -15,7 +15,7 @@ class RequisitionItem extends Model
         'quantity',
         'unit',
         'unit_price',
-        'subtotal'
+        'subtotal',
     ];
 
     public function requisition(): BelongsTo
@@ -25,6 +25,6 @@ class RequisitionItem extends Model
 
     public function supply(): BelongsTo
     {
-        return $this->belongsTo(Supply::class);
+        return $this->belongsTo(Supply::class)->withTrashed();
     }
 }

@@ -10,6 +10,7 @@ class ApprovalLog extends Model
 {
     protected $fillable = [
         'requisition_id',
+        'acted_by_user_id',
         'action',
         'role',
         'remarks',
@@ -18,6 +19,11 @@ class ApprovalLog extends Model
     public function requisition(): BelongsTo
     {
         return $this->belongsTo(Requisition::class);
+    }
+
+    public function actor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'acted_by_user_id');
     }
 
     /**

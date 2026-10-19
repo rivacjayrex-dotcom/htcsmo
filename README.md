@@ -80,27 +80,29 @@ At each applicable approval stage, a signatory can:
 
 ## User roles
 
-| Role | Primary responsibility |
-| --- | --- |
-| `employee` | Creates and tracks supply requisitions |
-| `dept_head` | Performs the first departmental review |
-| `vp_finance` | Reviews minor requisitions |
-| `vp_admin` | Reviews major requisitions |
-| `provost` | Reviews endorsed major requisitions |
-| `president` | Gives final approval to major requisitions |
-| `smo` | Manages users, inventory, releases, reports, and archives |
+| Role         | Primary responsibility                                    |
+| ------------ | --------------------------------------------------------- |
+| `employee`   | Creates and tracks supply requisitions                    |
+| `dept_head`  | Performs the first departmental review                    |
+| `vp_finance` | Reviews minor requisitions                                |
+| `vp_admin`   | Reviews major requisitions                                |
+| `provost`    | Reviews endorsed major requisitions                       |
+| `president`  | Gives final approval to major requisitions                |
+| `smo`        | Manages users, inventory, releases, reports, and archives |
 
 ## Technology stack
 
-| Layer | Technology |
-| --- | --- |
-| Backend | PHP 8.2+, Laravel 12, Eloquent ORM |
-| Database | MySQL or MariaDB |
-| Frontend | Blade, Bootstrap 5.3, Alpine.js, Vite |
-| PDF generation | Barryvdh Laravel DomPDF |
-| Email | Laravel Mail (SMTP or log driver) |
-| Testing | PHPUnit 11 |
+| Layer             | Technology                                   |
+| ----------------- | -------------------------------------------- |
+| Backend           | PHP 8.2+, Laravel 12, Eloquent ORM           |
+| Database          | MySQL or MariaDB                             |
+| Frontend          | Blade, Bootstrap 5.3, Alpine.js, Vite        |
+| PDF generation    | Barryvdh Laravel DomPDF                      |
+| Email             | Laravel Mail (SMTP or log driver)            |
+| Testing           | PHPUnit 11                                   |
 | Local environment | XAMPP or an equivalent PHP/MySQL environment |
+
+See the [entity-relationship diagram](database/ERD.md) for the current application data model.
 
 ## Requirements
 
@@ -167,6 +169,7 @@ DB_PASSWORD=
 ```
 
 ### Broadcast server to all connected wifi
+
 php artisan serve --host=0.0.0.0 --port=8000
 
 Adjust the database username and password for your local environment.
@@ -290,11 +293,11 @@ Requisition items store a price snapshot so historical totals do not change when
 
 ## Project team
 
-| Name | Role / focus | Program / institution |
-| --- | --- | --- |
-| Margart Augwie Ampan | Assistant Documenter and System Tester | BS Information Technology, Holy Trinity College |
-| Segundino Jr. C. Baja | Head Documenter and System Tester | BS Information Technology, Holy Trinity College |
-| Jayrex E. Rivac | Full-Stack Developer and Quality Assurance | BS Information Technology, Holy Trinity College |
+| Name                  | Role / focus                               | Program / institution                           |
+| --------------------- | ------------------------------------------ | ----------------------------------------------- |
+| Margart Augwie Ampan  | Assistant Documenter and System Tester     | BS Information Technology, Holy Trinity College |
+| Segundino Jr. C. Baja | Head Documenter and System Tester          | BS Information Technology, Holy Trinity College |
+| Jayrex E. Rivac       | Full-Stack Developer and Quality Assurance | BS Information Technology, Holy Trinity College |
 
 ---
 

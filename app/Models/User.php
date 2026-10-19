@@ -34,8 +34,8 @@ class User extends Authenticatable
         'name',
         'username',
         'school_id',
-        'department',    // Keep temporarily so old views don't crash
-        'department_id', // <--- ADD THIS
+        'department', // Virtual compatibility input; persisted as department_id.
+        'department_id',
         'email',
         'password',
         'role',
@@ -50,6 +50,24 @@ class User extends Authenticatable
     public function academicDepartment(): BelongsTo
     {
         return $this->belongsTo(Department::class, 'department_id');
+    }
+
+    /**
+     * Keep the existing presentation API while department_id remains the only
+     * persisted department value.
+     */
+    public function getDepartmentAttribute(): ?string
+    {
+        return $this->academicDepartment?->dept_code;
+    }
+
+    public function setDepartmentAttribute(?string $code): void
+    {
+        $code = filled($code) ? trim($code) : null;
+        $this->attributes['department_id'] = $code === null
+            ? null
+            : Department::query()->where('dept_code', $code)->value('id');
+        $this->unsetRelation('academicDepartment');
     }
 
     /**
@@ -72,7 +90,6 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
-            'is_approved' => 'boolean',
             'account_version' => 'integer',
         ];
     }
@@ -82,19 +99,34 @@ class User extends Authenticatable
         static::saving(function (User $user) {
             $user->account_version ??= 0;
 
-            if ($user->isDirty('account_status')) {
-                $user->is_approved = $user->account_status === self::ACCOUNT_ACTIVE;
-            } elseif ($user->isDirty('is_approved')) {
-                $user->account_status = $user->is_approved
-                    ? self::ACCOUNT_ACTIVE
-                    : ($user->getOriginal('account_status') === self::ACCOUNT_ACTIVE ? self::ACCOUNT_SUSPENDED : self::ACCOUNT_PENDING);
-            }
         });
+    }
+
+    public function getIsApprovedAttribute(): bool
+    {
+        return $this->account_status === self::ACCOUNT_ACTIVE;
+    }
+
+    public function setIsApprovedAttribute(bool $approved): void
+    {
+        $this->attributes['account_status'] = $approved
+            ? self::ACCOUNT_ACTIVE
+            : (($this->attributes['account_status'] ?? null) === self::ACCOUNT_ACTIVE
+                ? self::ACCOUNT_SUSPENDED
+                : self::ACCOUNT_PENDING);
     }
 
     public function scopeWithAccountStatus(Builder $query, string $status): Builder
     {
         return $query->where('account_status', $status);
+    }
+
+    public function scopeInDepartment(Builder $query, string $code): Builder
+    {
+        return $query->whereHas(
+            'academicDepartment',
+            fn (Builder $departments) => $departments->where('dept_code', $code),
+        );
     }
 
     public function hasActiveAccess(): bool

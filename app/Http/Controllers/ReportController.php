@@ -6,6 +6,7 @@ use App\Models\ApprovalLog;
 use App\Models\Requisition;
 use App\Models\RequisitionItem;
 use App\Models\Supply;
+use App\Models\SupplyCategory;
 use App\Models\SupplyInventoryLog;
 use App\Models\User;
 use App\Models\UserActivityLog;
@@ -70,9 +71,10 @@ class ReportController extends Controller
             ->values();
 
         $deptSpending = User::join('requisitions', 'users.id', '=', 'requisitions.user_id')
-            ->select('users.department', DB::raw('SUM(requisitions.grand_total) as total'))
+            ->leftJoin('departments', 'users.department_id', '=', 'departments.id')
+            ->selectRaw('departments.dept_code as department, SUM(requisitions.grand_total) as total')
             ->whereIn('requisitions.status', Requisition::FULFILLED_STATUSES)
-            ->groupBy('users.department')
+            ->groupBy('departments.dept_code')
             ->get();
 
         $topItems = RequisitionItem::select('item_name', DB::raw('SUM(quantity) as total_qty'))
@@ -168,10 +170,10 @@ class ReportController extends Controller
 
     private function requisitionReport(Request $request, ?Carbon $dateFrom, ?Carbon $dateTo): array
     {
-        $query = Requisition::with(['user', 'items.supply', 'logs']);
+        $query = Requisition::with(['user.academicDepartment', 'items.supply.supplyCategory', 'items.supply.supplyUnit', 'items.supply.options.values', 'logs']);
 
         if ($request->filled('dept')) {
-            $query->whereHas('user', fn (Builder $userQuery) => $userQuery->where('department', $request->dept));
+            $query->whereHas('user', fn (Builder $userQuery) => $userQuery->inDepartment($request->dept));
         }
         if ($request->filled('tier')) {
             $query->where('request_type', $request->tier);
@@ -248,10 +250,10 @@ class ReportController extends Controller
 
     private function inventoryReport(Request $request, ?Carbon $dateFrom, ?Carbon $dateTo): array
     {
-        $query = Supply::query();
+        $query = Supply::query()->with(['supplyCategory', 'supplyUnit', 'options.values']);
 
         if ($request->filled('category')) {
-            $query->where('category', $request->category);
+            $query->inCategory($request->category);
         }
         if ($request->get('stock_filter') === 'low') {
             $query->whereRaw('quantity <= min_stock_level AND quantity > 0');
@@ -259,7 +261,9 @@ class ReportController extends Controller
             $query->where('quantity', '<=', 0);
         }
 
-        $records = $query->orderBy('category')->orderBy('item_name')->get();
+        $records = $query->orderBy(SupplyCategory::select('category_name')
+            ->whereColumn('supply_categories.id', 'supplies.supply_category_id'))
+            ->orderBy('item_name')->get();
         $rows = $records->map(fn (Supply $supply) => [
             'item' => $supply->item_name,
             'brand' => $supply->brand ?: '-',
@@ -301,8 +305,9 @@ class ReportController extends Controller
     private function departmentSpendingReport(Request $request, ?Carbon $dateFrom, ?Carbon $dateTo): array
     {
         $query = Requisition::join('users', 'requisitions.user_id', '=', 'users.id')
+            ->leftJoin('departments', 'users.department_id', '=', 'departments.id')
             ->select(
-                'users.department',
+                DB::raw('departments.dept_code as department'),
                 DB::raw('COUNT(requisitions.id) as total_requests'),
                 DB::raw('COUNT(DISTINCT requisitions.user_id) as active_requestors'),
                 DB::raw('SUM(requisitions.grand_total) as total_spent'),
@@ -311,12 +316,12 @@ class ReportController extends Controller
             ->whereIn('requisitions.status', Requisition::FULFILLED_STATUSES);
 
         if ($request->filled('dept')) {
-            $query->where('users.department', $request->dept);
+            $query->where('departments.dept_code', $request->dept);
         }
 
         $this->applyDateRange($query, 'requisitions.updated_at', $dateFrom, $dateTo);
 
-        $records = $query->groupBy('users.department')->orderByDesc('total_spent')->get();
+        $records = $query->groupBy('departments.dept_code')->orderByDesc('total_spent')->get();
         $rows = $records->map(fn ($department) => [
             'department' => $department->department ?: 'Unassigned',
             'requests' => (int) $department->total_requests,
@@ -343,10 +348,10 @@ class ReportController extends Controller
 
     private function userReport(Request $request, ?Carbon $dateFrom, ?Carbon $dateTo): array
     {
-        $query = User::query();
+        $query = User::query()->with('academicDepartment');
 
         if ($request->filled('dept')) {
-            $query->where('department', $request->dept);
+            $query->inDepartment($request->dept);
         }
         if ($request->filled('role')) {
             $query->where('role', $request->role);
@@ -357,7 +362,7 @@ class ReportController extends Controller
 
         $this->applyDateRange($query, 'created_at', $dateFrom, $dateTo);
 
-        $records = $query->orderBy('department')->orderBy('name')->get();
+        $records = $query->orderBy('department_id')->orderBy('name')->get();
         $rows = $records->map(fn (User $user) => [
             'school_id' => $user->school_id,
             'name' => $user->name,
@@ -392,11 +397,13 @@ class ReportController extends Controller
     {
         $query = RequisitionItem::join('requisitions', 'requisition_items.requisition_id', '=', 'requisitions.id')
             ->join('users', 'requisitions.user_id', '=', 'users.id')
+            ->leftJoin('departments', 'users.department_id', '=', 'departments.id')
             ->leftJoin('supplies', 'requisition_items.supply_id', '=', 'supplies.id')
+            ->leftJoin('supply_categories', 'supplies.supply_category_id', '=', 'supply_categories.id')
             ->select(
                 'requisition_items.item_name',
                 'requisition_items.unit',
-                DB::raw("COALESCE(supplies.category, 'Uncategorized') as category"),
+                DB::raw("COALESCE(supply_categories.category_name, 'Uncategorized') as category"),
                 DB::raw('COUNT(DISTINCT requisitions.id) as request_count'),
                 DB::raw('SUM(requisition_items.quantity) as total_quantity'),
                 DB::raw('SUM(requisition_items.subtotal) as total_cost'),
@@ -405,13 +412,13 @@ class ReportController extends Controller
             ->whereIn('requisitions.status', Requisition::FULFILLED_STATUSES);
 
         if ($request->filled('dept')) {
-            $query->where('users.department', $request->dept);
+            $query->where('departments.dept_code', $request->dept);
         }
 
         $this->applyDateRange($query, 'requisitions.updated_at', $dateFrom, $dateTo);
 
         $records = $query
-            ->groupBy('requisition_items.item_name', 'requisition_items.unit', 'supplies.category')
+            ->groupBy('requisition_items.item_name', 'requisition_items.unit', 'supply_categories.category_name')
             ->orderByDesc('total_quantity')
             ->get();
 
@@ -451,7 +458,7 @@ class ReportController extends Controller
             $query->where('role', $request->role);
         }
         if ($request->filled('dept')) {
-            $query->whereHas('requisition.user', fn (Builder $userQuery) => $userQuery->where('department', $request->dept));
+            $query->whereHas('requisition.user', fn (Builder $userQuery) => $userQuery->inDepartment($request->dept));
         }
 
         $this->applyDateRange($query, 'created_at', $dateFrom, $dateTo);
@@ -503,7 +510,7 @@ class ReportController extends Controller
             $query->where('transaction_type', $request->transaction_type);
         }
         if ($request->filled('category')) {
-            $query->whereHas('supply', fn (Builder $supplyQuery) => $supplyQuery->where('category', $request->category));
+            $query->whereHas('supply', fn (Builder $supplyQuery) => $supplyQuery->inCategory($request->category));
         }
 
         $this->applyDateRange($query, 'created_at', $dateFrom, $dateTo);
@@ -547,7 +554,7 @@ class ReportController extends Controller
             $query->whereHas('user', fn (Builder $userQuery) => $userQuery->where('role', $request->role));
         }
         if ($request->filled('dept')) {
-            $query->whereHas('user', fn (Builder $userQuery) => $userQuery->where('department', $request->dept));
+            $query->whereHas('user', fn (Builder $userQuery) => $userQuery->inDepartment($request->dept));
         }
 
         $this->applyDateRange($query, 'created_at', $dateFrom, $dateTo);

@@ -42,7 +42,6 @@ class RegistrationTest extends TestCase
         $this->assertGuest();
         $this->assertDatabaseHas('users', [
             'school_id' => '20260-0001',
-            'is_approved' => false,
             'account_status' => 'pending',
         ]);
     }

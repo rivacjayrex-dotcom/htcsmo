@@ -102,14 +102,13 @@ class ProfileController extends Controller
                 throw ValidationException::withMessages(['account' => 'This request changed while you were reviewing it. Refresh and try again.']);
             }
 
-            $department = Department::where('dept_code', $user->department)->first();
+            $department = $user->academicDepartment;
             if (! $department) {
                 throw ValidationException::withMessages(['account' => 'This registration has an invalid or missing department and cannot be approved.']);
             }
 
             $user->forceFill([
                 'role' => 'employee',
-                'department' => $department->dept_code,
                 'department_id' => $department->id,
                 'account_status' => User::ACCOUNT_ACTIVE,
                 'account_version' => $user->account_version + 1,
@@ -145,7 +144,7 @@ class ProfileController extends Controller
         if ($manager->role === 'dept_head') {
             abort_if(blank($manager->department), 403, 'A department assignment is required to manage personnel.');
 
-            $scope->where('department', $manager->department)
+            $scope->where('department_id', $manager->department_id)
                 ->where('role', 'employee');
         }
 
@@ -179,7 +178,7 @@ class ProfileController extends Controller
             });
         }
 
-        $users = $query->orderBy('department')->orderBy('name')->paginate(20)->withQueryString();
+        $users = $query->orderBy('department_id')->orderBy('name')->paginate(20)->withQueryString();
         $departments = Department::orderBy('dept_name')->get();
         $manageableUserIds = $users
             ->filter(fn (User $user) => $this->canManageTarget($manager, $user))
@@ -249,7 +248,8 @@ class ProfileController extends Controller
             }
 
             $lockedUser->forceFill([
-                ...$after,
+                'role' => $after['role'],
+                'account_status' => $after['account_status'],
                 'department_id' => $department?->id,
                 'account_version' => $lockedUser->account_version + 1,
             ])->save();

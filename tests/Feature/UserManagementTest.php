@@ -62,8 +62,8 @@ class UserManagementTest extends TestCase
         $this->assertDatabaseHas('users', [
             'id' => $ownEmployee->id,
             'role' => 'employee',
-            'department' => 'CETE',
-            'is_approved' => true,
+            'department_id' => Department::where('dept_code', 'CETE')->value('id'),
+            'account_status' => User::ACCOUNT_ACTIVE,
         ]);
 
         $this
@@ -97,7 +97,6 @@ class UserManagementTest extends TestCase
         $this->assertDatabaseHas('users', [
             'id' => $employee->id,
             'role' => 'dept_head',
-            'department' => 'CTE',
             'department_id' => $cte->id,
         ]);
     }

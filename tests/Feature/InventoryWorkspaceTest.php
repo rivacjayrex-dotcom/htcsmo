@@ -91,8 +91,8 @@ class InventoryWorkspaceTest extends TestCase
             ->assertRedirect(route('inventory.index'))
             ->assertSessionHas('success', '2 inventory items have been removed.');
 
-        $this->assertDatabaseMissing('supplies', ['id' => $first->id]);
-        $this->assertDatabaseMissing('supplies', ['id' => $second->id]);
+        $this->assertSoftDeleted('supplies', ['id' => $first->id]);
+        $this->assertSoftDeleted('supplies', ['id' => $second->id]);
         $this->assertDatabaseHas('supplies', ['id' => $kept->id]);
     }
 

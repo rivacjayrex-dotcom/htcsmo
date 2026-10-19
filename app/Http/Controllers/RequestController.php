@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\ArchiveIndexRequest;
 use App\Mail\RequisitionAlertMail;
 use App\Models\ApprovalLog;
+use App\Models\Department;
 use App\Models\DigitalSignature;
 use App\Models\EmailLog;
 use App\Models\Notification;
@@ -136,7 +137,7 @@ class RequestController extends Controller
                 : $query->where('status', $request->status);
         }
         if ($user->role == 'smo' && $request->filled('dept')) {
-            $query->whereHas('user', fn ($q) => $q->where('department', $request->dept));
+            $query->whereHas('user', fn ($q) => $q->inDepartment($request->dept));
         }
         if ($request->filled('date_from')) {
             $query->whereDate('created_at', '>=', $request->date_from);
@@ -148,7 +149,7 @@ class RequestController extends Controller
         $order = $request->get('order') === 'asc' ? 'asc' : 'desc';
         $activeRequests = $query->orderBy('created_at', $order)->paginate(15)->withQueryString();
         $departments = $user->role === 'smo'
-            ? User::whereNotNull('department')->where('department', '<>', '')->distinct()->orderBy('department')->pluck('department')
+            ? Department::query()->whereHas('users')->orderBy('dept_code')->pluck('dept_code')
             : collect();
 
         $approvalDeadlineRequests = collect();
@@ -212,7 +213,7 @@ class RequestController extends Controller
             ? $query->get()
             : $query->paginate(15)->withQueryString();
         $departments = $user->role === 'smo'
-            ? User::whereNotNull('department')->where('department', '<>', '')->distinct()->orderBy('department')->pluck('department')
+            ? Department::query()->whereHas('users')->orderBy('dept_code')->pluck('dept_code')
             : collect();
 
         return view('requests.archive', compact('archivedRequests', 'departments'));
@@ -231,7 +232,7 @@ class RequestController extends Controller
         switch ($user->role) {
             case 'dept_head':
                 $query->where('status', 'pending')
-                    ->whereHas('user', fn ($u) => $u->where('department', $user->department));
+                    ->whereHas('user', fn ($u) => $u->where('department_id', $user->department_id));
                 break;
             case 'vp_finance':
                 $query->where('status', 'approved_dept')->where('request_type', 'minor');
@@ -425,6 +426,7 @@ class RequestController extends Controller
             // 4. Log the Decision
             $log = ApprovalLog::create([
                 'requisition_id' => $sr->id,
+                'acted_by_user_id' => Auth::id(),
                 'action' => $actionText,
                 'role' => $role,
                 'remarks' => $request->remarks,
@@ -529,6 +531,7 @@ class RequestController extends Controller
             $requisition->update(['status' => 'processing']);
             ApprovalLog::create([
                 'requisition_id' => $requisition->id,
+                'acted_by_user_id' => Auth::id(),
                 'action' => 'Processing Started by SMO In-Charge',
                 'role' => 'smo',
                 'remarks' => 'The approved requisition entered SMO processing.',
@@ -651,6 +654,7 @@ class RequestController extends Controller
 
             $log = ApprovalLog::create([
                 'requisition_id' => $sr->id,
+                'acted_by_user_id' => Auth::id(),
                 'action' => 'Marked Ready for Pickup by SMO In-Charge',
                 'role' => 'smo',
                 'remarks' => $logRemarks,
@@ -723,6 +727,7 @@ class RequestController extends Controller
             $requisition->update(['status' => 'completed']);
             ApprovalLog::create([
                 'requisition_id' => $requisition->id,
+                'acted_by_user_id' => Auth::id(),
                 'action' => 'Completed by SMO In-Charge',
                 'role' => 'smo',
                 'remarks' => 'The prepared supplies were released to the requestor.',

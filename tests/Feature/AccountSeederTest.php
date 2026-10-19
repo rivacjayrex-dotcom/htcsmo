@@ -25,7 +25,6 @@ class AccountSeederTest extends TestCase
         foreach (['smo', 'president', 'provost', 'vp_admin', 'vp_finance'] as $role) {
             $this->assertDatabaseHas('users', [
                 'role' => $role,
-                'is_approved' => true,
                 'account_status' => User::ACCOUNT_ACTIVE,
             ]);
         }

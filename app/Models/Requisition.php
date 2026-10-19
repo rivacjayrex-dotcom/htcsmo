@@ -133,7 +133,7 @@ class Requisition extends Model
                     $users->where('name', 'like', $like)
                         ->orWhere('school_id', 'like', $like)
                         ->orWhere('email', 'like', $like)
-                        ->orWhere('department', 'like', $like);
+                        ->orWhereHas('academicDepartment', fn (Builder $departments) => $departments->where('dept_code', 'like', $like));
                 });
         });
     }
@@ -145,7 +145,7 @@ class Requisition extends Model
             ->when($filters['status'] ?? null, fn (Builder $query, string $status) => $query->where('status', $status))
             ->when(
                 $allowDepartment && ($filters['dept'] ?? null),
-                fn (Builder $query) => $query->whereHas('user', fn (Builder $users) => $users->where('department', $filters['dept']))
+                fn (Builder $query) => $query->whereHas('user', fn (Builder $users) => $users->inDepartment($filters['dept']))
             )
             ->when($filters['date_from'] ?? null, fn (Builder $query, string $date) => $query->whereDate('closed_at', '>=', $date))
             ->when($filters['date_to'] ?? null, fn (Builder $query, string $date) => $query->whereDate('closed_at', '<=', $date));
@@ -185,7 +185,7 @@ class Requisition extends Model
     {
         return match ($reviewer->role) {
             'dept_head' => $query->where('status', 'pending')
-                ->whereHas('user', fn (Builder $users) => $users->where('department', $reviewer->department)),
+                ->whereHas('user', fn (Builder $users) => $users->where('department_id', $reviewer->department_id)),
             'vp_finance' => $query->where('status', 'approved_dept')->where('request_type', 'minor'),
             'vp_admin' => $query->where('status', 'approved_dept')->where('request_type', 'major'),
             'provost' => $query->where('status', 'approved_vp')->where('request_type', 'major'),
@@ -291,7 +291,7 @@ class Requisition extends Model
 
         return match ($user->role) {
             'dept_head' => $this->status === 'pending'
-                && $this->user?->department === $user->department,
+                && $this->user?->department_id === $user->department_id,
             'vp_finance' => $this->status === 'approved_dept' && $this->request_type === 'minor',
             'vp_admin' => $this->status === 'approved_dept' && $this->request_type === 'major',
             'provost' => $this->status === 'approved_vp' && $this->request_type === 'major',

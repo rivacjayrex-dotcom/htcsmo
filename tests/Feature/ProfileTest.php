@@ -24,12 +24,10 @@ class ProfileTest extends TestCase
 
     public function test_profile_information_can_be_updated_without_self_assigning_a_department(): void
     {
-        $department = Department::create([
-            'dept_code' => 'CAS',
-            'dept_name' => 'College of Arts and Sciences',
-        ]);
+        $department = Department::where('dept_code', 'CAS')->firstOrFail();
         $user = User::factory()->create();
         $originalDepartment = $user->department;
+        $originalDepartmentId = $user->department_id;
 
         $response = $this
             ->actingAs($user)
@@ -49,7 +47,7 @@ class ProfileTest extends TestCase
         $this->assertSame('Test User', $user->name);
         $this->assertSame('updated_user', $user->username);
         $this->assertSame($originalDepartment, $user->department);
-        $this->assertNull($user->department_id);
+        $this->assertSame($originalDepartmentId, $user->department_id);
         $this->assertSame('test@example.com', $user->email);
         $this->assertNull($user->email_verified_at);
     }

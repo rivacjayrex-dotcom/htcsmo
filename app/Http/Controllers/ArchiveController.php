@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ArchiveIndexRequest;
+use App\Models\Department;
 use App\Models\Requisition;
-use App\Models\User;
 
 class ArchiveController extends Controller
 {
@@ -21,11 +21,9 @@ class ArchiveController extends Controller
         $archives = $request->boolean('print')
             ? $query->get()
             : $query->paginate(15)->withQueryString();
-        $departments = User::whereNotNull('department')
-            ->where('department', '<>', '')
-            ->distinct()
-            ->orderBy('department')
-            ->pluck('department');
+        $departments = Department::query()->whereHas('users')
+            ->orderBy('dept_code')
+            ->pluck('dept_code');
 
         return view('admin.archive', compact('archives', 'departments'));
     }

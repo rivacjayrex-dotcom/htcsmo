@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Requisition;
 use App\Models\RequisitionItem;
 use App\Models\Supply;
+use App\Models\SupplyCategory;
 use App\Models\User;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -81,7 +83,7 @@ class RequisitionController extends Controller
             ]);
 
         if ($initialStatus === 'pending') {
-            User::query()->where('role', 'dept_head')->where('department', $user->department)
+            User::query()->where('role', 'dept_head')->where('department_id', $user->department_id)
                 ->where('account_status', User::ACCOUNT_ACTIVE)->eachById(fn (User $head) => $notifications->send(
                     $head, 'requisition.awaiting_approval', 'Requisition Awaiting Review',
                     "{$user->name}'s requisition {$requisition->tracking_code} is ready for department review.", [
@@ -130,7 +132,7 @@ class RequisitionController extends Controller
         return $clean;
     }
 
-    /** @return \Illuminate\Support\Collection<int, array<string, mixed>> */
+    /** @return Collection<int, array<string, mixed>> */
     private function prepareCatalogItems(array $submittedItems, string $requestType)
     {
         $catalogItems = Supply::whereIn('id', collect($submittedItems)->pluck('supply_id'))
@@ -218,8 +220,10 @@ class RequisitionController extends Controller
         }
 
         $catalog = Supply::query()
+            ->with(['supplyCategory', 'supplyUnit', 'options.values'])
             ->where('requisition_tier', $requisition->request_type)
-            ->orderBy('category')
+            ->orderBy(SupplyCategory::select('category_name')
+                ->whereColumn('supply_categories.id', 'supplies.supply_category_id'))
             ->orderBy('item_name')
             ->get()
             ->map(fn (Supply $supply) => $this->catalogPayload($supply))

@@ -2,9 +2,8 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\SupplyCategory;
-use App\Models\Supply;
+use Illuminate\Database\Seeder;
 
 class SupplyCategorySeeder extends Seeder
 {
@@ -21,11 +20,7 @@ class SupplyCategorySeeder extends Seeder
         ];
 
         foreach ($categories as $cat) {
-            $record = SupplyCategory::firstOrCreate(['category_name' => $cat['category_name']], $cat);
-
-            // Automatically link any existing supplies with matching category text
-            Supply::where('category', $cat['category_name'])
-                  ->update(['supply_category_id' => $record->id]);
+            SupplyCategory::firstOrCreate(['category_name' => $cat['category_name']], $cat);
         }
     }
 }

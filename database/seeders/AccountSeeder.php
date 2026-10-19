@@ -82,7 +82,7 @@ class AccountSeeder extends Seeder
                     'department_id' => $account['department_id'] ?? null,
                     'email_verified_at' => now(),
                     'password' => Hash::make($password),
-                    'is_approved' => true,
+                    'account_status' => User::ACCOUNT_ACTIVE,
                 ]),
             );
         }
