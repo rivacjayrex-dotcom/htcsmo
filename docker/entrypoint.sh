@@ -13,7 +13,11 @@ if [ -z "${APP_KEY:-}" ]; then
 fi
 
 php artisan storage:link || true
+php artisan view:clear
+php artisan route:clear
 php artisan config:cache
+php artisan route:cache
+php artisan view:cache
 php artisan migrate --force
 
 # Keep scheduled deadline notifications running in the web-service container.

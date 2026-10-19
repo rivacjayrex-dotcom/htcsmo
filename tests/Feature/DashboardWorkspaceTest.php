@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Department;
 use App\Models\Requisition;
 use App\Models\Supply;
 use App\Models\User;
@@ -115,6 +116,33 @@ class DashboardWorkspaceTest extends TestCase
             ->assertSee('My procurement activity')
             ->assertSee($request->tracking_number)
             ->assertSeeInOrder(['Overview', 'Notifications', 'Requisitions', 'Active Requests', 'Request Archive']);
+    }
+
+    public function test_department_head_dashboard_filters_requests_by_department_id(): void
+    {
+        $department = Department::where('dept_code', 'CETE')->firstOrFail();
+        $departmentHead = User::factory()->create([
+            'role' => 'dept_head',
+            'department_id' => $department->id,
+        ]);
+        $requestor = User::factory()->create([
+            'name' => 'CETE Requestor',
+            'department_id' => $department->id,
+        ]);
+        $request = Requisition::create([
+            'user_id' => $requestor->id,
+            'request_type' => 'minor',
+            'status' => 'pending',
+            'purpose' => 'Department laboratory supplies',
+            'grand_total' => 1500,
+        ]);
+
+        $this->actingAs($departmentHead)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('Requests requiring your attention')
+            ->assertSee($request->tracking_number)
+            ->assertSee('CETE Requestor');
     }
 
     public function test_smo_dashboard_shows_only_the_ten_most_recent_active_requisitions_without_filters(): void

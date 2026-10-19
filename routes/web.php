@@ -57,7 +57,7 @@ Route::get('/dashboard', function () {
         switch ($user->role) {
             case 'dept_head':
                 $approvalQuery->where('status', 'pending')
-                    ->whereHas('user', fn ($query) => $query->where('department', $user->department));
+                    ->whereHas('user', fn ($query) => $query->where('department_id', $user->department_id));
                 break;
             case 'vp_finance':
                 $approvalQuery->where('status', 'approved_dept')->where('request_type', 'minor');
