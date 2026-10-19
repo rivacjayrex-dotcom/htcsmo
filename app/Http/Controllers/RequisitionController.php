@@ -133,7 +133,7 @@ class RequisitionController extends Controller
     }
 
     /** @return Collection<int, array<string, mixed>> */
-    private function prepareCatalogItems(array $submittedItems, string $requestType)
+    private function prepareCatalogItems(array $submittedItems, string $requestType): Collection
     {
         $catalogItems = Supply::whereIn('id', collect($submittedItems)->pluck('supply_id'))
             ->get()
@@ -210,7 +210,7 @@ class RequisitionController extends Controller
     }
 
     // 1. Show Edit Form
-    public function edit($id)
+    public function edit(int $id)
     {
         $requisition = Requisition::with('items.supply')->where('user_id', Auth::id())->findOrFail($id);
 
@@ -226,6 +226,7 @@ class RequisitionController extends Controller
                 ->whereColumn('supply_categories.id', 'supplies.supply_category_id'))
             ->orderBy('item_name')
             ->get()
+            ->toBase()
             ->map(fn (Supply $supply) => $this->catalogPayload($supply))
             ->values();
 
@@ -257,7 +258,7 @@ class RequisitionController extends Controller
     }
 
     // 2. Save Changes
-    public function update(Request $request, $id)
+    public function update(Request $request, int $id)
     {
         $requisition = Requisition::where('user_id', Auth::id())->findOrFail($id);
 
@@ -321,7 +322,7 @@ class RequisitionController extends Controller
     }
 
     // 3. Delete Requisition
-    public function destroy($id)
+    public function destroy(int $id)
     {
         $requisition = Requisition::where('user_id', Auth::id())->findOrFail($id);
 

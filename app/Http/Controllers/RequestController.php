@@ -310,7 +310,7 @@ class RequestController extends Controller
     /**
      * Update Approval Status (Signatories)
      */
-    public function updateStatus(Request $request, $id, NotificationService $notifications)
+    public function updateStatus(Request $request, int $id, NotificationService $notifications)
     {
         $request->validate([
             'status' => 'required|in:approved,rejected,clarification',
@@ -513,7 +513,7 @@ class RequestController extends Controller
     /**
      * Move a fully approved requisition into active SMO processing.
      */
-    public function startProcessing($id, NotificationService $notifications)
+    public function startProcessing(int $id, NotificationService $notifications)
     {
         if (Auth::user()->role !== 'smo') {
             return back()->with('error', 'Unauthorized. Only the SMO In-Charge can process supplies.');
@@ -557,7 +557,7 @@ class RequestController extends Controller
     /**
      * Deduct prepared stock and notify the requestor that pickup is available.
      */
-    public function markReadyForPickup($id, InventoryAlertService $alertService)
+    public function markReadyForPickup(int $id, InventoryAlertService $alertService)
     {
         // Only SMO can release supplies.
         if (Auth::user()->role !== 'smo') {
@@ -711,7 +711,7 @@ class RequestController extends Controller
     /**
      * Close the requisition after the requestor receives the prepared items.
      */
-    public function completeRequest($id, NotificationService $notifications)
+    public function completeRequest(int $id, NotificationService $notifications)
     {
         if (Auth::user()->role !== 'smo') {
             return back()->with('error', 'Unauthorized. Only the SMO In-Charge can complete requests.');
@@ -750,7 +750,7 @@ class RequestController extends Controller
         return redirect()->route('admin.approvals')->with('success', "Requisition #{$outcome['requisition']->id} has been completed.");
     }
 
-    public function show(Request $httpRequest, $id)
+    public function show(Request $httpRequest, int $id)
     {
         $request = Requisition::with(['user', 'items', 'logs.digitalSignature'])->findOrFail($id);
         abort_unless($request->canBeViewedBy($httpRequest->user()), 403);
@@ -758,7 +758,7 @@ class RequestController extends Controller
         return view('requests.show', compact('request'));
     }
 
-    public function downloadPDF(Request $httpRequest, $id)
+    public function downloadPDF(Request $httpRequest, int $id)
     {
         $request = Requisition::with(['user', 'items', 'logs.digitalSignature'])->findOrFail($id);
         abort_unless($request->canBeViewedBy($httpRequest->user()), 403);
@@ -769,16 +769,16 @@ class RequestController extends Controller
     }
 
     private function sendAlert(
-        $userId,
-        $title,
-        $message,
-        $icon = 'bell',
-        $type = 'info',
-        $eventType = 'system.notice',
-        $actionType = null,
-        $actionId = null,
-        $dedupeKey = null,
-    ) {
+        int $userId,
+        string $title,
+        string $message,
+        string $icon = 'bell',
+        string $type = 'info',
+        string $eventType = 'system.notice',
+        ?string $actionType = null,
+        ?int $actionId = null,
+        ?string $dedupeKey = null,
+    ): void {
         app(NotificationService::class)->send($userId, $eventType, $title, $message, [
             'icon' => $icon,
             'type' => $type,
@@ -791,8 +791,15 @@ class RequestController extends Controller
     /**
      * Send Outbound Email and Record in email_logs Table (Thesis Notification Engine)
      */
-    private function sendEmailNotification($recipientEmail, $user, $requisition, $subject, $headline, $message, $accentColor = '#185b3b')
-    {
+    private function sendEmailNotification(
+        string $recipientEmail,
+        ?User $user,
+        Requisition $requisition,
+        string $subject,
+        string $headline,
+        string $message,
+        string $accentColor = '#185b3b',
+    ): void {
         try {
             // 1. Send the SMTP email
             Mail::to($recipientEmail)->send(

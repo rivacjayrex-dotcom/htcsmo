@@ -117,7 +117,7 @@ class SupplyController extends Controller
     /**
      * NEW: Show the form to edit an existing item
      */
-    public function edit($id)
+    public function edit(int $id)
     {
         $item = Supply::findOrFail($id);
 
@@ -127,7 +127,7 @@ class SupplyController extends Controller
     /**
      * Save changes to an existing item
      */
-    public function update(Request $request, $id, InventoryAlertService $alertService)
+    public function update(Request $request, int $id, InventoryAlertService $alertService)
     {
         $item = Supply::findOrFail($id);
         $wasOut = $item->quantity <= 0;
@@ -165,7 +165,7 @@ class SupplyController extends Controller
     /**
      * NEW: Remove an item from inventory
      */
-    public function destroy($id)
+    public function destroy(int $id)
     {
         $item = Supply::findOrFail($id);
         $item->delete();

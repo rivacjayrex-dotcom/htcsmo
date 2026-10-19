@@ -83,7 +83,7 @@ class ProfileController extends Controller
         return view('admin.pending-users', compact('users'));
     }
 
-    public function approveUser(Request $request, $id, NotificationService $notifications)
+    public function approveUser(Request $request, int $id, NotificationService $notifications)
     {
         $manager = $request->user();
         abort_unless($manager->role === 'smo', 403);
