@@ -28,48 +28,7 @@ class RequisitionController extends Controller
             'items.*.options.*' => 'nullable|string|max:100',
         ]);
 
-        $catalogItems = Supply::whereIn('id', collect($validated['items'])->pluck('supply_id'))
-            ->get()
-            ->keyBy('id');
-
-        $preparedItems = collect($validated['items'])->map(function (array $itemData) use ($catalogItems, $validated) {
-            $supply = $catalogItems->get($itemData['supply_id']);
-
-            if (! $supply || $supply->requisition_tier !== $validated['request_type']) {
-                throw ValidationException::withMessages([
-                    'items' => 'One or more selected items do not belong to the chosen requisition tier.',
-                ]);
-            }
-
-            if ($itemData['qty'] > $supply->quantity) {
-                throw ValidationException::withMessages([
-                    'items' => "Only {$supply->quantity} {$supply->unit} of {$supply->item_name} are currently available.",
-                ]);
-            }
-
-            $selectedOptions = $this->validateSelectedOptions($supply, $itemData['options'] ?? []);
-            $optionSummary = collect($selectedOptions)
-                ->map(fn ($value, $label) => "{$label}: {$value}")
-                ->implode('; ');
-            $specifications = collect([$supply->specifications, $optionSummary])->filter()->implode(' | ');
-
-            return [
-                'supply' => $supply,
-                'specifications' => $specifications ?: null,
-                'quantity' => $itemData['qty'],
-                'subtotal' => $itemData['qty'] * (float) $supply->unit_price,
-            ];
-        });
-
-        foreach ($preparedItems->groupBy(fn ($item) => $item['supply']->id) as $itemsForSupply) {
-            $supply = $itemsForSupply->first()['supply'];
-            $totalRequested = $itemsForSupply->sum('quantity');
-            if ($totalRequested > $supply->quantity) {
-                throw ValidationException::withMessages([
-                    'items' => "Only {$supply->quantity} {$supply->unit} of {$supply->item_name} are currently available across all selected options.",
-                ]);
-            }
-        }
+        $preparedItems = $this->prepareCatalogItems($validated['items'], $validated['request_type']);
 
         $calculatedGrandTotal = $preparedItems->sum('subtotal');
         if ($validated['request_type'] === 'minor' && $calculatedGrandTotal > 1000) {
@@ -171,17 +130,126 @@ class RequisitionController extends Controller
         return $clean;
     }
 
+    /** @return \Illuminate\Support\Collection<int, array<string, mixed>> */
+    private function prepareCatalogItems(array $submittedItems, string $requestType)
+    {
+        $catalogItems = Supply::whereIn('id', collect($submittedItems)->pluck('supply_id'))
+            ->get()
+            ->keyBy('id');
+
+        $preparedItems = collect($submittedItems)->map(function (array $itemData) use ($catalogItems, $requestType) {
+            $supply = $catalogItems->get($itemData['supply_id']);
+
+            if (! $supply || $supply->requisition_tier !== $requestType) {
+                throw ValidationException::withMessages([
+                    'items' => 'One or more selected items do not belong to this requisition tier.',
+                ]);
+            }
+            if ($itemData['qty'] > $supply->quantity) {
+                throw ValidationException::withMessages([
+                    'items' => "Only {$supply->quantity} {$supply->unit} of {$supply->item_name} are currently available.",
+                ]);
+            }
+
+            $selectedOptions = $this->validateSelectedOptions($supply, $itemData['options'] ?? []);
+            $optionSummary = collect($selectedOptions)
+                ->map(fn ($value, $label) => "{$label}: {$value}")
+                ->implode('; ');
+            $specifications = collect([$supply->specifications, $optionSummary])->filter()->implode(' | ');
+
+            return [
+                'supply' => $supply,
+                'specifications' => $specifications ?: null,
+                'quantity' => (int) $itemData['qty'],
+                'subtotal' => (int) $itemData['qty'] * (float) $supply->unit_price,
+            ];
+        });
+
+        foreach ($preparedItems->groupBy(fn ($item) => $item['supply']->id) as $itemsForSupply) {
+            $supply = $itemsForSupply->first()['supply'];
+            if ($itemsForSupply->sum('quantity') > $supply->quantity) {
+                throw ValidationException::withMessages([
+                    'items' => "Only {$supply->quantity} {$supply->unit} of {$supply->item_name} are available across all selected options.",
+                ]);
+            }
+        }
+
+        return $preparedItems;
+    }
+
+    private function catalogPayload(Supply $supply): array
+    {
+        return [
+            'id' => $supply->id,
+            'name' => $supply->item_name,
+            'brand' => $supply->brand,
+            'category' => $supply->category,
+            'tier' => $supply->requisition_tier ?? 'minor',
+            'specs' => $supply->specifications,
+            'unit' => $supply->unit,
+            'price' => (float) $supply->unit_price,
+            'stock' => (int) $supply->quantity,
+            'options' => $supply->requestOptions(),
+        ];
+    }
+
+    private function selectedOptionsFromSpecifications(Supply $supply, ?string $specifications): array
+    {
+        return collect($supply->requestOptions())
+            ->mapWithKeys(function (array $choices, string $label) use ($specifications) {
+                $selected = collect($choices)->first(
+                    fn (string $choice) => str_contains((string) $specifications, "{$label}: {$choice}"),
+                );
+                $selected ??= count($choices) === 1 ? $choices[0] : null;
+
+                return $selected === null ? [] : [$label => $selected];
+            })
+            ->all();
+    }
+
     // 1. Show Edit Form
     public function edit($id)
     {
-        $requisition = Requisition::with('items')->where('user_id', Auth::id())->findOrFail($id);
+        $requisition = Requisition::with('items.supply')->where('user_id', Auth::id())->findOrFail($id);
 
         // Security Guardrail: Only allow editing if still pending
         if ($requisition->status !== 'pending') {
             return redirect()->route('dashboard')->with('error', 'Cannot edit: Requisition is already in the approval process.');
         }
 
-        return view('requests.edit', compact('requisition'));
+        $catalog = Supply::query()
+            ->where('requisition_tier', $requisition->request_type)
+            ->orderBy('category')
+            ->orderBy('item_name')
+            ->get()
+            ->map(fn (Supply $supply) => $this->catalogPayload($supply))
+            ->values();
+
+        $catalogById = $catalog->keyBy('id');
+        $initialItems = $requisition->items->map(function (RequisitionItem $item) use ($catalogById) {
+            $catalogItem = $catalogById->get($item->supply_id);
+
+            return [
+                ...($catalogItem ?? [
+                    'id' => $item->supply_id,
+                    'name' => $item->item_name,
+                    'brand' => null,
+                    'category' => 'Unavailable catalog item',
+                    'tier' => null,
+                    'specs' => $item->specifications,
+                    'unit' => $item->unit,
+                    'price' => (float) $item->unit_price,
+                    'stock' => 0,
+                    'options' => [],
+                ]),
+                'qty' => (int) $item->quantity,
+                'selected_options' => $item->supply
+                    ? $this->selectedOptionsFromSpecifications($item->supply, $item->specifications)
+                    : [],
+            ];
+        })->values();
+
+        return view('requests.edit', compact('requisition', 'catalog', 'initialItems'));
     }
 
     // 2. Save Changes
@@ -196,46 +264,50 @@ class RequisitionController extends Controller
         $validated = $request->validate([
             'purpose' => 'required|string|min:10|max:500',
             'items' => 'required|array|min:1',
-            'items.*.id' => 'required|integer',
+            'items.*.supply_id' => 'required|integer|exists:supplies,id',
             'items.*.qty' => 'required|integer|min:1',
+            'items.*.options' => 'nullable|array',
+            'items.*.options.*' => 'nullable|string|max:100',
         ]);
 
-        $grandTotal = 0;
-        $itemUpdates = [];
-        $requisitionItems = $requisition->items()->with('supply')->get()->keyBy('id');
-        $submittedIds = collect($validated['items'])->pluck('id');
-        if ($submittedIds->unique()->count() !== $requisitionItems->count()
-            || $submittedIds->unique()->diff($requisitionItems->keys())->isNotEmpty()) {
-            throw ValidationException::withMessages(['items' => 'All requisition items must be included exactly once.']);
-        }
-
-        foreach ($validated['items'] as $itemData) {
-            $item = $requisitionItems->get($itemData['id']);
-            if (! $item || ! $item->supply || $item->supply->requisition_tier !== $requisition->request_type) {
-                throw ValidationException::withMessages(['items' => 'This requisition contains an unavailable catalog item.']);
-            }
-            if ($itemData['qty'] > $item->supply->quantity) {
-                throw ValidationException::withMessages(['items' => "Only {$item->supply->quantity} {$item->supply->unit} of {$item->item_name} are available."]);
-            }
-
-            $subtotal = $itemData['qty'] * (float) $item->supply->unit_price;
-            $grandTotal += $subtotal;
-            $itemUpdates[] = [$item, [
-                'quantity' => $itemData['qty'],
-                'unit_price' => $item->supply->unit_price,
-                'subtotal' => $subtotal,
-            ]];
-        }
+        $preparedItems = $this->prepareCatalogItems($validated['items'], $requisition->request_type);
+        $grandTotal = $preparedItems->sum('subtotal');
 
         if ($requisition->request_type === 'minor' && $grandTotal > 1000) {
             throw ValidationException::withMessages(['items' => 'Minor requisitions cannot exceed ₱1,000.']);
         }
 
-        DB::transaction(function () use ($itemUpdates, $requisition, $grandTotal, $validated) {
-            foreach ($itemUpdates as [$item, $values]) {
-                $item->update($values);
+        if ($requisition->request_type === 'major' && $grandTotal <= 1000) {
+            throw ValidationException::withMessages(['items' => 'Major requisitions must exceed PHP 1,000.']);
+        }
+
+        DB::transaction(function () use ($preparedItems, $requisition, $grandTotal, $validated) {
+            $lockedRequisition = Requisition::query()
+                ->whereKey($requisition->id)
+                ->where('user_id', Auth::id())
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($lockedRequisition->status !== 'pending') {
+                throw ValidationException::withMessages([
+                    'items' => 'Approval has already started. This requisition can no longer be changed.',
+                ]);
             }
-            $requisition->update([
+
+            $lockedRequisition->items()->delete();
+            foreach ($preparedItems as $item) {
+                $lockedRequisition->items()->create([
+                    'supply_id' => $item['supply']->id,
+                    'item_name' => $item['supply']->item_name,
+                    'specifications' => $item['specifications'],
+                    'quantity' => $item['quantity'],
+                    'unit' => $item['supply']->unit,
+                    'unit_price' => $item['supply']->unit_price,
+                    'subtotal' => $item['subtotal'],
+                ]);
+            }
+
+            $lockedRequisition->update([
                 'purpose' => $validated['purpose'],
                 'grand_total' => $grandTotal,
             ]);
