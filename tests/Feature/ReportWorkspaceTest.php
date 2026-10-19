@@ -40,6 +40,8 @@ class ReportWorkspaceTest extends TestCase
             ->assertSee('id="pdfGenerationModal"', false)
             ->assertSee('Generating PDF report…')
             ->assertSee('new AbortController()', false)
+            ->assertSee("document.addEventListener('DOMContentLoaded', initializeReportBuilder", false)
+            ->assertSee('if (cancelPending) closePdfModal()', false)
             ->assertDontSee('Fulfillment Volume');
     }
 
@@ -130,7 +132,7 @@ class ReportWorkspaceTest extends TestCase
             'subtotal' => 490,
         ]);
 
-        $this
+        $response = $this
             ->actingAs($smo)
             ->get(route('admin.reports.builder', [
                 'report_type' => 'requisitions',
@@ -141,6 +143,13 @@ class ReportWorkspaceTest extends TestCase
             ->assertOk()
             ->assertHeader('content-type', 'application/pdf')
             ->assertDownload();
+
+        $pdfContent = $response->getContent();
+        $this->assertSame(
+            1,
+            preg_match_all('/\/Type\s*\/Page\b/', $pdfContent),
+            'A one-request PDF should not contain a separate cover or blank page.',
+        );
     }
 
     public function test_excel_compatible_csv_export_works(): void

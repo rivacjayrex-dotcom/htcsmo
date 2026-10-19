@@ -22,28 +22,6 @@
     ];
 @endphp
 
-<section class="report-builder" id="report-builder">
-    <div class="report-center-hero mb-4">
-        <div class="report-center-hero__content">
-            <span class="report-center-hero__icon"><i data-lucide="file-chart-column-increasing"></i></span>
-            <div>
-                <span class="report-center-eyebrow">Institutional reporting workspace</span>
-                <h3 class="mb-1">Comprehensive Report Center</h3>
-                <p class="mb-0">Choose a dataset, refine its scope, then preview or export a controlled report.</p>
-            </div>
-        </div>
-        <div class="report-center-hero__actions no-print">
-            <a href="{{ route('admin.reports.index') }}" class="btn btn-light rounded-pill px-3">
-                <i data-lucide="chart-no-axes-combined" class="me-1" style="width: 15px;"></i>
-                Operational Analytics
-            </a>
-            <a href="{{ route('admin.reports.builder') }}" class="btn btn-outline-light rounded-pill px-3">
-                <i data-lucide="rotate-ccw" class="me-1" style="width: 14px;"></i>
-                Reset Report
-            </a>
-        </div>
-    </div>
-
     <form action="{{ route('admin.reports.builder') }}" method="GET" id="reportForm" class="report-control-panel no-print">
         <div class="report-section-heading">
             <span>1</span>
@@ -447,7 +425,7 @@
 </style>
 
 <script>
-    (() => {
+    const initializeReportBuilder = () => {
         const period = document.getElementById('period');
         const customDateFields = document.querySelectorAll('.custom-date-field');
         const reportForm = document.getElementById('reportForm');
@@ -461,6 +439,7 @@
         const pdfErrorIcon = document.getElementById('pdfGenerationErrorIcon');
         const pdfProgress = document.getElementById('pdfGenerationProgress');
         let pdfRequest = null;
+        let cancelPending = false;
 
         const toggleCustomDates = () => {
             const isCustom = period?.value === 'custom';
@@ -473,7 +452,7 @@
         period?.addEventListener('change', toggleCustomDates);
         toggleCustomDates();
 
-        if (!reportForm || !pdfButton || !pdfModalElement) return;
+        if (!reportForm || !pdfButton || !pdfModalElement || !window.bootstrap?.Modal) return;
 
         document.body.appendChild(pdfModalElement);
         const pdfModal = bootstrap.Modal.getOrCreateInstance(pdfModalElement);
@@ -492,6 +471,22 @@
             window.lucide?.createIcons();
         };
 
+        const closePdfModal = () => {
+            pdfModal.hide();
+            pdfButton.disabled = false;
+        };
+
+        pdfModalElement.addEventListener('shown.bs.modal', () => {
+            // Bootstrap ignores hide() calls made while a modal is still in its
+            // opening transition. Retry as soon as that transition completes.
+            if (cancelPending) closePdfModal();
+        });
+
+        pdfModalElement.addEventListener('hidden.bs.modal', () => {
+            cancelPending = false;
+            pdfButton.disabled = false;
+        });
+
         const filenameFrom = (response) => {
             const disposition = response.headers.get('Content-Disposition') || '';
             const encoded = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
@@ -502,9 +497,11 @@
         const generatePdf = async () => {
             if (pdfRequest) return;
 
+            cancelPending = false;
             setPdfState('loading');
             pdfButton.disabled = true;
-            pdfRequest = new AbortController();
+            const controller = new AbortController();
+            pdfRequest = controller;
             pdfModal.show();
 
             const query = new URLSearchParams(new FormData(reportForm));
@@ -518,28 +515,36 @@
                     method: 'GET',
                     credentials: 'same-origin',
                     headers: {Accept: 'application/pdf'},
-                    signal: pdfRequest.signal,
+                    signal: controller.signal,
                 });
                 if (!response.ok) throw new Error(`PDF request failed with status ${response.status}`);
+                if (!(response.headers.get('Content-Type') || '').toLowerCase().includes('application/pdf')) {
+                    throw new Error('The server did not return a PDF document.');
+                }
 
                 const filename = filenameFrom(response);
                 const blob = await response.blob();
+                if (controller.signal.aborted) return;
+
                 const objectUrl = URL.createObjectURL(blob);
                 const download = document.createElement('a');
                 download.href = objectUrl;
                 download.download = filename;
                 document.body.appendChild(download);
 
-                pdfRequest = null;
-                pdfModal.hide();
+                closePdfModal();
                 download.click();
                 download.remove();
                 window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
             } catch (error) {
-                if (error.name !== 'AbortError') setPdfState('error');
+                if (error.name === 'AbortError') {
+                    closePdfModal();
+                } else {
+                    setPdfState('error');
+                }
             } finally {
+                if (pdfRequest === controller) pdfRequest = null;
                 pdfButton.disabled = false;
-                if (pdfRequest?.signal.aborted) pdfRequest = null;
             }
         };
 
@@ -549,10 +554,16 @@
             generatePdf();
         });
         cancelPdfButton.addEventListener('click', () => {
+            cancelPending = true;
             pdfRequest?.abort();
-            pdfRequest = null;
             pdfButton.disabled = false;
-            pdfModal.hide();
+            closePdfModal();
         });
-    })();
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeReportBuilder, {once: true});
+    } else {
+        initializeReportBuilder();
+    }
 </script>

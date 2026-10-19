@@ -168,7 +168,7 @@ class ReportController extends Controller
 
     private function requisitionReport(Request $request, ?Carbon $dateFrom, ?Carbon $dateTo): array
     {
-        $query = Requisition::with(['user', 'items.supply']);
+        $query = Requisition::with(['user', 'items.supply', 'logs']);
 
         if ($request->filled('dept')) {
             $query->whereHas('user', fn (Builder $userQuery) => $userQuery->where('department', $request->dept));
@@ -188,14 +188,29 @@ class ReportController extends Controller
         $rows = $records->flatMap(function (Requisition $requisition) {
             $items = $requisition->items->isEmpty() ? collect([null]) : $requisition->items;
 
+            $formatTimestamp = static fn ($timestamp) => $timestamp
+                ? Carbon::parse($timestamp)->format('M d, Y h:i A')
+                : '-';
+            $processingLog = $requisition->logs->firstWhere('action', 'Processing Started by SMO In-Charge');
+            $readyLog = $requisition->logs->firstWhere('action', 'Marked Ready for Pickup by SMO In-Charge');
+
             return $items->map(fn ($item) => [
                 'tracking' => $requisition->tracking_code,
                 'submitted' => $requisition->created_at->format('Y-m-d H:i'),
                 'request_date' => $requisition->created_at->format('M d, Y'),
+                'submitted_at' => $formatTimestamp($requisition->submitted_at ?? $requisition->created_at),
+                'sla_warning_at' => $formatTimestamp($requisition->sla_warning_at),
+                'deadline_at' => $formatTimestamp($requisition->due_at),
+                'stage_started_at' => $formatTimestamp($requisition->stage_started_at),
+                'processing_at' => $formatTimestamp($processingLog?->created_at),
+                'ready_at' => $formatTimestamp($readyLog?->created_at),
+                'closed_at' => $formatTimestamp($requisition->closed_at),
+                'updated_at' => $formatTimestamp($requisition->updated_at),
                 'requestor' => $requisition->user?->name ?? 'Unknown',
                 'department' => $requisition->user?->department ?? 'Unassigned',
                 'tier' => strtoupper($requisition->request_type),
                 'purpose' => $requisition->purpose ?: 'Not specified',
+                'request_total' => (float) $requisition->grand_total,
                 'category' => $item?->supply?->category ?: 'Uncategorized / Manual Entry',
                 'item' => $item?->item_name ?? 'No line item',
                 'specifications' => $item?->specifications ?: 'Not specified',
@@ -673,35 +688,52 @@ class ReportController extends Controller
             ->sortByDesc(fn (array $group) => $group['value'] ?? $group['records'])
             ->values();
 
-        // The SMO's established workbook is a category-based request register
-        // with Item, Qty, Unit, Unit Price, Total, Date, and Requested By as its
-        // core columns. Keep the richer system record, but use that familiar
-        // reading order in the PDF so the exported document remains practical.
+        // Keep the SMO workbook's compact item-and-cost register while placing
+        // request ownership and workflow dates in separate readable tables.
         $detailColumns = $type === 'requisitions'
             ? [
+                $this->column('category', 'Category'),
+                $this->column('tracking', 'Tracking No.'),
                 $this->column('item', 'Item / Specification'),
                 $this->column('quantity', 'Qty', 'number'),
                 $this->column('unit', 'Unit'),
                 $this->column('unit_price', 'Unit Price', 'money'),
                 $this->column('line_total', 'Total', 'money'),
-                $this->column('request_date', 'Date'),
-                $this->column('requestor', 'Requested By'),
-                $this->column('tracking', 'Tracking No.'),
-                $this->column('status', 'Status'),
             ]
             : $report['columns'];
 
-        $detailGroups = $type === 'requisitions'
+        $requestColumns = $type === 'requisitions'
+            ? [
+                $this->column('tracking', 'Tracking No.'),
+                $this->column('requestor_details', 'Requested By / Department'),
+                $this->column('purpose', 'Purpose'),
+                $this->column('workflow', 'Tier / Status'),
+                $this->column('request_total', 'Request Total', 'money'),
+            ]
+            : [];
+
+        $timelineColumns = $type === 'requisitions'
+            ? [
+                $this->column('tracking', 'Tracking No.'),
+                $this->column('submitted_at', 'Submitted'),
+                $this->column('sla_warning_at', 'SLA Warning'),
+                $this->column('deadline_at', 'Deadline'),
+                $this->column('stage_started_at', 'Current Stage Since'),
+                $this->column('processing_at', 'SMO Processing'),
+                $this->column('ready_at', 'Ready for Pickup'),
+                $this->column('closed_at', 'Closed'),
+                $this->column('updated_at', 'Last Updated'),
+            ]
+            : [];
+
+        $requestRows = $type === 'requisitions'
             ? $rows
-                ->groupBy(fn (array $row) => $row['category'])
-                ->map(fn (Collection $groupRows, string $label) => [
-                    'label' => $label,
-                    'rows' => $groupRows,
-                    'requests' => $groupRows->pluck('tracking')->unique()->count(),
-                    'quantity' => $groupRows->sum('quantity'),
-                    'total' => $groupRows->sum('line_total'),
+                ->unique('tracking')
+                ->map(fn (array $row) => [
+                    ...$row,
+                    'requestor_details' => $row['requestor'].' / '.$row['department'],
+                    'workflow' => $row['tier'].' / '.$row['status'],
                 ])
-                ->sortKeys()
                 ->values()
             : collect();
 
@@ -717,8 +749,9 @@ class ReportController extends Controller
             'breakdownTitle' => $groupLabel,
             'breakdown' => $breakdown,
             'detailColumns' => $detailColumns,
-            'detailGroups' => $detailGroups,
-            'usesCategoryRegister' => $type === 'requisitions',
+            'requestColumns' => $requestColumns,
+            'timelineColumns' => $timelineColumns,
+            'requestRows' => $requestRows,
             'documentTitle' => $type === 'requisitions'
                 ? match ($request->input('tier')) {
                     'minor' => 'Minor Request Register',
@@ -727,11 +760,7 @@ class ReportController extends Controller
                 }
                 : $report['title'],
             'detailTitle' => $type === 'requisitions'
-                ? match ($request->input('tier')) {
-                    'minor' => 'Minor Request Register',
-                    'major' => 'Major Request Register',
-                    default => 'Request Register',
-                }
+                ? 'Requested Items and Costs'
                 : 'Detailed Records',
             'notes' => $this->reportNotes($type, $rows, $report),
         ];
