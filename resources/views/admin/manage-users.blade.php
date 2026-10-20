@@ -278,6 +278,7 @@
         </div>
     </div>
 
+    @pushOnce('styles', 'page-styles:admin/manage-users.blade.php')
     <style>
         .mini-label { font-size: 9px; font-weight: 800; text-transform: uppercase; color: #64748b; letter-spacing: 1px; }
         .btn-htc { background-color: var(--htc-green); color: white; border: none; }
@@ -322,4 +323,5 @@
             #editPersonnelModal .modal-footer .btn { width: 100%; min-height: 44px; margin: 0; }
         }
     </style>
+    @endPushOnce
 </x-app-layout>

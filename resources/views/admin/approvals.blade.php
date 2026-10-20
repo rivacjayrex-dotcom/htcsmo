@@ -357,6 +357,7 @@
         @endif
     </div>
 
+    @pushOnce('styles', 'page-styles:admin/approvals.blade.php')
     <style>
         .approval-purpose { display: flex; align-items: flex-start; gap: .85rem; padding: 1rem; border: 1px solid #dce9e1; border-radius: 14px; background: #f5faf7; }
         .approval-purpose-icon { width: 36px; height: 36px; flex: 0 0 36px; display: grid; place-items: center; border-radius: 10px; background: #dff2e6; color: var(--htc-green); }
@@ -366,6 +367,7 @@
         .release-confirmation-icon { width: 58px; height: 58px; display: grid; place-items: center; border-radius: 18px; background: #e3f4e9; color: #187044; }
         .release-confirmation-icon svg { width: 28px; height: 28px; }
     </style>
+    @endPushOnce
 
     <script>
         const focusedApprovalRequest = {{ Illuminate\Support\Js::from($focusedRequest?->toArray()) }};

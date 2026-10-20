@@ -71,6 +71,7 @@
         @endif
     </div>
 
+    @pushOnce('styles', 'page-styles:admin/archive.blade.php')
     <style>
         @media print {
             .sidebar, .top-bar, .archive-filter-card, .archive-pagination, .workflow-heading-action { display: none !important; }
@@ -82,6 +83,7 @@
             .workflow-heading-action { min-height: 42px; }
         }
     </style>
+    @endPushOnce
 
     @if(request()->boolean('print'))
         <script>window.addEventListener('load', () => window.print());</script>

@@ -89,7 +89,16 @@
                 const nextContent = documentCopy.querySelector(contentSelector);
                 if (!nextContent) throw new Error('Search response did not contain the page content.');
 
-                currentContent.innerHTML = nextContent.innerHTML;
+                // Initialize conditional controls in the same DOM update so a
+                // fresh result never paints with its default, uninitialized state.
+                nextContent.querySelectorAll('script').forEach(script => script.remove());
+                const replaceResults = () => {
+                    window.Alpine?.destroyTree(currentContent);
+                    currentContent.innerHTML = nextContent.innerHTML;
+                    window.Alpine?.initTree(currentContent);
+                };
+                if (window.Alpine?.mutateDom) window.Alpine.mutateDom(replaceResults);
+                else replaceResults();
                 window.history.replaceState({}, '', url);
 
                 requestAnimationFrame(() => {

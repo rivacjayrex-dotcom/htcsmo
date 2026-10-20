@@ -31,6 +31,7 @@
         </footer>
     </article>
 
+    @pushOnce('styles', 'page-styles:components/legal-document.blade.php')
     <style>
         .login-card:has(> .legal-page) { width: min(100%, 920px); padding: 0; }
         .legal-page { color: #25352b; background: #fff; }
@@ -63,4 +64,5 @@
             .legal-footer { align-items: flex-start; flex-direction: column; }
         }
     </style>
+    @endPushOnce
 </x-guest-layout>

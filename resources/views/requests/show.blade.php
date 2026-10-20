@@ -200,6 +200,7 @@
         </div>
     </div>
 
+    @pushOnce('styles', 'page-styles:requests/show.blade.php')
     <style>
         .request-details-page { --request-ink: #173226; --request-muted: #6f8177; --request-line: #dfe8e2; padding: .75rem 0 1.25rem; }
         .request-detail-nav { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: .8rem; }
@@ -314,4 +315,5 @@
             .request-items-heading { align-items: center; }
         }
     </style>
+    @endPushOnce
 </x-app-layout>

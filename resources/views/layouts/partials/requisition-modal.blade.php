@@ -72,7 +72,7 @@
                                 <div class="catalog-search"><i data-lucide="search"></i><input type="search" x-model.debounce.150ms="search" placeholder="Search items, brands, models, or categories…" aria-label="Search catalog"></div>
                             </div>
 
-                            <div x-show="notice" x-transition class="catalog-notice" role="status"><i data-lucide="check-circle-2"></i><span x-text="notice"></span></div>
+                            <div x-cloak x-show="notice" x-transition class="catalog-notice" role="status"><i data-lucide="check-circle-2"></i><span x-text="notice"></span></div>
 
                             <div class="category-chips">
                                 <button type="button" :class="category === 'All' ? 'active' : ''" @click="category = 'All'">All items</button>
@@ -95,14 +95,14 @@
                                     </button>
                                 </template>
                             </div>
-                            <div x-show="!catalogLoading && !catalogError && filteredItems.length === 0" class="empty-catalog"><i data-lucide="package-search"></i><strong>No matching items</strong><span>Try another search or category. Only SMO-listed items appear here.</span></div>
-                            <button type="button" x-show="cart.length" x-transition class="mobile-cart-jump" @click="$refs.cartPane.scrollIntoView({behavior: 'smooth', block: 'start'})">
+                            <div x-cloak x-show="!catalogLoading && !catalogError && filteredItems.length === 0" class="empty-catalog"><i data-lucide="package-search"></i><strong>No matching items</strong><span>Try another search or category. Only SMO-listed items appear here.</span></div>
+                            <button type="button" x-cloak x-show="cart.length" x-transition class="mobile-cart-jump" @click="$refs.cartPane.scrollIntoView({behavior: 'smooth', block: 'start'})">
                                 <span><i data-lucide="shopping-cart"></i> Review requisition</span>
                                 <strong x-text="cartQuantity + ' item' + (cartQuantity === 1 ? '' : 's')"></strong>
                             </button>
                         </div>
 
-                        <div x-show="view === 'product' && selectedItem" x-transition class="product-configurator">
+                        <div x-cloak x-show="view === 'product' && selectedItem" x-transition class="product-configurator">
                             <button type="button" class="btn btn-sm btn-light border rounded-pill mb-4" @click="view = 'catalog'"><i data-lucide="chevron-left"></i> Back to catalog</button>
                             <div class="row g-4">
                                 <div class="col-md-5"><div class="product-hero"><i data-lucide="package-open"></i><span x-text="selectedItem?.category"></span></div></div>
@@ -116,7 +116,7 @@
                                         <div class="option-group"><label x-text="'Choose ' + label"></label><div><template x-for="choice in choices" :key="choice"><button type="button" :class="selectedOptions[label] === choice ? 'active' : ''" @click="selectedOptions[label] = choice" x-text="choice"></button></template></div></div>
                                     </template>
                                     <div class="d-flex align-items-end gap-3 mt-4">
-                                        <div><label class="mini-label d-block" x-text="'Quantity (' + selectedItem.unit + ')'">Quantity</label><div class="quantity-picker"><button type="button" @click="productQty = Math.max(1, productQty - 1)">−</button><input type="number" min="1" :max="selectedItem?.stock" x-model.number="productQty"><button type="button" @click="productQty = Math.min(selectedItem.stock, productQty + 1)">+</button></div></div>
+                                        <div><label class="mini-label d-block" x-text="'Quantity (' + (selectedItem?.unit || 'pc') + ')'">Quantity</label><div class="quantity-picker"><button type="button" @click="productQty = Math.max(1, productQty - 1)">−</button><input type="number" min="1" :max="selectedItem?.stock" x-model.number="productQty"><button type="button" @click="productQty = Math.min(selectedItem.stock, productQty + 1)">+</button></div></div>
                                         <button type="button" class="btn btn-htc flex-grow-1 py-3 fw-bold rounded-3" :disabled="!canAddProduct" @click="addConfiguredItem()"><i data-lucide="shopping-cart"></i> Add to requisition</button>
                                     </div>
                                     <small x-show="!allOptionsSelected" class="text-warning d-block mt-2"><i data-lucide="info" style="width:13px"></i> Select every required option before adding this item.</small>
@@ -146,7 +146,7 @@
                                 <span><em x-text="purpose.length + '/500'"></em><em :class="purposeIsValid ? 'text-success' : ''" x-text="purposeIsValid ? 'Looks good' : 'At least 10 characters'"></em></span>
                             </div>
                             <div><span>Request tier</span><b x-text="tierLabel"></b></div><div><span>Estimated total</span><strong x-text="'₱' + formatMoney(grandTotal)"></strong></div>
-                            <p x-show="tier === 'minor' && grandTotal > 1000" class="text-danger mb-2">Minor requests are limited to ₱1,000. Remove items or switch tiers.</p>
+                            <p x-cloak x-show="tier === 'minor' && grandTotal > 1000" class="text-danger mb-2">Minor requests are limited to ₱1,000. Remove items or switch tiers.</p>
                             <button type="submit" class="btn btn-htc w-100 py-3 fw-bold rounded-3" :disabled="!canSubmit" x-text="submitLabel"></button>
                             <small><i data-lucide="shield-check"></i> Item details and prices are verified by SMO.</small>
                         </div>

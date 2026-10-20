@@ -125,6 +125,7 @@
         </div>
     </div>
 
+    @pushOnce('styles', 'page-styles:notifications.blade.php')
     <style>
         .notification-center-page { --note-ink:#173226; --note-muted:#708178; --note-line:#dfe8e2; padding:.75rem 0 1.25rem; }
         .notification-center-hero { position:relative; display:flex; align-items:center; justify-content:space-between; gap:2rem; overflow:hidden; padding:1.25rem 1.4rem; border-radius:18px; background:radial-gradient(circle at 80% -80%,rgba(134,239,172,.28),transparent 24rem),linear-gradient(125deg,#0b3d25,#17633e 62%,#1d754a); color:#fff; box-shadow:0 14px 30px rgba(14,67,39,.15); }
@@ -235,6 +236,7 @@
         @media(max-width:575.98px){.notification-center-page{padding-top:.25rem}.notification-center-hero{padding:1rem}.notification-hero-copy{align-items:flex-start}.notification-hero-icon{width:44px;height:44px;flex-basis:44px}.notification-hero-copy p{display:none}.notification-hero-summary{display:grid;grid-template-columns:1fr 1fr}.notification-hero-summary form{grid-column:1/-1}.notification-hero-summary form button{width:100%;justify-content:center}.notification-category-nav{margin-right:-.35rem;margin-left:-.35rem;border-radius:0}.notification-center-grid{gap:.75rem}.notification-insights-column{grid-template-columns:1fr}.notification-feed-item{grid-template-columns:36px minmax(0,1fr);padding:.8rem}.notification-feed-icon{width:36px;height:36px}.notification-feed-meta{align-items:flex-start;flex-direction:column;gap:.1rem}.notification-panel-heading{padding:.85rem}.notification-live-label{display:none}}
         @media(prefers-reduced-motion:reduce){.notification-feed-item,.notification-feed-container{transition:none}}
     </style>
+    @endPushOnce
 
     <script>
         (() => {

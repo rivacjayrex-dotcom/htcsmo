@@ -3,6 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    @include('layouts.partials.initial-visibility')
     @include('layouts.partials.browser-title')
     <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="any">
     <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('images/favicon-32x32.png') }}">
@@ -10,11 +11,10 @@
     <link rel="apple-touch-icon" href="{{ asset('images/apple-touch-icon.png') }}">
     <link rel="manifest" href="{{ asset('site.webmanifest') }}">
 
-    <!-- Animate.css for entrance animations -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
-
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=optional" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
     <!-- 2. Lucide Icons (Must be in head) -->
@@ -1896,6 +1896,7 @@
             .inventory-form-page textarea { min-height: 100px; }
         }
     </style>
+    @stack('styles')
 </head>
 <body data-runtime-scope="{{ $workspaceScope }}" data-runtime-version="{{ $workspaceVersion }}">
     <div class="d-flex">
@@ -3015,23 +3016,11 @@
             scheduleCheck(initialDelay());
         })();
 
-        function countUp(target, duration = 1000) {
+        // Server-rendered totals must remain stable when Alpine initializes or a
+        // background refresh replaces the dashboard metrics.
+        function countUp(target) {
             return {
-                current: 0,
-                target: target,
-                init() {
-                    let start = 0;
-                    const increment = this.target / (duration / 16);
-                    const timer = setInterval(() => {
-                        start += increment;
-                        if (start >= this.target) {
-                            this.current = this.target;
-                            clearInterval(timer);
-                        } else {
-                            this.current = Math.floor(start);
-                        }
-                    }, 16);
-                }
+                current: Number(target) || 0,
             }
         }
     </script>

@@ -57,7 +57,7 @@
                                     </button>
                                 </template>
                             </div>
-                            <div x-show="filteredCatalog.length === 0" class="text-center text-muted py-5">No catalog items match your search.</div>
+                            <div x-cloak x-show="filteredCatalog.length === 0" class="text-center text-muted py-5">No catalog items match your search.</div>
                         </div>
                     </div>
                 </section>
@@ -82,11 +82,11 @@
                                     <template x-for="(value, label) in item.selected_options" :key="label"><input type="hidden" :name="'items['+index+'][options]['+label+']'" :value="value"></template>
                                 </div>
                             </template>
-                            <div x-show="cart.length === 0" class="empty-cart"><i data-lucide="shopping-bag"></i><strong>No requested items</strong><span>Add at least one item from the catalog.</span></div>
+                            <div x-cloak x-show="cart.length === 0" class="empty-cart"><i data-lucide="shopping-bag"></i><strong>No requested items</strong><span>Add at least one item from the catalog.</span></div>
 
                             <div class="mt-4"><label for="purpose" class="form-label fw-bold">Reason for request <span class="text-danger">*</span></label><textarea id="purpose" name="purpose" class="form-control" rows="3" minlength="10" maxlength="500" required>{{ old('purpose', $requisition->purpose) }}</textarea></div>
                             <div class="edit-total"><span>Updated request total</span><strong x-text="'PHP ' + money(grandTotal)"></strong></div>
-                            <p x-show="tierLimitError" x-text="tierLimitError" class="text-danger small mt-2 mb-0"></p>
+                            <p x-cloak x-show="tierLimitError" x-text="tierLimitError" class="text-danger small mt-2 mb-0"></p>
                         </div>
                     </div>
                 </aside>
@@ -99,6 +99,7 @@
         </form>
     </div>
 
+    @pushOnce('styles', 'page-styles:requests/edit.blade.php')
     <style>
         [x-cloak] { display: none !important; }
         .catalog-search { width: min(100%, 280px); }
@@ -122,6 +123,7 @@
         .edit-total strong { color: #17633e; }
         @media (max-width: 767.98px) { .catalog-grid { grid-template-columns: 1fr; } .catalog-search { width: 100%; } .request-edit-actions { flex-direction: column-reverse; } .request-edit-actions .btn { width: 100%; } }
     </style>
+    @endPushOnce
 
     <script>
         function requisitionEditor(catalog, initialItems, oldItems) {

@@ -84,6 +84,7 @@
         <script>window.addEventListener('load', () => window.print());</script>
     @endif
 
+    @pushOnce('styles', 'page-styles:requests/archive.blade.php')
     <style>
         @media print {
             .sidebar, .top-bar, .archive-filter-card, .archive-pagination, .workflow-heading-action { display: none !important; }
@@ -91,4 +92,5 @@
             .main-content-inner { padding: 0 !important; border: 0 !important; box-shadow: none !important; }
         }
     </style>
+    @endPushOnce
 </x-app-layout>

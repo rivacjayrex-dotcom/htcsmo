@@ -218,6 +218,7 @@
     </div>
     </div>
 
+    @pushOnce('styles', 'page-styles:inventory/index.blade.php')
     <style>
         .inventory-workspace { display: flex; flex-direction: column; padding: .5rem; }
         .inventory-page-header { display: flex; justify-content: space-between; align-items: center; gap: 1.5rem; margin-bottom: 1.5rem; }
@@ -391,6 +392,7 @@
             .tab-icon { display: none; }
         }
     </style>
+    @endPushOnce
 
     <script>
         function inventoryWorkspace(catalog) {

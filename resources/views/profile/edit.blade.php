@@ -64,6 +64,7 @@
         </div>
     </div>
 
+    @pushOnce('styles', 'page-styles:profile/edit.blade.php')
     <style>
         @media (max-width: 991.98px) {
             .account-summary-card { position: static !important; }
@@ -83,4 +84,5 @@
             .profile-form-action p { margin-left: 0 !important; text-align: center; }
         }
     </style>
+    @endPushOnce
 </x-app-layout>

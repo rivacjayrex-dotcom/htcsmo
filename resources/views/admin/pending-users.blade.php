@@ -4,7 +4,7 @@
     </x-slot>
 
     <div class="container-fluid py-2 pending-users-page">
-        <div class="mb-4 animate__animated animate__fadeIn">
+        <div class="mb-4">
             <h4 class="fw-black text-dark mb-1">Pending Registrations</h4>
             <p class="text-muted small mb-3">Verify institutional identity before activating a new Faculty / Staff account.</p>
             <form action="{{ route('admin.users.pending') }}" method="GET" class="d-flex flex-wrap gap-2" role="search" data-dynamic-search>
@@ -29,7 +29,7 @@
         <div class="row g-4">
             <div class="col-xl-9">
                 @forelse($users as $u)
-                    <div class="card border-0 shadow-sm rounded-4 mb-3 overflow-hidden animate__animated animate__fadeInUp" style="animation-delay: {{ $loop->index * 0.1 }}s">
+                    <div class="card border-0 shadow-sm rounded-4 mb-3 overflow-hidden">
                         <div class="row g-0">
                             <!-- User Identity Section -->
                             <div class="pending-user-identity col-md-5 p-4 bg-light border-end d-flex align-items-center">
@@ -108,6 +108,7 @@
         </div>
     </div>
 
+    @pushOnce('styles', 'page-styles:admin/pending-users.blade.php')
     <style>
         .mini-label { font-size: 9px; font-weight: 800; text-transform: uppercase; color: #94a3b8; letter-spacing: 1px; margin-bottom: 5px; }
         .bg-success-subtle { background-color: #f0fdf4 !important; }
@@ -121,4 +122,5 @@
             .pending-users-page button[type="submit"] { min-height: 44px; font-size: 16px; }
         }
     </style>
+    @endPushOnce
 </x-app-layout>

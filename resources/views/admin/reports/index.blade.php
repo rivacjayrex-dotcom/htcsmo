@@ -65,14 +65,14 @@
                         </select>
                     </div>
 
-                    <div class="col-lg-4 custom-date-field">
+                    <div class="col-lg-4 custom-date-field" @if(request('period') !== 'custom') hidden @endif>
                         <label for="date_from" class="form-label mini-label">From</label>
-                        <input id="date_from" type="date" name="date_from" value="{{ request('date_from') }}" class="form-control border-0 bg-light rounded-3 shadow-none">
+                        <input id="date_from" type="date" name="date_from" value="{{ request('date_from') }}" class="form-control border-0 bg-light rounded-3 shadow-none" @disabled(request('period') !== 'custom')>
                     </div>
 
-                    <div class="col-lg-4 custom-date-field">
+                    <div class="col-lg-4 custom-date-field" @if(request('period') !== 'custom') hidden @endif>
                         <label for="date_to" class="form-label mini-label">To</label>
-                        <input id="date_to" type="date" name="date_to" value="{{ request('date_to') }}" class="form-control border-0 bg-light rounded-3 shadow-none">
+                        <input id="date_to" type="date" name="date_to" value="{{ request('date_to') }}" class="form-control border-0 bg-light rounded-3 shadow-none" @disabled(request('period') !== 'custom')>
                     </div>
                 </div>
 
@@ -284,6 +284,7 @@
     </div>
 </section>
 
+@pushOnce('styles', 'page-styles:admin/reports/index.blade.php')
 <style>
     .report-builder { max-width: 1500px; margin: 0 auto; }
     .report-center-hero { position: relative; isolation: isolate; display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; overflow: hidden; padding: 1.65rem 1.8rem; border-radius: 22px; background: linear-gradient(135deg, #0d4329 0%, #17633e 56%, #238654 100%); color: #fff; box-shadow: 0 18px 45px rgba(13, 67, 41, .2); }
@@ -429,6 +430,7 @@
         .no-print { display: none !important; }
     }
 </style>
+@endPushOnce
 
 <script>
     const initializeReportBuilder = () => {
@@ -450,7 +452,7 @@
         const toggleCustomDates = () => {
             const isCustom = period?.value === 'custom';
             customDateFields.forEach((field) => {
-                field.style.display = isCustom ? '' : 'none';
+                field.hidden = !isCustom;
                 field.querySelector('input').disabled = !isCustom;
             });
         };
