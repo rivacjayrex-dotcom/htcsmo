@@ -1,5 +1,5 @@
 <section>
-    <form method="post" action="{{ route('profile.update') }}" class="mt-2" enctype="multipart/form-data" x-data="{ edited: false }" @input="edited = true">
+    <form method="post" action="{{ route('profile.update') }}" class="mt-2" enctype="multipart/form-data" x-data="{ edited: false }" @input="edited = true" data-confirm="Save the account information and profile photo you entered?" data-confirm-title="Update account information?" data-confirm-accept="Save changes">
         @csrf
         @method('patch')
 

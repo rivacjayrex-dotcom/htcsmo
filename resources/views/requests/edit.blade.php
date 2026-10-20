@@ -21,7 +21,7 @@
             </div>
         @endif
 
-        <form action="{{ route('requisitions.update', $requisition) }}" method="POST">
+        <form action="{{ route('requisitions.update', $requisition) }}" method="POST" data-confirm="Save the updated purpose and requested items for {{ $requisition->tracking_code }}?" data-confirm-title="Save requisition changes?" data-confirm-accept="Save changes">
             @csrf
             @method('PATCH')
             <div class="row g-4">

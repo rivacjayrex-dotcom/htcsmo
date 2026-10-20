@@ -1,5 +1,5 @@
 <section>
-    <form method="post" action="{{ route('password.update') }}" class="mt-2" x-data="{ edited: false }" @input="edited = true">
+    <form method="post" action="{{ route('password.update') }}" class="mt-2" x-data="{ edited: false }" @input="edited = true" data-confirm="Replace your current password? Use the new password the next time you sign in." data-confirm-title="Change your password?" data-confirm-accept="Change password">
         @csrf
         @method('put')
 

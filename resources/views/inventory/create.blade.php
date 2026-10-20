@@ -20,7 +20,7 @@
                     </div>
                 @endif
 
-                <form action="{{ route('inventory.store') }}" method="POST">
+                <form action="{{ route('inventory.store') }}" method="POST" data-confirm="Add this item to the inventory and request catalog with the details you entered?" data-confirm-title="Add inventory item?" data-confirm-accept="Add item">
                     @csrf
 
                     <div class="d-flex justify-content-between align-items-center mb-3">

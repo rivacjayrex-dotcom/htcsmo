@@ -85,7 +85,7 @@
                                 @endif
                                 @if($type === 'active' && Auth::id() === $req->user_id && $req->status === 'pending')
                                     <a href="{{ route('requisitions.edit', $req->id) }}" class="history-action edit" title="Edit pending request"><i data-lucide="pencil"></i></a>
-                                    <form action="{{ route('requisitions.destroy', $req->id) }}" method="POST" onsubmit="return confirm('Cancel and delete this pending requisition?');">
+                                    <form action="{{ route('requisitions.destroy', $req->id) }}" method="POST" data-confirm="Delete pending requisition {{ $req->tracking_code }} and its requested items? This cannot be undone." data-confirm-title="Delete this requisition?" data-confirm-accept="Delete requisition" data-confirm-tone="danger">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="history-action cancel" title="Cancel pending request"><i data-lucide="trash-2"></i></button>

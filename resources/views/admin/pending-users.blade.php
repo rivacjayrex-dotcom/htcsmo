@@ -47,7 +47,7 @@
 
                             <!-- Role Assignment Sectionnnnnn -->
                             <div class="pending-user-role col-md-7 p-4 bg-white">
-                                <form action="{{ route('admin.users.approve', $u->id) }}" method="POST">
+                                <form action="{{ route('admin.users.approve', $u->id) }}" method="POST" data-confirm="Grant Faculty / Staff access to {{ $u->name }} ({{ $u->school_id }})? Confirm that you have verified their institutional identity." data-confirm-title="Grant account access?" data-confirm-accept="Grant access">
                                     @csrf
                                     <input type="hidden" name="version" value="{{ $u->account_version }}">
                                     <div class="row align-items-center">

@@ -1,5 +1,36 @@
 @import 'bootstrap/dist/css/bootstrap.min.css';
 
+.action-confirmation {
+    width: min(440px, calc(100vw - 2rem));
+    max-height: calc(100dvh - 2rem);
+    margin: auto;
+    padding: 0;
+    overflow: auto;
+    border: 1px solid #dce6df;
+    border-radius: 20px;
+    color: #203128;
+    background: #fff;
+    box-shadow: 0 24px 80px rgb(0 0 0 / 25%);
+    font-family: inherit;
+}
+.action-confirmation::backdrop { background: rgb(8 24 15 / 60%); }
+.action-confirmation[open] { animation: action-confirmation-in .18s ease-out; }
+.action-confirmation__body { padding: 1.75rem 1.75rem 1rem; }
+.action-confirmation__icon { display: grid; place-items: center; width: 44px; height: 44px; margin-bottom: 1rem; border-radius: 14px; background: #e8f4ec; color: #21633b; font-size: 1.5rem; font-weight: 800; }
+.action-confirmation h2 { margin: 0 0 .75rem; font-size: 1.2rem; font-weight: 800; }
+.action-confirmation p { margin: 0; color: #657269; font-size: .9rem; line-height: 1.6; overflow-wrap: anywhere; white-space: pre-line; }
+.action-confirmation__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .65rem; padding: 1rem 1.75rem 1.5rem; }
+.action-confirmation__actions button { min-height: 44px; padding: .65rem 1.15rem; border: 1px solid transparent; border-radius: 10px; font: inherit; font-size: .88rem; font-weight: 700; cursor: pointer; }
+.action-confirmation__cancel { background: #f3f6f4; color: #405247; border-color: #dce6df !important; }
+.action-confirmation__accept { background: #14532d; color: #fff; }
+.action-confirmation__accept:hover { background: #0c3c20; }
+.action-confirmation[data-tone="danger"] .action-confirmation__icon { color: #ae2531; background: #fff0f1; }
+.action-confirmation[data-tone="danger"] .action-confirmation__accept { background: #b42332; }
+.action-confirmation[data-tone="danger"] .action-confirmation__accept:hover { background: #951d2a; }
+.action-confirmation button:focus-visible { outline: 3px solid #80b593; outline-offset: 3px; }
+@keyframes action-confirmation-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .action-confirmation[open] { animation: none; } }
+
 .component-button {
     display: inline-flex;
     align-items: center;

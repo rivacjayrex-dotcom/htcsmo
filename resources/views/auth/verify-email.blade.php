@@ -20,7 +20,7 @@
             </div>
         </form>
 
-        <form method="POST" action="{{ route('logout') }}">
+        <form method="POST" action="{{ route('logout') }}" data-confirm="End your current session and return to the sign-in page?" data-confirm-title="Sign out?" data-confirm-accept="Sign out">
             @csrf
 
             <button type="submit" class="btn btn-link btn-sm text-body-secondary">

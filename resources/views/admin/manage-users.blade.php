@@ -220,7 +220,7 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
 
-                    <form :action="'{{ url('/admin/users') }}/' + selectedUser.id" method="POST">
+                    <form :action="'{{ url('/admin/users') }}/' + selectedUser.id" method="POST" :data-confirm="selectedUser.account_status === 'suspended' ? 'Suspend access for ' + selectedUser.name + '? They will be signed out and unable to sign in until access is restored.' : 'Save the designation, department, and account access settings for ' + selectedUser.name + '?'" :data-confirm-title="selectedUser.account_status === 'suspended' ? 'Suspend this account?' : 'Update personnel record?'" :data-confirm-tone="selectedUser.account_status === 'suspended' ? 'danger' : 'default'" data-confirm-accept="Save personnel record">
                         @csrf
                         @method('patch')
                         <input type="hidden" name="version" :value="selectedUser.version">

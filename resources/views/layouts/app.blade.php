@@ -2035,7 +2035,7 @@
                             </li>
                             <li><hr class="dropdown-divider opacity-50"></li>
                             <li>
-                                <form method="POST" action="{{ route('logout') }}" data-logout-form>
+                                <form method="POST" action="{{ route('logout') }}" data-logout-form data-confirm="End your current session? Save any changes you want to keep before signing out." data-confirm-title="Sign out?" data-confirm-accept="Sign out">
                                     @csrf
                                     <button type="submit" class="dropdown-item text-danger rounded-3 small d-flex align-items-center" data-loading-text="Logging out…">
                                         <i data-lucide="log-out" class="me-2" style="width:14px"></i> Sign Out
@@ -2632,8 +2632,14 @@
                     this.cart = [];
                     this.refreshIcons();
                 },
-                backToTiers() {
-                    if (this.cart.length && !window.confirm('Changing the tier will clear the items in your cart. Continue?')) return;
+                async backToTiers() {
+                    if (this.cart.length && !await window.htcConfirm({
+                        title: 'Change requisition tier?',
+                        message: 'Changing the tier will clear the items in your cart.',
+                        accept: 'Clear cart and change tier',
+                        cancel: 'Keep current cart',
+                        tone: 'danger',
+                    })) return;
                     this.view = 'selection';
                     this.cart = [];
                     this.selectedItem = null;
@@ -2806,7 +2812,7 @@
                 const editing = active && ['INPUT', 'TEXTAREA', 'SELECT'].includes(active.tagName);
                 return document.hidden || notificationBusy || editing
                     || document.documentElement?.getAttribute('aria-busy') === 'true'
-                    || Boolean(document.querySelector('.modal.show, .main-content-inner [data-dirty], .main-content-inner form[aria-busy="true"], .main-content-inner input[type="checkbox"]:checked'));
+                    || Boolean(document.querySelector('.modal.show, dialog[open], .main-content-inner [data-dirty], .main-content-inner form[aria-busy="true"], .main-content-inner input[type="checkbox"]:checked'));
             };
 
             const showNotice = (deferred = false) => {

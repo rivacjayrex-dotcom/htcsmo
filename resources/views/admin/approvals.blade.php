@@ -256,7 +256,7 @@
                         <div class="mt-4">
                             @if(Auth::user()->role == 'smo')
                                 <template x-if="(selectedReq.request_type === 'minor' && selectedReq.status === 'approved_vp') || (selectedReq.request_type === 'major' && selectedReq.status === 'approved_president')">
-                                    <form :action="'{{ url('/admin/requests') }}/' + selectedReq.id + '/processing'" method="POST">
+                                    <form :action="'{{ url('/admin/requests') }}/' + selectedReq.id + '/processing'" method="POST" :data-confirm="'Start preparing supplies for ' + (selectedReq.tracking_code || ('Requisition #' + selectedReq.id)) + '?'" data-confirm-title="Start processing?" data-confirm-accept="Start processing">
                                         @csrf
                                         <button type="submit" class="btn btn-primary w-100 py-3 fw-bold rounded-3 shadow-sm d-flex align-items-center justify-content-center">
                                             <i data-lucide="package-open" class="me-2" style="width:18px;"></i> START PROCESSING
@@ -272,7 +272,7 @@
                                     </form>
                                 </template>
                                 <template x-if="selectedReq.status === 'ready_for_pickup'">
-                                    <form :action="'{{ url('/admin/requests') }}/' + selectedReq.id + '/complete'" method="POST">
+                                    <form :action="'{{ url('/admin/requests') }}/' + selectedReq.id + '/complete'" method="POST" :data-confirm="'Confirm that the requestor has collected the supplies for ' + (selectedReq.tracking_code || ('Requisition #' + selectedReq.id)) + '. This will mark the requisition as completed.'" data-confirm-title="Confirm pickup and complete?" data-confirm-accept="Complete requisition">
                                         @csrf
                                         <button type="submit" class="btn btn-success w-100 py-3 fw-bold rounded-3 shadow-sm d-flex align-items-center justify-content-center">
                                             <i data-lucide="circle-check" class="me-2" style="width:18px;"></i> CONFIRM PICKUP &amp; COMPLETE
@@ -294,21 +294,21 @@
                                     <div class="row g-2">
                                         <!-- 1. REJECT BUTTON -->
                                         <div :class="selectedReq.status === 'for_clarification' ? 'col-6' : 'col-md-4'">
-                                            <button name="status" value="rejected" type="submit" class="btn btn-outline-danger fw-bold w-100 py-2 rounded-3">
+                                            <button name="status" value="rejected" type="submit" class="btn btn-outline-danger fw-bold w-100 py-2 rounded-3" :data-confirm="'Reject ' + (selectedReq.tracking_code || ('Requisition #' + selectedReq.id)) + '? Your remarks will be recorded and the requestor will be notified.'" data-confirm-title="Reject this requisition?" data-confirm-accept="Reject requisition" data-confirm-tone="danger">
                                                 <i data-lucide="x-circle" class="me-1" style="width:14px; vertical-align: middle;"></i> Reject
                                             </button>
                                         </div>
 
                                         <!-- 2. OFFICE INQUIRY (Hides automatically if ALREADY under clarification) -->
                                         <div class="col-md-4" x-show="selectedReq.status !== 'for_clarification'">
-                                            <button name="status" value="clarification" type="submit" class="btn btn-warning fw-bold text-dark w-100 py-2 rounded-3 shadow-sm">
+                                            <button name="status" value="clarification" type="submit" class="btn btn-warning fw-bold text-dark w-100 py-2 rounded-3 shadow-sm" :data-confirm="'Request clarification for ' + (selectedReq.tracking_code || ('Requisition #' + selectedReq.id)) + '? Your remarks will be sent to the requestor.'" data-confirm-title="Request office inquiry?" data-confirm-accept="Request clarification">
                                                 <i data-lucide="help-circle" class="me-1" style="width:14px; vertical-align: middle;"></i> Office Inquiry
                                             </button>
                                         </div>
 
                                         <!-- 3. APPROVE BUTTON -->
                                         <div :class="selectedReq.status === 'for_clarification' ? 'col-6' : 'col-md-4'">
-                                            <button name="status" value="approved" type="submit" class="btn btn-success fw-bold w-100 py-2 shadow-sm rounded-3">
+                                            <button name="status" value="approved" type="submit" class="btn btn-success fw-bold w-100 py-2 shadow-sm rounded-3" :data-confirm="'Record your approval for ' + (selectedReq.tracking_code || ('Requisition #' + selectedReq.id)) + '? The request will advance to the next stage.'" data-confirm-title="Approve this requisition?" data-confirm-accept="Approve requisition">
                                                 <i data-lucide="check-circle" class="me-1" style="width:14px; vertical-align: middle;"></i>
                                                 <span x-text="selectedReq.status === 'for_clarification' ? 'Approve (Satisfied)' : 'Approve'"></span>
                                             </button>

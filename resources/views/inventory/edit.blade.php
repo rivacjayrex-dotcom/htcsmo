@@ -33,7 +33,7 @@
                     </div>
                 @endif
 
-                <form action="{{ route('inventory.update', $item->id) }}" method="POST">
+                <form action="{{ route('inventory.update', $item->id) }}" method="POST" data-confirm="Save changes to {{ $item->item_name }}? Updated stock, pricing, and options will apply to the request catalog." data-confirm-title="Update inventory item?" data-confirm-accept="Save changes">
                     @csrf
                     @method('PATCH')
 
