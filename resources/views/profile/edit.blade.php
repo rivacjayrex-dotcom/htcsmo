@@ -9,10 +9,14 @@
             <div class="col-lg-4">
                 <div class="account-summary-card card border-0 shadow-sm rounded-4 p-4 sticky-top" style="top: 100px;">
                     <div class="text-center mb-4">
+                        @if($user->profile_photo)
+                            <img src="{{ asset('storage/' . $user->profile_photo) }}" class="rounded-circle mx-auto mb-3" style="width: 80px; height: 80px; object-fit: cover;" alt="{{ $user->name }} profile photo">
+                        @else
                         <div class="rounded-circle bg-light d-flex align-items-center justify-content-center mx-auto mb-3"
                              style="width: 80px; height: 80px; color: var(--htc-green);">
                             <i data-lucide="user" style="width: 40px; height: 40px;"></i>
                         </div>
+                        @endif
                         <h5 class="fw-bold mb-1">{{ Auth::user()->name }}</h5>
                         <p class="text-muted small mb-0">{{ Auth::user()->school_id }}</p>
                         <span class="badge bg-success-subtle text-success mt-2 px-3 rounded-pill text-uppercase" style="font-size: 10px;">

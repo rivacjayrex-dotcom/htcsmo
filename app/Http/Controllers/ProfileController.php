@@ -10,6 +10,7 @@ use App\Services\NotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
@@ -33,32 +34,64 @@ class ProfileController extends Controller
      */
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
-        // Handle Profile Photo Upload
-        if ($request->hasFile('profile_photo')) {
-            $request->validate([
-                'profile_photo' => ['nullable', 'image', 'max:2048'], // Max 2MB
-            ]);
-
-            // Delete old photo if it exists
-            if ($request->user()->profile_photo) {
-                Storage::disk('public')->delete($request->user()->profile_photo);
+        $newPhoto = null;
+        $oldPhoto = null;
+        try {
+            if ($request->hasFile('profile_photo')) {
+                try {
+                    $newPhoto = $request->file('profile_photo')->store('profile-photos', 'public');
+                } catch (\Throwable $exception) {
+                    Log::warning('Profile photo upload failed.', ['exception' => $exception->getMessage()]);
+                    throw ValidationException::withMessages(['profile_photo' => 'The photo could not be uploaded. Please try again.']);
+                }
+                if (! $newPhoto) {
+                    throw ValidationException::withMessages(['profile_photo' => 'The photo could not be uploaded. Please try again.']);
+                }
             }
 
-            // Store the new photo
-            $path = $request->file('profile_photo')->store('profile-photos', 'public');
-            $request->user()->profile_photo = $path;
+            DB::transaction(function () use ($request, $newPhoto, &$oldPhoto) {
+                $user = User::query()->lockForUpdate()->findOrFail($request->user()->id);
+                $user->fill($request->safe()->only(['name', 'username', 'email']));
+                if ($user->isDirty('email')) {
+                    $user->email_verified_at = null;
+                }
+                if ($newPhoto) {
+                    $oldPhoto = $user->profile_photo;
+                    $user->profile_photo = $newPhoto;
+                }
+                $changed = array_keys($user->getDirty());
+                if ($changed !== []) {
+                    $user->save();
+                    $this->recordAccountAudit($user, $request, 'Updated own profile: '.implode(', ', $changed));
+                }
+            });
+        } catch (\Throwable $exception) {
+            if ($newPhoto) {
+                $this->deleteProfilePhoto($newPhoto);
+            }
+            throw $exception;
         }
 
-        $validated = $request->validated();
-        $request->user()->fill($validated);
-
-        if ($request->user()->isDirty('email')) {
-            $request->user()->email_verified_at = null;
+        if ($newPhoto && $oldPhoto && $oldPhoto !== $newPhoto) {
+            $this->deleteProfilePhoto($oldPhoto);
         }
-
-        $request->user()->save();
+        $request->user()->refresh();
 
         return Redirect::route('profile.edit')->with('status', 'profile-updated');
+    }
+
+    private function deleteProfilePhoto(string $path): void
+    {
+        if (! str_starts_with($path, 'profile-photos/')) {
+            return;
+        }
+        try {
+            if (! Storage::disk('public')->delete($path)) {
+                Log::warning('Could not remove an unused profile photo.');
+            }
+        } catch (\Throwable $exception) {
+            Log::warning('Could not remove an unused profile photo.', ['exception' => $exception->getMessage()]);
+        }
     }
 
     public function pendingUsers(Request $request)

@@ -1,7 +1,18 @@
 <section>
-    <form method="post" action="{{ route('profile.update') }}" class="mt-2" enctype="multipart/form-data">
+    <form method="post" action="{{ route('profile.update') }}" class="mt-2" enctype="multipart/form-data" x-data="{ edited: false }" @input="edited = true">
         @csrf
         @method('patch')
+
+        @if($errors->getBag('default')->any())
+            <div class="alert alert-danger" role="alert" tabindex="-1" autofocus>
+                <p class="fw-bold mb-1">Please check the highlighted fields.</p>
+                <ul class="mb-0 small">
+                    @foreach($errors->getBag('default')->all() as $message)
+                        <li>{{ $message }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
 
         <div class="profile-photo-row d-flex align-items-center mb-4">
             <div class="position-relative">
@@ -16,8 +27,8 @@
 
             <div class="ms-4 flex-grow-1">
                 <label for="profile_photo" class="form-label small fw-bold text-muted text-uppercase d-block">Change Profile Photo</label>
-                <input id="profile_photo" type="file" name="profile_photo" accept="image/*" class="form-control form-control-sm border-0 bg-light shadow-none @error('profile_photo') is-invalid @enderror">
-                <small class="text-muted" style="font-size: 10px;">Recommended: Square JPG or PNG, max 2MB.</small>
+                <input id="profile_photo" type="file" name="profile_photo" accept="image/jpeg,image/png,image/webp" aria-describedby="profile-photo-help" class="form-control form-control-sm border-0 bg-light shadow-none @error('profile_photo') is-invalid @enderror">
+                <small id="profile-photo-help" class="text-muted" style="font-size: 10px;">Square JPG, PNG, or WebP, max 2MB. Choose the image, then save your changes.</small>
                 @error('profile_photo')
                     <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
@@ -27,7 +38,7 @@
         <div class="row g-3">
             <div class="col-md-6">
                 <label for="name" class="form-label small fw-bold text-muted text-uppercase">Full Name</label>
-                <input id="name" name="name" type="text" class="form-control border-0 bg-light py-2 px-3 rounded-3 shadow-none @error('name') is-invalid @enderror" value="{{ old('name', $user->name) }}" required>
+                <input id="name" name="name" type="text" class="form-control border-0 bg-light py-2 px-3 rounded-3 shadow-none @error('name') is-invalid @enderror" value="{{ old('name', $user->name) }}" maxlength="255" autocomplete="name" required>
                 @error('name')
                     <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
@@ -35,7 +46,8 @@
 
             <div class="col-md-6">
                 <label for="username" class="form-label small fw-bold text-muted text-uppercase">Username</label>
-                <input id="username" name="username" type="text" class="form-control border-0 bg-light py-2 px-3 rounded-3 shadow-none @error('username') is-invalid @enderror" value="{{ old('username', $user->username) }}" minlength="4" maxlength="30" required>
+                <input id="username" name="username" type="text" class="form-control border-0 bg-light py-2 px-3 rounded-3 shadow-none @error('username') is-invalid @enderror" value="{{ old('username', $user->username) }}" autocomplete="username" aria-describedby="username-help" maxlength="30" required>
+                <small id="username-help" class="text-muted">You can keep your current username. A new username needs 4–30 letters, numbers, underscores, or dashes.</small>
                 @error('username')
                     <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
@@ -43,7 +55,7 @@
 
             <div class="col-md-6">
                 <label for="email" class="form-label small fw-bold text-muted text-uppercase">Email Address</label>
-                <input id="email" name="email" type="email" class="form-control border-0 bg-light py-2 px-3 rounded-3 shadow-none @error('email') is-invalid @enderror" value="{{ old('email', $user->email) }}" required>
+                <input id="email" name="email" type="email" class="form-control border-0 bg-light py-2 px-3 rounded-3 shadow-none @error('email') is-invalid @enderror" value="{{ old('email', $user->email) }}" maxlength="255" autocomplete="email" required>
                 @error('email')
                     <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
@@ -68,7 +80,7 @@
             </button>
 
             @if (session('status') === 'profile-updated')
-                <p class="text-success small ms-3 mb-0 fw-bold">Saved successfully!</p>
+                <p class="text-success small ms-3 mb-0 fw-bold" role="status" x-show="!edited" tabindex="-1" autofocus>Saved successfully!</p>
             @endif
         </div>
     </form>

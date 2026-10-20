@@ -17,16 +17,19 @@ class ProfileUpdateRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:255'],
+            'name' => ['bail', 'required', 'string', 'max:255'],
             'username' => [
+                'bail',
                 'required',
                 'string',
-                'min:4',
-                'max:30',
-                'alpha_dash:ascii',
+                // Existing login names may predate the current registration rules.
+                Rule::when($this->input('username') !== $this->user()->username, [
+                    'min:4', 'max:30', 'alpha_dash:ascii',
+                ]),
                 Rule::unique(User::class)->ignore($this->user()->id),
             ],
             'email' => [
+                'bail',
                 'required',
                 'string',
                 'lowercase',
@@ -34,6 +37,7 @@ class ProfileUpdateRequest extends FormRequest
                 'max:255',
                 Rule::unique(User::class)->ignore($this->user()->id),
             ],
+            'profile_photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
         ];
     }
 
@@ -42,10 +46,17 @@ class ProfileUpdateRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
-        $this->merge([
-            'name' => preg_replace('/\s+/', ' ', trim((string) $this->name)),
-            'username' => strtolower(trim((string) $this->username)),
-            'email' => strtolower(trim((string) $this->email)),
-        ]);
+        $normalized = [];
+        foreach (['name', 'username', 'email'] as $field) {
+            $value = $this->input($field);
+            if (! is_string($value)) {
+                continue;
+            }
+            $value = trim($value);
+            $normalized[$field] = $field === 'name'
+                ? preg_replace('/\s+/u', ' ', $value)
+                : ($field === 'username' && $value === $this->user()->username ? $value : strtolower($value));
+        }
+        $this->merge($normalized);
     }
 }
