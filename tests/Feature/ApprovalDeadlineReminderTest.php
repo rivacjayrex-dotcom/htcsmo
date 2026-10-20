@@ -83,6 +83,35 @@ class ApprovalDeadlineReminderTest extends TestCase
         ]);
     }
 
+    public function test_smo_deadline_reminder_is_available_to_the_presidents_live_popup_feed(): void
+    {
+        $smo = User::factory()->create(['role' => 'smo']);
+        $president = User::factory()->create(['role' => 'president']);
+        $requestor = User::factory()->create();
+        $requisition = $this->deadlineRequest($requestor, 'approved_provost');
+
+        $this->actingAs($smo)
+            ->post(route('admin.requests.deadline-reminder', $requisition))
+            ->assertSessionHas('success');
+
+        $notification = Notification::where('user_id', $president->id)
+            ->where('event_type', 'deadline.nearing')
+            ->sole();
+
+        // Opening the recipient's page must leave the reminder eligible for a popup.
+        $this->actingAs($president)->get(route('dashboard'))->assertOk();
+        $this->actingAs($president)
+            ->getJson(route('api.runtime-state', ['after_id' => 0]))
+            ->assertOk()
+            ->assertJsonPath('account_id', $president->id)
+            ->assertJsonPath('notifications.0.id', $notification->id)
+            ->assertJsonPath('notifications.0.type', 'warning')
+            ->assertJsonPath('notifications.0.event_type', 'deadline.nearing')
+            ->assertJsonPath('notifications.0.action_url', route('notifications.open', $notification))
+            ->assertJsonPath('notifications.0.action_label', 'Review requisition');
+        $this->assertFalse($notification->fresh()->is_read);
+    }
+
     public function test_approvers_see_only_deadline_risks_assigned_to_their_stage_and_department(): void
     {
         $head = User::factory()->create(['role' => 'dept_head', 'department' => 'CETE']);

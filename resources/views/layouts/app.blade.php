@@ -1299,16 +1299,25 @@
             bottom: 22px;
             z-index: 10050;
             width: min(390px, calc(100vw - 28px));
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-height: calc(100dvh - 100px);
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            padding: 3px;
         }
 
         .notification-toast {
             position: relative;
+            flex-shrink: 0;
             overflow: hidden;
             border: 1px solid #dce7e0;
             border-radius: 17px;
             background: rgba(255,255,255,.98);
             box-shadow: 0 20px 55px rgba(20, 48, 31, .2);
             backdrop-filter: blur(12px);
+            animation: notificationToastEnter .25s ease-out;
         }
 
         .notification-toast-accent {
@@ -1481,6 +1490,15 @@
         @keyframes notificationCountdown {
             from { transform: scaleX(1); }
             to { transform: scaleX(0); }
+        }
+
+        @keyframes notificationToastEnter {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .notification-toast { animation: none; }
         }
 
         .cart-summary > div {
@@ -2250,37 +2268,39 @@
     @include('layouts.partials.requisition-modal')
 
     <!-- LIVE PRIORITY NOTIFICATION -->
-    <div x-data="notificationCenter()" x-show="show" x-transition.opacity.duration.250ms class="notification-toast-wrap" x-cloak>
-        <article class="notification-toast" :class="'type-' + type" role="alert" aria-live="assertive">
+    <div x-data="notificationCenter()" x-show="toasts.length > 0" class="notification-toast-wrap" aria-label="Notifications" x-cloak>
+        <template x-for="toast in toasts" :key="toast.id">
+        <article x-show="toast.visible" x-transition.opacity.duration.250ms class="notification-toast" :class="'type-' + toast.type" role="alert" aria-live="assertive">
             <div class="notification-toast-accent"></div>
             <div class="notification-toast-body">
                 <div class="notification-toast-icon">
-                    <template x-if="type === 'danger'"><i data-lucide="siren"></i></template>
-                    <template x-if="type === 'warning'"><i data-lucide="triangle-alert"></i></template>
-                    <template x-if="type === 'success'"><i data-lucide="circle-check"></i></template>
-                    <template x-if="!['danger', 'warning', 'success'].includes(type)"><i data-lucide="bell-ring"></i></template>
+                    <template x-if="toast.type === 'danger'"><i data-lucide="siren"></i></template>
+                    <template x-if="toast.type === 'warning'"><i data-lucide="triangle-alert"></i></template>
+                    <template x-if="toast.type === 'success'"><i data-lucide="circle-check"></i></template>
+                    <template x-if="!['danger', 'warning', 'success'].includes(toast.type)"><i data-lucide="bell-ring"></i></template>
                 </div>
                 <div class="notification-toast-content">
-                    <div class="notification-toast-meta"><span x-text="label"></span><time>Just now</time></div>
-                    <h6 x-text="title"></h6>
-                    <p x-text="message"></p>
+                    <div class="notification-toast-meta"><span x-text="toast.label"></span><time>Just now</time></div>
+                    <h6 x-text="toast.title"></h6>
+                    <p x-text="toast.message"></p>
                     <div class="notification-toast-actions">
-                        <form x-show="actionUrl" :action="actionUrl" method="POST">
+                        <form x-show="toast.actionUrl" :action="toast.actionUrl" method="POST">
                             @csrf
-                            <button type="submit" class="notification-toast-open" x-text="actionLabel"></button>
+                            <button type="submit" class="notification-toast-open" x-text="toast.actionLabel"></button>
                         </form>
-                        <button type="button" @click="toggleSound()" :title="soundEnabled ? 'Mute notification sounds' : 'Enable notification sounds'">
+                        <button type="button" @click="toggleSound()" :title="soundEnabled ? 'Mute notification sounds' : 'Enable notification sounds'" :aria-label="soundEnabled ? 'Mute notification sounds' : 'Enable notification sounds'" :aria-pressed="soundEnabled">
                             <template x-if="soundEnabled"><i data-lucide="volume-2"></i></template>
                             <template x-if="!soundEnabled"><i data-lucide="volume-x"></i></template>
                         </button>
-                        <button type="button" @click="dismiss()" title="Hide this toast; it will remain unread">Dismiss toast</button>
+                        <button type="button" @click="dismiss(toast.id)" title="Hide this toast; it will remain unread">Dismiss toast</button>
                     </div>
                     <small class="notification-toast-read-note">Dismissal hides this toast but keeps the notification unread.</small>
                 </div>
-                <button type="button" class="notification-toast-close" @click="dismiss()" aria-label="Dismiss notification"><i data-lucide="x"></i></button>
+                <button type="button" class="notification-toast-close" @click="dismiss(toast.id)" aria-label="Dismiss notification"><i data-lucide="x"></i></button>
             </div>
-            <div class="notification-toast-timer" :key="timerKey"></div>
+            <div class="notification-toast-timer"></div>
         </article>
+        </template>
     </div>
 
     <!-- LIVE DATA REFRESH STATUS -->
@@ -2295,7 +2315,7 @@
     <!-- Scripts -->
     <script>
         // Initialize Icons
-        lucide.createIcons();
+        window.lucide?.createIcons();
 
         (() => {
             const sidebar = document.getElementById('appSidebar');
@@ -2337,43 +2357,45 @@
         })();
 
         function notificationCenter() {
-            const storageKey = 'htc-last-notification-{{ Auth::id() }}';
+            // Only displayed popups advance this cursor. The former key also
+            // included notifications skipped during page loads and refreshes.
+            const storageKey = 'htc-presented-notification-{{ Auth::id() }}';
             const soundKey = 'htc-notification-sound';
             const accountId = {{ (int) Auth::id() }};
             const pageNotificationBaseline = {{ (int) ($layoutLatestNotificationId ?? 0) }};
             const runtimeCacheKey = `htc-runtime-state:${accountId}`;
             const tabId = window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
             const channel = 'BroadcastChannel' in window ? new BroadcastChannel(`htc-notifications-${accountId}`) : null;
+            const toastTimers = new Map();
+            let audioContext = null;
+            let lastSoundAt = -Infinity;
+            const readPreference = key => {
+                try { return localStorage.getItem(key); } catch (error) { return null; }
+            };
+            const savePreference = (key, value) => {
+                try { localStorage.setItem(key, value); } catch (error) { /* Popups also work without browser storage. */ }
+            };
 
             return {
-                show: false,
-                title: '',
-                message: '',
-                type: 'info',
-                icon: 'bell-ring',
-                label: 'System update',
-                actionUrl: @json(route('notifications')),
-                actionLabel: 'View notification center',
-                soundEnabled: localStorage.getItem(soundKey) !== 'off',
-                lastId: Math.max(Number(localStorage.getItem(storageKey) || 0), pageNotificationBaseline),
+                toasts: [],
+                get show() { return this.toasts.some(toast => toast.visible); },
+                soundEnabled: readPreference(soundKey) !== 'off',
+                lastId: Math.min(Math.max(0, Number(readPreference(storageKey)) || 0), pageNotificationBaseline),
                 queue: [],
-                timer: null,
-                timerKey: 0,
-                audioContext: null,
+                pendingSound: null,
 
                 init() {
-                    if (Number(localStorage.getItem(storageKey) || 0) < pageNotificationBaseline) {
-                        localStorage.setItem(storageKey, String(pageNotificationBaseline));
-                    }
                     try {
                         const cachedRuntimeState = JSON.parse(sessionStorage.getItem(runtimeCacheKey) || 'null');
                         if (cachedRuntimeState) this.updateBadge(Number(cachedRuntimeState.unread_count || 0));
                     } catch (error) {
                         // The next runtime poll will populate the badge.
                     }
-                    const unlock = () => this.unlockAudio();
-                    document.addEventListener('pointerdown', unlock, {once: true});
-                    document.addEventListener('keydown', unlock, {once: true});
+                    const unlock = async () => {
+                        if (await this.unlockAudio() && this.pendingSound && this.show) this.playSound(this.pendingSound);
+                    };
+                    document.addEventListener('pointerdown', unlock);
+                    document.addEventListener('keydown', unlock);
                     document.addEventListener('htc:runtime-state', event => this.consumeRuntimeState(event.detail));
                     channel?.addEventListener('message', event => {
                         if (event.data?.type === 'consumed') this.advanceCursor(Number(event.data.id || 0));
@@ -2381,25 +2403,30 @@
                     window.addEventListener('storage', event => {
                         if (event.key === storageKey) this.lastId = Math.max(this.lastId, Number(event.newValue || 0));
                     });
+                    document.addEventListener('visibilitychange', () => {
+                        if (!document.hidden) this.presentNext();
+                    });
+                    // A fast poll can finish before Alpine initializes this component.
+                    if (window.htcRuntimeState) this.consumeRuntimeState(window.htcRuntimeState);
                 },
                 consumeRuntimeState(data) {
                     if (!data || Number(data.account_id) !== accountId) return;
                     this.updateBadge(Number(data.unread_count || 0));
+                    if (document.hidden) return;
                     const notifications = Array.isArray(data.notifications)
                         ? data.notifications
                         : (data.notification ? [data.notification] : []);
                     notifications.forEach(notification => {
                         const id = Number(notification.id || 0);
-                        if (id > this.lastId && this.claimToast(id) && !this.queue.some(item => Number(item.id) === id)) this.queue.push(notification);
-                        this.advanceCursor(id);
+                        if (id > this.lastId && !this.queue.some(item => Number(item.id) === id)) this.queue.push(notification);
                     });
-                    if (!notifications.length) this.advanceCursor(Number(data.cursor || data.latest_id || 0));
-                    if (!this.show) this.presentNext();
+                    if (!notifications.length && !this.toasts.length && !this.queue.length) this.advanceCursor(Number(data.cursor || data.latest_id || 0));
+                    this.presentNext();
                 },
                 advanceCursor(id) {
                     if (id <= this.lastId) return;
                     this.lastId = id;
-                    localStorage.setItem(storageKey, String(id));
+                    savePreference(storageKey, String(id));
                     channel?.postMessage({type: 'consumed', id});
                 },
                 claimToast(id) {
@@ -2414,29 +2441,52 @@
                     }
                 },
                 presentNext() {
-                    const notification = this.queue.shift();
-                    if (notification) this.present(notification);
+                    if (document.hidden) return;
+                    while (this.toasts.length < 3 && this.queue.length) {
+                        const notification = this.queue.shift();
+                        const id = Number(notification.id || 0);
+                        if (id > this.lastId && this.claimToast(id)) {
+                            this.present(notification);
+                        }
+                    }
+                    this.notifyActivity();
+                },
+                notifyActivity() {
+                    document.dispatchEvent(new CustomEvent('htc:notification-activity', {
+                        detail: {active: this.toasts.length > 0 || this.queue.length > 0},
+                    }));
                 },
                 present(notification) {
-                    this.title = String(notification.title || 'Notification');
-                    this.message = String(notification.message || '');
-                    this.type = ['success', 'warning', 'danger'].includes(notification.type) ? notification.type : 'info';
-                    this.label = this.type === 'success' ? 'Action completed' : this.type === 'danger' ? 'Action required' : this.type === 'warning' ? 'Attention needed' : 'System update';
-                    this.actionUrl = notification.action_url || null;
-                    this.actionLabel = notification.action_label || 'Open';
-                    this.show = true;
-                    this.timerKey++;
-                    window.clearTimeout(this.timer);
-                    this.timer = window.setTimeout(() => this.dismiss('expired'), 9000);
-                    this.playSound(this.type);
-                    this.$nextTick(() => lucide.createIcons());
+                    const type = ['success', 'warning', 'danger'].includes(notification.type) ? notification.type : 'info';
+                    const toast = {
+                        id: Number(notification.id),
+                        title: String(notification.title || 'Notification'),
+                        message: String(notification.message || ''),
+                        type,
+                        label: type === 'success' ? 'Action completed' : type === 'danger' ? 'Action required' : type === 'warning' ? 'Attention needed' : 'System update',
+                        actionUrl: notification.action_url || null,
+                        actionLabel: notification.action_label || 'Open',
+                        visible: true,
+                    };
+                    this.toasts.push(toast);
+                    this.advanceCursor(toast.id);
+                    this.notifyActivity();
+                    toastTimers.set(toast.id, window.setTimeout(() => this.dismiss(toast.id), 9000));
+                    this.playSound(type);
+                    this.$nextTick(() => window.lucide?.createIcons());
                 },
-                dismiss(reason = 'manual') {
-                    this.show = false;
-                    window.clearTimeout(this.timer);
-                    if (this.queue.length) {
-                        window.setTimeout(() => this.presentNext(), 200);
-                    }
+                dismiss(id) {
+                    const toast = this.toasts.find(item => item.id === Number(id));
+                    if (!toast?.visible) return;
+                    toast.visible = false;
+                    window.clearTimeout(toastTimers.get(toast.id));
+                    toastTimers.delete(toast.id);
+                    if (!this.show) this.pendingSound = null;
+                    // Leave time for the exit transition before another popup or refresh.
+                    window.setTimeout(() => {
+                        this.toasts = this.toasts.filter(item => item.id !== toast.id);
+                        this.presentNext();
+                    }, 300);
                 },
                 updateBadge(count) {
                     const badge = document.getElementById('notificationUnreadCount');
@@ -2446,38 +2496,49 @@
                 },
                 toggleSound() {
                     this.soundEnabled = !this.soundEnabled;
-                    localStorage.setItem(soundKey, this.soundEnabled ? 'on' : 'off');
+                    savePreference(soundKey, this.soundEnabled ? 'on' : 'off');
                     if (this.soundEnabled) {
-                        this.unlockAudio();
                         this.playSound('info');
-                    }
-                    this.$nextTick(() => lucide.createIcons());
+                    } else this.pendingSound = null;
+                    this.$nextTick(() => window.lucide?.createIcons());
                 },
-                unlockAudio() {
-                    if (!this.soundEnabled) return;
+                async unlockAudio() {
+                    if (!this.soundEnabled) return false;
                     const AudioContext = window.AudioContext || window.webkitAudioContext;
-                    if (!AudioContext) return;
-                    this.audioContext ??= new AudioContext();
-                    if (this.audioContext.state === 'suspended') this.audioContext.resume();
+                    if (!AudioContext) return false;
+                    try {
+                        audioContext ??= new AudioContext();
+                        if (audioContext.state === 'suspended') await audioContext.resume();
+                        return audioContext.state === 'running';
+                    } catch (error) {
+                        return false;
+                    }
                 },
-                playSound(type) {
-                    if (!this.soundEnabled || !this.audioContext || this.audioContext.state !== 'running') return;
+                async playSound(type) {
+                    if (!this.soundEnabled) return;
+                    this.pendingSound = type;
+                    if (!await this.unlockAudio() || !this.soundEnabled || !this.pendingSound) return;
+                    const pendingType = this.pendingSound;
+                    this.pendingSound = null;
+                    // A burst of stacked popups gets one chime instead of overlapping sounds.
+                    if (Date.now() - lastSoundAt < 300) return;
+                    lastSoundAt = Date.now();
                     const patterns = {
-                        danger: [[220, 0, .13], [170, .18, .2]],
-                        warning: [[520, 0, .1], [410, .14, .14]],
-                        success: [[440, 0, .09], [660, .12, .15]],
-                        info: [[540, 0, .12]],
+                        danger: [[440, 0, .18], [330, .22, .25]],
+                        warning: [[660, 0, .16], [520, .2, .24]],
+                        success: [[660, 0, .14], [880, .18, .24]],
+                        info: [[740, 0, .16], [988, .2, .24]],
                     };
-                    const start = this.audioContext.currentTime;
-                    (patterns[type] || patterns.info).forEach(([frequency, offset, duration]) => {
-                        const oscillator = this.audioContext.createOscillator();
-                        const gain = this.audioContext.createGain();
+                    const start = audioContext.currentTime;
+                    (patterns[pendingType] || patterns.info).forEach(([frequency, offset, duration]) => {
+                        const oscillator = audioContext.createOscillator();
+                        const gain = audioContext.createGain();
                         oscillator.type = 'sine';
                         oscillator.frequency.value = frequency;
                         gain.gain.setValueAtTime(.0001, start + offset);
-                        gain.gain.exponentialRampToValueAtTime(.035, start + offset + .015);
+                        gain.gain.exponentialRampToValueAtTime(.09, start + offset + .015);
                         gain.gain.exponentialRampToValueAtTime(.0001, start + offset + duration);
-                        oscillator.connect(gain).connect(this.audioContext.destination);
+                        oscillator.connect(gain).connect(audioContext.destination);
                         oscillator.start(start + offset);
                         oscillator.stop(start + offset + duration + .02);
                     });
@@ -2609,7 +2670,7 @@
                     return brands.length > 1 ? `${brands.length} brands available` : (brands[0] || item?.brand || 'HTC catalog');
                 },
                 formatMoney(value) { return Number(value || 0).toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2}); },
-                refreshIcons() { setTimeout(() => lucide.createIcons(), 30); },
+                refreshIcons() { setTimeout(() => window.lucide?.createIcons(), 30); },
                 handleRequisitionSubmit(event) {
                     if (this.submissionConfirmed) return;
 
@@ -2700,7 +2761,7 @@
         (() => {
             const endpoint = @json(route('api.runtime-state'));
             const expectedAccountId = {{ (int) Auth::id() }};
-            const notificationKey = 'htc-last-notification-{{ Auth::id() }}';
+            const notificationKey = 'htc-presented-notification-{{ Auth::id() }}';
             const cacheKey = 'htc-runtime-state:{{ Auth::id() }}';
             const notice = document.getElementById('liveRefreshNotice');
             const message = document.getElementById('liveRefreshMessage');
@@ -2710,11 +2771,13 @@
             let timer = null;
             let failures = 0;
             let lastCheckedAt = 0;
+            let notificationBusy = false;
+            let refreshTimer = null;
 
             const userIsWorking = () => {
                 const active = document.activeElement;
                 const editing = active && ['INPUT', 'TEXTAREA', 'SELECT'].includes(active.tagName);
-                return editing || Boolean(document.querySelector('.modal.show'));
+                return document.hidden || notificationBusy || editing || Boolean(document.querySelector('.modal.show'));
             };
 
             const showNotice = (deferred = false) => {
@@ -2727,11 +2790,18 @@
             const refreshWhenSafe = () => {
                 if (!refreshPending) return;
                 if (userIsWorking()) {
+                    window.clearTimeout(refreshTimer);
+                    refreshTimer = null;
                     showNotice(true);
                     return;
                 }
                 showNotice(false);
-                window.setTimeout(() => window.location.reload(), 500);
+                if (refreshTimer !== null) return;
+                refreshTimer = window.setTimeout(() => {
+                    refreshTimer = null;
+                    if (userIsWorking()) refreshWhenSafe();
+                    else window.location.reload();
+                }, 500);
             };
 
             const scheduleCheck = delay => {
@@ -2776,7 +2846,12 @@
                 const timeout = window.setTimeout(() => controller.abort(), 8000);
 
                 try {
-                    const afterId = Math.max(0, Number(localStorage.getItem(notificationKey) || 0));
+                    let afterId = 0;
+                    try {
+                        afterId = Math.max(0, Number(localStorage.getItem(notificationKey)) || 0);
+                    } catch (error) {
+                        // The popup component keeps an in-memory cursor when storage is disabled.
+                    }
                     const response = await fetch(`${endpoint}?after_id=${afterId}`, {
                         headers: {'Accept': 'application/json'},
                         cache: 'no-store',
@@ -2793,6 +2868,7 @@
                     failures = 0;
                     lastCheckedAt = Date.now();
                     cacheMetadata(data);
+                    window.htcRuntimeState = data;
                     document.dispatchEvent(new CustomEvent('htc:runtime-state', {detail: data}));
 
                     if (currentVersion === null) {
@@ -2815,6 +2891,11 @@
 
             document.addEventListener('visibilitychange', () => {
                 if (!document.hidden && Date.now() - lastCheckedAt > 5000) checkForUpdates();
+                if (!document.hidden) refreshWhenSafe();
+            });
+            document.addEventListener('htc:notification-activity', event => {
+                notificationBusy = Boolean(event.detail?.active);
+                refreshWhenSafe();
             });
             document.addEventListener('focusout', () => window.setTimeout(refreshWhenSafe, 150));
             document.addEventListener('hidden.bs.modal', refreshWhenSafe);
