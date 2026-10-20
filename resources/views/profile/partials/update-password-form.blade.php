@@ -6,7 +6,7 @@
         <div class="row g-4">
             <!-- Current Password -->
             <div class="col-md-12">
-                <label class="form-label small fw-bold text-muted text-uppercase tracking-widest" style="font-size: 10px;">Current Password</label>
+                <label class="form-label small fw-bold text-muted text-uppercase label-letter-spacing" style="font-size: 10px;">Current Password</label>
                 <div class="input-group">
                     <span class="input-group-text bg-light border-0"><i data-lucide="lock" style="width: 14px;"></i></span>
                     <input id="update_password_current_password" name="current_password" type="password"
@@ -18,7 +18,7 @@
 
             <!-- New Password -->
             <div class="col-md-6">
-                <label class="form-label small fw-bold text-muted text-uppercase tracking-widest" style="font-size: 10px;">New Password</label>
+                <label class="form-label small fw-bold text-muted text-uppercase label-letter-spacing" style="font-size: 10px;">New Password</label>
                 <div class="input-group">
                     <span class="input-group-text bg-light border-0"><i data-lucide="key-round" style="width: 14px;"></i></span>
                     <input id="update_password_password" name="password" type="password"
@@ -30,7 +30,7 @@
 
             <!-- Confirm New Password -->
             <div class="col-md-6">
-                <label class="form-label small fw-bold text-muted text-uppercase tracking-widest" style="font-size: 10px;">Confirm Password</label>
+                <label class="form-label small fw-bold text-muted text-uppercase label-letter-spacing" style="font-size: 10px;">Confirm Password</label>
                 <div class="input-group">
                     <span class="input-group-text bg-light border-0"><i data-lucide="shield-check" style="width: 14px;"></i></span>
                     <input id="update_password_password_confirmation" name="password_confirmation" type="password"

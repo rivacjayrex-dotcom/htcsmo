@@ -285,7 +285,7 @@
                                 <form :action="'{{ url('/admin/requests') }}/' + selectedReq.id + '/status'" method="POST">
                                     @csrf
                                     <div class="mb-3">
-                                        <label class="form-label small fw-bold text-muted text-uppercase tracking-widest" style="font-size: 9px;">
+                                        <label class="form-label small fw-bold text-muted text-uppercase label-letter-spacing" style="font-size: 9px;">
                                             Signatory Remarks / Decision Notes
                                         </label>
                                         <textarea name="remarks" class="form-control border-0 bg-light rounded-3 shadow-none" rows="2" placeholder="State reason if rejecting or requesting office inquiry..."></textarea>

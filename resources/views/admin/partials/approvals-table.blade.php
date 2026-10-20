@@ -44,7 +44,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="5" class="text-center py-5 text-muted italic">No requisitions currently in this queue.</td>
+                    <td colspan="5" class="text-center py-5 text-muted fst-italic">No requisitions currently in this queue.</td>
                 </tr>
             @endforelse
         </tbody>

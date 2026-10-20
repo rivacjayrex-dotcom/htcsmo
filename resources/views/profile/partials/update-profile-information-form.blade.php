@@ -15,7 +15,7 @@
             </div>
 
             <div class="ms-4 flex-grow-1">
-                <label for="profile_photo" class="form-label small fw-bold text-muted uppercase d-block">Change Profile Photo</label>
+                <label for="profile_photo" class="form-label small fw-bold text-muted text-uppercase d-block">Change Profile Photo</label>
                 <input id="profile_photo" type="file" name="profile_photo" accept="image/*" class="form-control form-control-sm border-0 bg-light shadow-none @error('profile_photo') is-invalid @enderror">
                 <small class="text-muted" style="font-size: 10px;">Recommended: Square JPG or PNG, max 2MB.</small>
                 @error('profile_photo')
@@ -26,7 +26,7 @@
 
         <div class="row g-3">
             <div class="col-md-6">
-                <label for="name" class="form-label small fw-bold text-muted uppercase">Full Name</label>
+                <label for="name" class="form-label small fw-bold text-muted text-uppercase">Full Name</label>
                 <input id="name" name="name" type="text" class="form-control border-0 bg-light py-2 px-3 rounded-3 shadow-none @error('name') is-invalid @enderror" value="{{ old('name', $user->name) }}" required>
                 @error('name')
                     <div class="invalid-feedback">{{ $message }}</div>
@@ -34,7 +34,7 @@
             </div>
 
             <div class="col-md-6">
-                <label for="username" class="form-label small fw-bold text-muted uppercase">Username</label>
+                <label for="username" class="form-label small fw-bold text-muted text-uppercase">Username</label>
                 <input id="username" name="username" type="text" class="form-control border-0 bg-light py-2 px-3 rounded-3 shadow-none @error('username') is-invalid @enderror" value="{{ old('username', $user->username) }}" minlength="4" maxlength="30" required>
                 @error('username')
                     <div class="invalid-feedback">{{ $message }}</div>
@@ -42,7 +42,7 @@
             </div>
 
             <div class="col-md-6">
-                <label for="email" class="form-label small fw-bold text-muted uppercase">Email Address</label>
+                <label for="email" class="form-label small fw-bold text-muted text-uppercase">Email Address</label>
                 <input id="email" name="email" type="email" class="form-control border-0 bg-light py-2 px-3 rounded-3 shadow-none @error('email') is-invalid @enderror" value="{{ old('email', $user->email) }}" required>
                 @error('email')
                     <div class="invalid-feedback">{{ $message }}</div>
@@ -50,14 +50,14 @@
             </div>
 
             <div class="col-md-6">
-                <label for="department" class="form-label small fw-bold text-muted uppercase">Department / College</label>
+                <label for="department" class="form-label small fw-bold text-muted text-uppercase">Department / College</label>
                 <input id="department" type="text" class="form-control border-0 bg-light py-2 px-3 rounded-3 shadow-none"
                     value="{{ $user->academicDepartment?->dept_name ?? $user->department ?? 'Administrative Office / Not Assigned' }}" readonly>
                 <small class="text-muted">Department assignments are maintained through Personnel Management.</small>
             </div>
 
             <div class="col-12">
-                <label for="school_id" class="form-label small fw-bold text-muted uppercase">School ID (Read-only)</label>
+                <label for="school_id" class="form-label small fw-bold text-muted text-uppercase">School ID (Read-only)</label>
                 <input id="school_id" type="text" class="form-control border-0 bg-light py-2 px-3 rounded-3" value="{{ $user->school_id }}" readonly style="cursor: not-allowed;">
             </div>
         </div>

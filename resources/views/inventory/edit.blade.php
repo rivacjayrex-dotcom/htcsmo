@@ -13,7 +13,7 @@
                         <i data-lucide="chevron-left" class="me-1" style="width:18px"></i> Back to Inventory
                     </a>
                     <div class="text-end">
-                        <span class="small text-muted text-uppercase fw-bold tracking-widest">Last Updated:</span>
+                        <span class="small text-muted text-uppercase fw-bold label-letter-spacing">Last Updated:</span>
                         <span class="small fw-bold">{{ $item->updated_at->format('M d, Y - h:i A') }}</span>
                     </div>
                 </div>

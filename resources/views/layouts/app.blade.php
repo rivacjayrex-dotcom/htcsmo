@@ -2043,7 +2043,7 @@
         x-data="cartSystem()"
         @hidden-bs-modal.window="resetModal()">
         <div class="modal-dialog modal-xl modal-dialog-centered">
-            <div class="modal-content border-0 shadow-2xl rounded-4 overflow-hidden">
+            <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
 
                 <!-- MODAL HEADER: DYNAMIC ACCENT -->
                 <div class="p-4 d-flex justify-content-between align-items-center border-bottom"
@@ -2054,7 +2054,7 @@
                         </div>
                         <div>
                             <h5 class="fw-bold mb-0 text-dark">Institutional Requisition</h5>
-                            <span class="small fw-bold opacity-75 uppercase tracking-widest" x-text="view === 'selection' ? 'Select Priority' : tier + ' Tier Active'"></span>
+                            <span class="small fw-bold opacity-75 text-uppercase label-letter-spacing" x-text="view === 'selection' ? 'Select Priority' : tier + ' Tier Active'"></span>
                         </div>
                     </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -2112,7 +2112,7 @@
                             <!-- THE CART LIST -->
                             <div class="pe-2">
                                 <template x-for="(item, index) in cart" :key="index">
-                                    <div class="card border-0 shadow-sm rounded-4 mb-3 p-3 border-start border-4 transition-all"
+                                    <div class="card border-0 shadow-sm rounded-4 mb-3 p-3 border-start border-4 requisition-item-card"
                                         :class="item.is_manual ? 'border-warning' : 'border-success'">
 
                                         <div class="row g-3 align-items-center">
@@ -2195,7 +2195,7 @@
 
                                 <!-- Grand Total -->
                                 <div class="py-3 text-center">
-                                    <small class="text-muted uppercase fw-bold d-block mb-1" style="font-size: 10px;">ESTIMATED GRAND TOTAL</small>
+                                    <small class="text-muted text-uppercase fw-bold d-block mb-1" style="font-size: 10px;">ESTIMATED GRAND TOTAL</small>
                                     <h2 class="fw-black mb-0"
                                         :class="(tier === 'minor' && grandTotal > 1000) ? 'text-danger' : 'text-success'"
                                         style="font-size: 2rem;">
@@ -2229,7 +2229,7 @@
                                                 class="btn btn-success w-100 py-3 fw-bold shadow-sm d-block"
                                                 style="border-radius: 12px; font-size: 0.9rem;"
                                                 :disabled="tier === 'minor' && grandTotal > 1000"
-                                                :class="tier === 'minor' && grandTotal > 1000 ? 'opacity-50 grayscale cursor-not-allowed' : ''">
+                                                :class="tier === 'minor' && grandTotal > 1000 ? 'opacity-50 grayscale request-submit-disabled' : ''">
                                             SUBMIT REQUISITION
                                         </button>
                                     </form>

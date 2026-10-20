@@ -20,42 +20,42 @@
         <div class="row g-3 mb-4">
             <div class="col-xl-2 col-md-4 col-6">
                 <div class="card border-0 shadow-sm rounded-4 p-3 bg-white h-100 border-start border-4 border-success">
-                    <small class="text-muted fw-bold text-uppercase tracking-widest" style="font-size: 9px;">Semester Spending</small>
+                    <small class="text-muted fw-bold text-uppercase label-letter-spacing" style="font-size: 9px;">Semester Spending</small>
                     <h4 class="fw-black mt-2 mb-0 text-success">₱{{ number_format($costs['semester_spent'], 2) }}</h4>
                     <p class="text-muted small mb-0 mt-1">{{ $semesterLabel }}</p>
                 </div>
             </div>
             <div class="col-xl-2 col-md-4 col-6">
                 <div class="card border-0 shadow-sm rounded-4 p-3 bg-white h-100">
-                    <small class="text-muted fw-bold text-uppercase tracking-widest" style="font-size: 9px;">Semester Releases</small>
+                    <small class="text-muted fw-bold text-uppercase label-letter-spacing" style="font-size: 9px;">Semester Releases</small>
                     <h4 class="fw-black mt-2 mb-0">{{ number_format($stats['semester']) }}</h4>
                     <p class="text-muted small mb-0 mt-1">Completed requisitions</p>
                 </div>
             </div>
             <div class="col-xl-2 col-md-4 col-6">
                 <div class="card border-0 shadow-sm rounded-4 p-3 bg-white h-100">
-                    <small class="text-muted fw-bold text-uppercase tracking-widest" style="font-size: 9px;">Annual Releases</small>
+                    <small class="text-muted fw-bold text-uppercase label-letter-spacing" style="font-size: 9px;">Annual Releases</small>
                     <h4 class="fw-black mt-2 mb-0">{{ number_format($stats['year']) }}</h4>
                     <p class="text-muted small mb-0 mt-1">Completed in {{ date('Y') }}</p>
                 </div>
             </div>
             <div class="col-xl-2 col-md-4 col-6">
                 <div class="card border-0 shadow-sm rounded-4 p-3 bg-white h-100">
-                    <small class="text-muted fw-bold text-uppercase tracking-widest" style="font-size: 9px;">Average Request</small>
+                    <small class="text-muted fw-bold text-uppercase label-letter-spacing" style="font-size: 9px;">Average Request</small>
                     <h4 class="fw-black mt-2 mb-0">₱{{ number_format($costs['avg_per_req'], 2) }}</h4>
                     <p class="text-muted small mb-0 mt-1">Per released transaction</p>
                 </div>
             </div>
             <div class="col-xl-2 col-md-4 col-6">
                 <div class="card border-0 shadow-sm rounded-4 p-3 bg-white h-100">
-                    <small class="text-muted fw-bold text-uppercase tracking-widest" style="font-size: 9px;">Approved Users</small>
+                    <small class="text-muted fw-bold text-uppercase label-letter-spacing" style="font-size: 9px;">Approved Users</small>
                     <h4 class="fw-black mt-2 mb-0">{{ number_format($stats['users']) }}</h4>
                     <p class="text-muted small mb-0 mt-1">Active personnel accounts</p>
                 </div>
             </div>
             <div class="col-xl-2 col-md-4 col-6">
                 <div class="card border-0 shadow-sm rounded-4 p-3 bg-dark text-white h-100">
-                    <small class="text-white-50 fw-bold text-uppercase tracking-widest" style="font-size: 9px;">Inventory Value</small>
+                    <small class="text-white-50 fw-bold text-uppercase label-letter-spacing" style="font-size: 9px;">Inventory Value</small>
                     <h4 class="fw-black mt-2 mb-0">₱{{ number_format($costs['inventory_value'], 2) }}</h4>
                     <p class="text-white-50 small mb-0 mt-1">{{ number_format($stats['inventory_items']) }} catalog items</p>
                 </div>

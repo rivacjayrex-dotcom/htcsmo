@@ -20,8 +20,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // The application uses Bootstrap; this prevents Laravel's default
-        // Tailwind paginator markup from rendering oversized, unstyled arrows.
+        // Match pagination markup to the application's Bootstrap styles.
         Paginator::useBootstrapFive();
     }
 }
