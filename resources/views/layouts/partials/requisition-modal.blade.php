@@ -1,20 +1,11 @@
 <!-- GLOBAL REQUISITION ENGINE -->
 <div class="modal fade" id="globalRequestModal" tabindex="-1" aria-hidden="true" aria-labelledby="requisitionModalTitle" x-data="cartSystem()">
-    <div class="modal-dialog modal-xl modal-dialog-scrollable requisition-dialog">
+    <div class="modal-dialog requisition-dialog">
         <div class="modal-content requisition-shell border-0 overflow-hidden">
             <div class="requisition-header">
-                <div>
-                    <div class="requisition-eyebrow">HTC Supply Marketplace</div>
-                    <h4 class="mb-1 fw-bold" id="requisitionModalTitle">Build a requisition</h4>
-                    <p class="mb-0 text-muted small">Three simple steps: choose a tier, select your items, and explain why they are needed.</p>
-                </div>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-
-            <div class="requisition-progress px-4 px-lg-5">
-                <div :class="view === 'selection' ? 'active' : 'done'"><span>1</span> Select tier</div>
-                <div :class="view === 'catalog' || view === 'product' ? 'active' : (cart.length ? 'done' : '')"><span>2</span> Choose items</div>
-                <div :class="cart.length ? 'active' : ''"><span>3</span> Review &amp; explain</div>
+                <h4 class="mb-0 fw-bold" id="requisitionModalTitle">Build a requisition</h4>
+                <button type="button" class="requisition-cart-link" x-cloak x-show="view !== 'selection'" @click="$refs.cartPane.scrollIntoView({behavior: 'smooth', block: 'start'}); $refs.purpose.focus({preventScroll: true})"><i data-lucide="shopping-cart" aria-hidden="true"></i> Cart &amp; reason <span x-text="cartQuantity"></span></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" :disabled="submitting" aria-label="Close requisition"></button>
             </div>
 
             <div x-cloak x-show="catalogLoading" class="alert alert-light border mx-4 mt-3 mb-0" role="status">
@@ -36,7 +27,7 @@
                     <div class="col-md-5">
                         <button type="button" class="tier-choice tier-minor w-100" @click="setTier('minor')">
                             <span class="tier-icon"><i data-lucide="shopping-basket"></i></span>
-                            <span class="tier-kicker">Routine purchases</span>
+                            <span class="tier-kicker">Below 1000</span>
                             <strong>Minor requisition</strong>
                             <span>Office and daily-use supplies totaling up to ₱1,000.</span>
                             <small><span x-text="catalogCount('minor') + ' items available'"></span> · Dept Head → VP Finance</small>
@@ -45,7 +36,7 @@
                     <div class="col-md-5">
                         <button type="button" class="tier-choice tier-major w-100" @click="setTier('major')">
                             <span class="tier-icon"><i data-lucide="monitor-up"></i></span>
-                            <span class="tier-kicker">Planned purchases</span>
+                            <span class="tier-kicker">Above 1000</span>
                             <strong>Major requisition</strong>
                             <span>Equipment, high-value assets, and approved bulk items.</span>
                             <small><span x-text="catalogCount('major') + ' items available'"></span> · Full approval chain</small>
@@ -54,7 +45,7 @@
                 </div>
             </div>
 
-            <form x-ref="requisitionForm" x-show="view !== 'selection'" x-cloak class="requisition-form" action="{{ route('requisitions.store') }}" method="POST" data-no-loader @submit="handleRequisitionSubmit($event)">
+            <form x-ref="requisitionForm" x-cloak x-show="view !== 'selection'" class="requisition-form" action="{{ route('requisitions.store') }}" method="POST" data-no-loader @submit="handleRequisitionSubmit($event)">
                 @csrf
                 <input type="hidden" name="request_type" :value="tier">
                 @if($errors->any() && old('request_type'))
@@ -63,8 +54,8 @@
                         <ul class="small mb-0 ps-3">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>
                     </div>
                 @endif
-                <div class="row g-0 requisition-workspace">
-                    <section class="col-lg-8 catalog-pane">
+                <div class="requisition-workspace">
+                    <section class="catalog-pane">
                         <div x-show="view === 'catalog'">
                             <div class="catalog-toolbar">
                                 <button type="button" class="btn btn-sm btn-light border rounded-pill" @click="backToTiers()"><i data-lucide="chevron-left"></i> Tier</button>
@@ -81,10 +72,16 @@
 
                             <div class="catalog-heading">
                                 <div><h5 class="fw-bold mb-1" x-text="tierLabel + ' catalog'"></h5><p class="text-muted small mb-0">Curated and maintained by the SMO in-charge.</p></div>
-                                <span class="small text-muted" x-text="filteredItems.length + ' available'"></span>
+                                <div class="catalog-display-controls">
+                                    <span class="small text-muted" x-text="filteredItems.length + ' available'" aria-live="polite"></span>
+                                    <div class="catalog-layout-toggle" role="group" aria-label="Catalog layout">
+                                        <button type="button" :class="{ active: catalogLayout === 'grid' }" :aria-pressed="catalogLayout === 'grid'" @click="setCatalogLayout('grid')"><i data-lucide="layout-grid" aria-hidden="true"></i> Grid</button>
+                                        <button type="button" :class="{ active: catalogLayout === 'list' }" :aria-pressed="catalogLayout === 'list'" @click="setCatalogLayout('list')"><i data-lucide="list" aria-hidden="true"></i> List</button>
+                                    </div>
+                                </div>
                             </div>
 
-                            <div class="catalog-grid">
+                            <div class="catalog-grid" :class="{ 'is-list': catalogLayout === 'list' }">
                                 <template x-for="item in filteredItems" :key="item.id">
                                     <button type="button" class="product-card" @click="openProduct(item)">
                                         <span class="product-visual"><i data-lucide="package"></i><em x-text="item.category"></em></span>
@@ -117,7 +114,7 @@
                                     </template>
                                     <div class="d-flex align-items-end gap-3 mt-4">
                                         <div><label class="mini-label d-block" x-text="'Quantity (' + (selectedItem?.unit || 'pc') + ')'">Quantity</label><div class="quantity-picker"><button type="button" @click="productQty = Math.max(1, productQty - 1)">−</button><input type="number" min="1" :max="selectedItem?.stock" x-model.number="productQty"><button type="button" @click="productQty = Math.min(selectedItem.stock, productQty + 1)">+</button></div></div>
-                                        <button type="button" class="btn btn-htc flex-grow-1 py-3 fw-bold rounded-3" :disabled="!canAddProduct" @click="addConfiguredItem()"><i data-lucide="shopping-cart"></i> Add to requisition</button>
+                                        <button type="button" class="btn btn-htc flex-grow-1 py-3 fw-bold rounded-3" :disabled="!canAddProduct" @click="addConfiguredItem()"><i data-lucide="shopping-cart"></i> Add to cart</button>
                                     </div>
                                     <small x-show="!allOptionsSelected" class="text-warning d-block mt-2"><i data-lucide="info" style="width:13px"></i> Select every required option before adding this item.</small>
                                 </div>
@@ -125,8 +122,16 @@
                         </div>
                     </section>
 
-                    <aside class="col-lg-4 cart-pane" x-ref="cartPane">
-                        <div class="cart-title"><div><span class="cart-icon"><i data-lucide="shopping-cart"></i></span><strong>Your requisition</strong></div><span x-text="cartQuantity + ' item' + (cartQuantity === 1 ? '' : 's')"></span></div>
+                    <aside class="cart-pane" x-ref="cartPane" aria-label="Cart and required request reason">
+                        <div class="cart-title"><div><span class="cart-icon"><i data-lucide="shopping-cart"></i></span><strong>Your cart</strong></div><span x-text="cartQuantity + ' item' + (cartQuantity === 1 ? '' : 's')" aria-live="polite"></span></div>
+                        <div class="cart-reason">
+                            <div class="reason-field">
+                                <label for="requisition-purpose">Reason for request <span class="reason-required">Required</span></label>
+                                <p id="requisition-purpose-help">Tell us why you need these supplies to enable submission.</p>
+                                <textarea id="requisition-purpose" x-ref="purpose" name="purpose" x-model="purpose" maxlength="500" minlength="10" rows="3" required :readonly="submitting" aria-describedby="requisition-purpose-help" placeholder="Example: For printing student assessment materials for the midterm examination."></textarea>
+                                <span><em x-text="purpose.length + '/500'"></em><em :class="purposeIsValid ? 'text-success' : ''" x-text="purposeIsValid ? 'Reason added' : 'At least 10 characters'"></em></span>
+                            </div>
+                        </div>
                         <div class="cart-items">
                             <template x-for="(item, index) in cart" :key="item.key">
                                 <div class="cart-item">
@@ -140,11 +145,6 @@
                             <div x-show="cart.length === 0" class="cart-empty"><i data-lucide="shopping-bag"></i><strong>Your cart is empty</strong><span>Choose an item from the approved catalog to begin.</span></div>
                         </div>
                         <div class="cart-summary">
-                            <div class="reason-field">
-                                <label for="requisition-purpose">Why are these items needed? <span class="text-danger">*</span></label>
-                                <textarea id="requisition-purpose" name="purpose" x-model="purpose" maxlength="500" minlength="10" rows="3" required placeholder="Example: For printing student assessment materials for the midterm examination."></textarea>
-                                <span><em x-text="purpose.length + '/500'"></em><em :class="purposeIsValid ? 'text-success' : ''" x-text="purposeIsValid ? 'Looks good' : 'At least 10 characters'"></em></span>
-                            </div>
                             <div><span>Request tier</span><b x-text="tierLabel"></b></div><div><span>Estimated total</span><strong x-text="'₱' + formatMoney(grandTotal)"></strong></div>
                             <p x-cloak x-show="tier === 'minor' && grandTotal > 1000" class="text-danger mb-2">Minor requests are limited to ₱1,000. Remove items or switch tiers.</p>
                             <button type="submit" class="btn btn-htc w-100 py-3 fw-bold rounded-3" :disabled="!canSubmit" x-text="submitLabel"></button>
@@ -153,41 +153,7 @@
                     </aside>
                 </div>
             </form>
-
-            <div
-                x-cloak
-                x-show="confirmationOpen || submitting"
-                x-transition.opacity
-                class="requisition-confirmation"
-                @click.self="!submitting && cancelRequisitionConfirmation()"
-                @keydown.escape.window="confirmationOpen && !submitting && cancelRequisitionConfirmation()"
-            >
-                <div x-show="!submitting" class="requisition-confirmation__dialog" role="dialog" aria-modal="true" aria-labelledby="requisitionConfirmationTitle" aria-describedby="requisitionConfirmationDescription">
-                    <div class="requisition-confirmation__icon" aria-hidden="true"><i data-lucide="clipboard-check"></i></div>
-                    <span class="requisition-confirmation__eyebrow">Final review</span>
-                    <h5 id="requisitionConfirmationTitle">Submit this requisition?</h5>
-                    <p id="requisitionConfirmationDescription">Once submitted, your request will be sent into the approval workflow.</p>
-
-                    <div class="requisition-confirmation__summary">
-                        <div><span>Request type</span><strong x-text="tierLabel"></strong></div>
-                        <div><span>Total quantity</span><strong x-text="cartQuantity + ' item' + (cartQuantity === 1 ? '' : 's')"></strong></div>
-                        <div class="wide"><span>Estimated total</span><strong x-text="'₱' + formatMoney(grandTotal)"></strong></div>
-                    </div>
-
-                    <div class="requisition-confirmation__actions">
-                        <button type="button" class="btn btn-light border rounded-3" @click="cancelRequisitionConfirmation()">Review request</button>
-                        <button type="button" class="btn btn-htc rounded-3 fw-bold" x-ref="confirmRequisitionButton" @click="confirmRequisitionSubmit()">
-                            <i data-lucide="send" aria-hidden="true"></i> Submit requisition
-                        </button>
-                    </div>
-                </div>
-
-                <div x-show="submitting" class="requisition-confirmation__dialog requisition-confirmation__loading" role="status" aria-live="assertive">
-                    <span class="requisition-loading-circle" aria-hidden="true"></span>
-                    <h5>Submitting requisition…</h5>
-                    <p class="mb-0">Please wait while your request is being recorded.</p>
-                </div>
-            </div>
+            @include('layouts.partials.requisition-confirmation')
         </div>
     </div>
 </div>

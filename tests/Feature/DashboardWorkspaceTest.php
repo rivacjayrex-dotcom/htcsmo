@@ -25,6 +25,9 @@ class DashboardWorkspaceTest extends TestCase
             ->assertSee('Submit this requisition?')
             ->assertSee('Submitting requisition…')
             ->assertSee('requisition-loading-circle', false)
+            ->assertSee('class="cart-pane"', false)
+            ->assertSee('name="purpose"', false)
+            ->assertDontSee('requisitionCheckoutModal', false)
             ->assertSee('confirmRequisitionSubmit()', false);
     }
 

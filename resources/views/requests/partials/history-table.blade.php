@@ -81,7 +81,7 @@
                             <div class="request-actions">
                                 <a href="{{ route('requests.show', $req->id) }}" class="history-action details" title="View request details"><i data-lucide="arrow-up-right"></i><span>Details</span></a>
                                 @if($type === 'archive')
-                                    <a href="{{ route('requests.download', $req->id) }}" class="history-action" title="Download requisition PDF"><i data-lucide="file-down"></i><span>PDF</span></a>
+                                    <a href="{{ route('requests.download', $req->id) }}" class="history-action" title="Download requisition PDF" download><i data-lucide="file-down"></i><span>PDF</span></a>
                                 @endif
                                 @if($type === 'active' && Auth::id() === $req->user_id && $req->status === 'pending')
                                     <a href="{{ route('requisitions.edit', $req->id) }}" class="history-action edit" title="Edit pending request"><i data-lucide="pencil"></i></a>

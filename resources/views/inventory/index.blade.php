@@ -79,7 +79,7 @@
                         </select>
                         <button type="submit"><i data-lucide="sparkles"></i> Generate</button>
                     </form>
-                    <a class="forecast-download" href="{{ route('inventory.forecast.report', ['period' => $forecast['period']]) }}">
+                    <a class="forecast-download" href="{{ route('inventory.forecast.report', ['period' => $forecast['period']]) }}" download>
                         <i data-lucide="file-down"></i> PDF report
                     </a>
                     <span><b>{{ $forecast['items_with_history'] }}</b> items learned</span>

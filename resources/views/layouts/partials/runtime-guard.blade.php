@@ -114,6 +114,8 @@
         let skipNextUnloadLoader = false;
         let previousFocus = null;
         let loaderTimer = null;
+        let navigationTimer = null;
+        let recoverableNavigation = false;
 
         // Legacy form.submit() skips submit events. Route it through requestSubmit()
         // so filter forms receive the same loader and duplicate-submit protection.
@@ -157,7 +159,10 @@
 
         const hideLoader = () => {
             window.clearTimeout(loaderTimer);
+            window.clearTimeout(navigationTimer);
             loaderTimer = null;
+            navigationTimer = null;
+            recoverableNavigation = false;
             runtimeLocked = false;
             logoutPending = false;
             document.body.classList.remove('runtime-locked');
@@ -191,13 +196,36 @@
             lockedForms.delete(form);
         };
 
+        const canRecoverNavigation = () => recoverableNavigation && !logoutPending
+            && [...lockedForms].every(form => (form.method || 'get').toLowerCase() === 'get');
+
+        const recoverNavigation = () => {
+            if (!canRecoverNavigation()) return;
+            lockedForms.forEach(unlockForm);
+            hideLoader();
+        };
+
+        const watchNavigation = () => {
+            recoverableNavigation = true;
+            window.clearTimeout(navigationTimer);
+            // Downloads or interrupted GET navigations may never fire pageshow.
+            // Keep write submissions locked; only navigation can recover this way.
+            navigationTimer = window.setTimeout(recoverNavigation, 15000);
+        };
+
         document.addEventListener('submit', event => {
             const form = event.target;
             if (!(form instanceof HTMLFormElement) || event.defaultPrevented) return;
+            const submitter = event.submitter;
+            if (form.dataset.download !== undefined || submitter?.dataset.download !== undefined) {
+                skipNextUnloadLoader = true;
+                return;
+            }
             if (form.dataset.noLoader !== undefined) {
                 skipNextUnloadLoader = form.dataset.noUnloadLoader !== undefined;
                 return;
             }
+            skipNextUnloadLoader = false;
 
             if (form.dataset.runtimeSubmitting === 'true') {
                 event.preventDefault();
@@ -207,7 +235,6 @@
             form.dataset.runtimeSubmitting = 'true';
             lockedForms.add(form);
 
-            const submitter = event.submitter;
             if (submitter?.name) {
                 const value = document.createElement('input');
                 value.type = 'hidden';
@@ -240,6 +267,7 @@
                 showLogoutModal();
             } else {
                 showLoader(form.dataset.loadingMessage || 'Processing request…');
+                if ((form.method || 'get').toLowerCase() === 'get') watchNavigation();
             }
 
             queueMicrotask(() => {
@@ -260,6 +288,10 @@
 
         document.addEventListener('keydown', event => {
             if (!runtimeLocked) return;
+            if (event.key === 'Escape' && canRecoverNavigation()) {
+                window.stop();
+                recoverNavigation();
+            }
             event.preventDefault();
             event.stopImmediatePropagation();
         }, true);
@@ -279,11 +311,25 @@
                 || destination.href === window.location.href
                 || sameDocumentAnchor
                 || link.dataset.bsToggle) return;
+            // Track navigation before its synchronous beforeunload event, then
+            // roll back if a later click handler cancels the link instead.
+            skipNextUnloadLoader = false;
             showLoader('Opening page…');
+            watchNavigation();
+            queueMicrotask(() => {
+                if (event.defaultPrevented) recoverNavigation();
+            });
         });
 
-        window.addEventListener('beforeunload', () => {
-            if (!logoutPending && !skipNextUnloadLoader) showLoader('Loading page…');
+        window.addEventListener('beforeunload', event => {
+            // Downloads and canceled reloads can leave the current document open.
+            // This event must never create a new lock on its own.
+            if (logoutPending || skipNextUnloadLoader || !recoverableNavigation) return;
+            window.setTimeout(() => {
+                if (event.defaultPrevented || (typeof event.returnValue === 'string' && event.returnValue !== '')) {
+                    recoverNavigation();
+                }
+            }, 0);
         });
         window.addEventListener('pageshow', () => {
             skipNextUnloadLoader = false;

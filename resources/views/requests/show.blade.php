@@ -89,7 +89,7 @@
     <div class="container-fluid request-details-page">
         <nav class="request-detail-nav" aria-label="Requisition navigation">
             <a href="{{ route('dashboard') }}" class="request-back-link"><i data-lucide="arrow-left"></i><span>Back to dashboard</span></a>
-            <a href="{{ route('requests.download', $request->id) }}" class="request-pdf-action btn btn-htc"><i data-lucide="file-down"></i><span>Export official PDF</span></a>
+            <a href="{{ route('requests.download', $request->id) }}" class="request-pdf-action btn btn-htc" download><i data-lucide="file-down"></i><span>Export official PDF</span></a>
         </nav>
 
         <header class="request-hero">

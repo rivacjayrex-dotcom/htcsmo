@@ -181,7 +181,7 @@
                     <button type="submit" class="btn btn-outline-dark rounded-pill fw-bold px-4">
                         <i data-lucide="scan-search" class="me-1" style="width: 15px;"></i> Refresh Preview
                     </button>
-                    <button type="submit" name="export" value="csv" class="btn btn-outline-success rounded-pill fw-bold px-4">
+                    <button type="submit" name="export" value="csv" class="btn btn-outline-success rounded-pill fw-bold px-4" data-download>
                         <i data-lucide="sheet" class="me-1" style="width: 16px;"></i> Export Excel CSV
                     </button>
                     <button type="button" id="downloadPdfButton" class="btn btn-htc rounded-pill fw-bold px-4">
