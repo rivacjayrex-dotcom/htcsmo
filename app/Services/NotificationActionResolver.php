@@ -28,7 +28,7 @@ class NotificationActionResolver
         $requisitions = $requisitionIds->isEmpty()
             ? collect()
             : Requisition::query()
-                ->with(['user', 'logs'])
+                ->with(['user.academicDepartment', 'logs'])
                 ->whereIn('id', $requisitionIds)
                 ->get()
                 ->keyBy('id');

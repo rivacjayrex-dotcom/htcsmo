@@ -21,7 +21,7 @@
             </div>
         @endif
 
-        <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white" data-live-region="approval-queue">
             <div class="card-header bg-white border-0 p-4 pb-2">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <div>
@@ -35,18 +35,18 @@
                     @if(Auth::user()->role == 'smo')
                         <li class="nav-item">
                             <button class="nav-link active rounded-pill px-4 fw-bold small text-uppercase" id="minor-tab" data-bs-toggle="pill" data-bs-target="#minor" type="button">
-                                Minor Requests <span class="badge bg-white text-primary ms-2">{{ $pendingMinor->count() }}</span>
+                                Minor Requests <span class="badge bg-white text-primary ms-2">{{ $pendingMinor->total() }}</span>
                             </button>
                         </li>
                         <li class="nav-item">
                             <button class="nav-link rounded-pill px-4 fw-bold small text-uppercase" id="major-tab" data-bs-toggle="pill" data-bs-target="#major" type="button">
-                                Major Requests <span class="badge bg-white text-warning ms-2">{{ $pendingMajor->count() }}</span>
+                                Major Requests <span class="badge bg-white text-warning ms-2">{{ $pendingMajor->total() }}</span>
                             </button>
                         </li>
                     @else
                         <li class="nav-item">
                             <button class="nav-link active rounded-pill px-4 fw-bold small text-uppercase" id="pending-tab" data-bs-toggle="pill" data-bs-target="#pending" type="button">
-                                Active Queue <span class="badge bg-white text-dark ms-2">{{ $pendingRequests->count() }}</span>
+                                Active Queue <span class="badge bg-white text-dark ms-2">{{ $pendingRequests->total() }}</span>
                             </button>
                         </li>
                     @endif
@@ -56,8 +56,8 @@
                         <button class="nav-link rounded-pill px-4 fw-bold small text-uppercase text-warning" id="clarification-tab" data-bs-toggle="pill" data-bs-target="#clarification" type="button">
                             <i data-lucide="help-circle" class="me-1" style="width: 14px; vertical-align: middle;"></i>
                             For Clarification / Inquiry
-                            <span class="badge {{ $clarificationRequests->count() > 0 ? 'bg-warning text-dark' : 'bg-light text-muted' }} ms-2">
-                                {{ $clarificationRequests->count() }}
+                            <span class="badge {{ $clarificationRequests->total() > 0 ? 'bg-warning text-dark' : 'bg-light text-muted' }} ms-2">
+                                {{ $clarificationRequests->total() }}
                             </span>
                         </button>
                     </li>
@@ -84,7 +84,7 @@
 
                     <!-- TAB 3: FOR OFFICE CLARIFICATION (BOTH SMO & SIGNATORIES) -->
                     <div class="tab-pane fade" id="clarification">
-                        @if($clarificationRequests->count() > 0)
+                        @if($clarificationRequests->total() > 0)
                             <div class="p-3 bg-warning-subtle text-dark border-bottom small fw-semibold d-flex align-items-center">
                                 <i data-lucide="alert-circle" class="me-2 text-warning" style="width: 18px;"></i>
                                 The items below have been flagged for inquiry. The requestor and the SMO In-Charge have been asked to appear at the signatory's office for a consultation.
@@ -381,6 +381,15 @@
                 releaseConfirmed: false,
 
                 init() {
+                    const activePage = new URL(window.location.href).searchParams;
+                    const selectedTab = activePage.get('tab');
+                    const tabId = ['minor', 'major', 'pending', 'clarification'].includes(selectedTab)
+                        ? selectedTab + '-tab'
+                        : activePage.has('inquiry_page') ? 'clarification-tab' : activePage.has('major_page') ? 'major-tab' : null;
+                    if (tabId) this.$nextTick(() => {
+                        const tab = document.getElementById(tabId);
+                        if (tab) bootstrap.Tab.getOrCreateInstance(tab).show();
+                    });
                     if (!focusedApprovalRequest) return;
 
                     this.$nextTick(() => {

@@ -14,8 +14,8 @@ const runtimeSource = layout.slice(layout.indexOf('// Keep every signed-in works
     .replaceAll('{{ Auth::id() }}', '7')
     .replace('{{ (int) Auth::id() }}', '7');
 
-function browser({ cursor, bufferedState, storageDisabled = false, audioContextClass } = {}) {
-    const values = new Map();
+function browser({ cursor, bufferedState, storageDisabled = false, audioContextClass, sharedStorage, channelClass } = {}) {
+    const values = sharedStorage || new Map();
     if (cursor !== undefined) values.set('htc-presented-notification-7', String(cursor));
     const storage = {
         getItem: key => {
@@ -26,15 +26,25 @@ function browser({ cursor, bufferedState, storageDisabled = false, audioContextC
             if (storageDisabled) throw new Error('Storage disabled');
             values.set(key, String(value));
         },
+        removeItem: key => values.delete(key),
     };
     const timers = new Map();
     let nextTimer = 0;
     const badge = {};
+    const region = { dataset: {liveRegion: 'workspace'}, innerHTML: 'original content' };
+    const elements = new Map();
     const document = Object.assign(new EventTarget(), {
         hidden: false,
         activeElement: null,
-        getElementById: id => id === 'notificationUnreadCount' ? badge : {},
+        body: {dataset: {}},
+        documentElement: {getAttribute: () => null},
+        getElementById: id => {
+            if (id === 'notificationUnreadCount') return badge;
+            if (!elements.has(id)) elements.set(id, new EventTarget());
+            return elements.get(id);
+        },
         querySelector: () => null,
+        querySelectorAll: selector => selector === '[data-live-region]' ? [region] : [],
     });
     const window = Object.assign(new EventTarget(), {
         setTimeout(callback, delay) {
@@ -43,7 +53,7 @@ function browser({ cursor, bufferedState, storageDisabled = false, audioContextC
             return id;
         },
         clearTimeout: id => timers.delete(id),
-        location: { reload() { window.reloads++; } },
+        location: { href: 'http://localhost/dashboard', reload() { window.reloads++; } },
         reloads: 0,
         htcRuntimeState: bufferedState,
         AudioContext: audioContextClass,
@@ -52,7 +62,16 @@ function browser({ cursor, bufferedState, storageDisabled = false, audioContextC
         window, document, localStorage: storage, sessionStorage: storage,
         CustomEvent, AbortController, Date, console,
         lucide: { createIcons() {} },
+        DOMParser: class {
+            parseFromString() {
+                return {querySelector: () => ({innerHTML: 'updated content', querySelectorAll: () => []})};
+            }
+        },
     });
+    if (channelClass) {
+        window.BroadcastChannel = channelClass;
+        context.BroadcastChannel = channelClass;
+    }
     window.lucide = context.lucide;
     const center = vm.runInContext(`(${centerSource})()`, context);
     center.$nextTick = callback => callback();
@@ -67,7 +86,7 @@ function browser({ cursor, bufferedState, storageDisabled = false, audioContextC
         timers.delete(entry[0]);
         await entry[1].callback();
     }
-    return { center, context, document, window, storage, payload, runTimer, timers };
+    return { center, context, document, window, storage, payload, runTimer, timers, region };
 }
 
 test('an unread reminder appears when the recipient first opens a page', () => {
@@ -157,9 +176,11 @@ test('notifications from another account are ignored', () => {
 
 test('automatic refresh waits until the entire popup stack is dismissed', async () => {
     const fixture = browser();
-    const { center, context, document, window, payload, runTimer } = fixture;
+    const { center, context, window, payload, runTimer, region } = fixture;
     let version = 'before';
-    context.fetch = async () => ({ ok: true, json: async () => ({ ...payload(...(version === 'before' ? [] : [43, 44, 45])), version }) });
+    context.fetch = async url => url.startsWith('/api/')
+        ? { ok: true, json: async () => ({ ...payload(...(version === 'before' ? [] : [43, 44, 45])), version }) }
+        : { ok: true, text: async () => 'fragment' };
     vm.runInContext(runtimeSource, context);
     await runTimer(0);
     version = 'after';
@@ -175,7 +196,8 @@ test('automatic refresh waits until the entire popup stack is dismissed', async 
     center.dismiss(45);
     await runTimer(300);
     await runTimer(500);
-    assert.equal(window.reloads, 1);
+    assert.equal(window.reloads, 0);
+    assert.equal(region.innerHTML, 'updated content');
 });
 
 test('each popup expires independently and frees a slot for the queue', async () => {
@@ -269,4 +291,75 @@ test('dismissing a popup before audio is unlocked cancels its delayed chime', as
     document.dispatchEvent(new Event('pointerdown'));
     await new Promise(setImmediate);
     assert.equal(notes.length, 0);
+});
+
+function channels() {
+    const instances = [];
+    return class extends EventTarget {
+        constructor(name) { super(); this.name = name; instances.push(this); }
+        postMessage(data) {
+            for (const instance of instances) {
+                if (instance !== this && instance.name === this.name) {
+                    queueMicrotask(() => instance.dispatchEvent(new MessageEvent('message', {data})));
+                }
+            }
+        }
+    };
+}
+
+test('visible tabs share a single poller and take over when its tab is hidden', async () => {
+    const sharedStorage = new Map();
+    const channelClass = channels();
+    const first = browser({sharedStorage, channelClass});
+    const second = browser({sharedStorage, channelClass});
+    let requests = 0;
+    const fetch = async () => {
+        requests++;
+        return {ok: true, json: async () => ({account_id: 7, version: 'stable', latest_id: 0, unread_count: 0, notifications: []})};
+    };
+    for (const fixture of [first, second]) {
+        fixture.context.fetch = fetch;
+        vm.runInContext(runtimeSource, fixture.context);
+    }
+    await first.runTimer(0);
+    await second.runTimer(0);
+    assert.equal(requests, 1);
+    assert.equal(second.window.htcRuntimeState.version, 'stable');
+    first.document.hidden = true;
+    first.document.dispatchEvent(new Event('visibilitychange'));
+    await new Promise(setImmediate);
+    await second.runTimer(0);
+    assert.equal(requests, 2);
+});
+
+test('an unrelated inventory change does not refresh a request page', async () => {
+    const fixture = browser();
+    fixture.document.body.dataset.runtimeScope = 'requests';
+    let inventoryVersion = 'inventory-before';
+    fixture.context.fetch = async () => ({ok: true, json: async () => ({
+        account_id: 7, version: inventoryVersion, versions: {requests: 'requests-unchanged'}, notifications: [],
+    })});
+    vm.runInContext(runtimeSource, fixture.context);
+    await fixture.runTimer(0);
+    inventoryVersion = 'inventory-after';
+    await fixture.runTimer(15000);
+    assert.equal([...fixture.timers.values()].some(timer => timer.delay === 500), false);
+    assert.equal(fixture.region.innerHTML, 'original content');
+});
+
+test('an edit begun during a background fetch prevents replacement of unsaved work', async () => {
+    const fixture = browser();
+    let version = 'before';
+    fixture.context.fetch = async url => {
+        if (url.startsWith('/api/')) return {ok: true, json: async () => ({account_id: 7, version, notifications: []})};
+        fixture.document.activeElement = {tagName: 'INPUT'};
+        return {ok: true, text: async () => 'fragment'};
+    };
+    vm.runInContext(runtimeSource, fixture.context);
+    await fixture.runTimer(0);
+    version = 'after';
+    await fixture.runTimer(15000);
+    await fixture.runTimer(500);
+    assert.equal(fixture.region.innerHTML, 'original content');
+    assert.equal(fixture.window.reloads, 0);
 });

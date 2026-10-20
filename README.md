@@ -252,6 +252,30 @@ Alternatively, the Composer development script starts the Laravel server, queue 
 composer run dev
 ```
 
+## Performance and background email
+
+Open tabs share one runtime poller per signed-in account when BroadcastChannel and browser storage are available. Polls read cached change markers instead of recalculating totals across business tables. Inventory changes do not invalidate request-only workspaces. Dashboard, inventory, request/archive pages, and approval tables refresh their live content in place; open dialogs, selected inventory rows, and edited forms defer replacement. Other pages offer a refresh button when updates are available.
+
+Inventory forecasts aggregate release history by month and cache results for five minutes. Model changes invalidate the cache after their database transaction commits. After importing SQL or making bulk changes outside Eloquent model events, run `php artisan cache:clear` to invalidate forecasts and workspace versions.
+
+Approval queues show 15 records per page. Report previews show 50 source records per page and label summaries as page totals; CSV and PDF exports include all matching records.
+
+Approval and fulfillment emails run on the `mail` queue with three attempts and delivery/failure logging. Docker starts the worker automatically; `composer run dev` also processes this queue. On XAMPP without the Composer development runner, start a hidden worker from PowerShell:
+
+```powershell
+.\tools\start-mail-worker.ps1
+```
+
+The launcher avoids starting a second copy of its worker. Restart it after restarting Windows. Its output is in `storage/logs/mail-worker.log` and `storage/logs/mail-worker-error.log`. On other hosts, supervise this command:
+
+```bash
+php artisan queue:work --queue=mail,default --sleep=5 --tries=3 --timeout=30
+```
+
+Restart queue workers after deploying PHP changes with `php artisan queue:restart`. After the existing worker exits, start the XAMPP launcher again or let the process supervisor restart it. Keep local development settings separate from production; the Docker entrypoint already caches configuration, routes, and views.
+
+Performance regressions are covered by `php artisan test --filter=WorkspacePerformanceTest` and `npm run test:frontend`. These checks verify that idle polling avoids business-table queries, warm forecasts avoid history queries, dashboard fragments are less than half the full response size in the test fixture, tabs share polling, and unsaved edits survive background updates.
+
 ## Scheduled SLA alerts
 
 The `smo:check-deadlines` command checks every active requisition against one fixed SLA that starts at initial submission. It warns after two working days and marks the request overdue after three working days, excluding weekends and dates stored in `institutional_holidays`. Alerts go to the requestor, all active SMO users, and the approver currently responsible for the request. Laravel schedules the command daily at 8:00 AM in the configured application timezone (`Asia/Manila` by default). Read notifications older than one year are pruned by a separate daily task.

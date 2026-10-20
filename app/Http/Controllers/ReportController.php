@@ -58,14 +58,20 @@ class ReportController extends Controller
             'inventory_value' => Supply::selectRaw('COALESCE(SUM(quantity * unit_price), 0) as value')->value('value') ?? 0,
         ];
 
+        $monthExpression = match (DB::connection()->getDriverName()) {
+            'mysql', 'mariadb', 'sqlsrv' => 'MONTH(updated_at)',
+            'pgsql' => 'EXTRACT(MONTH FROM updated_at)',
+            default => "CAST(strftime('%m', updated_at) AS INTEGER)",
+        };
         $monthlyData = Requisition::whereIn('status', Requisition::FULFILLED_STATUSES)
-            ->whereYear('updated_at', now()->year)
-            ->get(['updated_at'])
-            ->groupBy(fn (Requisition $requisition) => $requisition->updated_at->month)
-            ->map(fn ($requisitions, $month) => (object) [
-                'month' => Carbon::create(now()->year, (int) $month, 1)->format('F'),
-                'month_number' => (int) $month,
-                'count' => $requisitions->count(),
+            ->where('updated_at', '>=', now()->startOfYear())
+            ->where('updated_at', '<', now()->startOfYear()->addYear())
+            ->selectRaw($monthExpression.' as month_number, COUNT(*) as release_count')
+            ->groupByRaw($monthExpression)->orderBy('month_number')->get()
+            ->map(fn ($month) => (object) [
+                'month' => Carbon::create(now()->year, (int) $month->month_number, 1)->format('F'),
+                'month_number' => (int) $month->month_number,
+                'count' => (int) $month->release_count,
             ])
             ->sortBy('month_number')
             ->values();
@@ -165,7 +171,22 @@ class ReportController extends Controller
             'reportType' => $reportType,
             'periodLabel' => $periodLabel,
             ...$report,
+            'pagination' => $request->attributes->get('report_pagination'),
+            'summaryLabel' => $request->attributes->has('report_pagination')
+                ? 'This page: '.$report['summaryLabel'] : $report['summaryLabel'],
         ];
+    }
+
+    private function records(Request $request, Builder|QueryBuilder $query): Collection
+    {
+        if ($request->get('export') === 'csv' || $request->boolean('download_pdf')) {
+            return $query->get();
+        }
+
+        $pagination = $query->paginate(50)->withQueryString();
+        $request->attributes->set('report_pagination', $pagination);
+
+        return $pagination->getCollection();
     }
 
     private function requisitionReport(Request $request, ?Carbon $dateFrom, ?Carbon $dateTo): array
@@ -184,7 +205,7 @@ class ReportController extends Controller
 
         $this->applyDateRange($query, 'created_at', $dateFrom, $dateTo);
 
-        $records = $query->latest('created_at')->get();
+        $records = $this->records($request, $query->latest('created_at')->orderByDesc('id'));
         // One row per line item prevents specifications, quantities, and prices
         // from being hidden inside a comma-separated requisition summary.
         $rows = $records->flatMap(function (Requisition $requisition) {
@@ -261,9 +282,9 @@ class ReportController extends Controller
             $query->where('quantity', '<=', 0);
         }
 
-        $records = $query->orderBy(SupplyCategory::select('category_name')
+        $records = $this->records($request, $query->orderBy(SupplyCategory::select('category_name')
             ->whereColumn('supply_categories.id', 'supplies.supply_category_id'))
-            ->orderBy('item_name')->get();
+            ->orderBy('item_name')->orderBy('id'));
         $rows = $records->map(fn (Supply $supply) => [
             'item' => $supply->item_name,
             'brand' => $supply->brand ?: '-',
@@ -321,7 +342,7 @@ class ReportController extends Controller
 
         $this->applyDateRange($query, 'requisitions.updated_at', $dateFrom, $dateTo);
 
-        $records = $query->groupBy('departments.dept_code')->orderByDesc('total_spent')->get();
+        $records = $this->records($request, $query->groupBy('departments.dept_code')->orderByDesc('total_spent'));
         $rows = $records->map(fn ($department) => [
             'department' => $department->department ?: 'Unassigned',
             'requests' => (int) $department->total_requests,
@@ -362,7 +383,7 @@ class ReportController extends Controller
 
         $this->applyDateRange($query, 'created_at', $dateFrom, $dateTo);
 
-        $records = $query->orderBy('department_id')->orderBy('name')->get();
+        $records = $this->records($request, $query->orderBy('department_id')->orderBy('name')->orderBy('id'));
         $rows = $records->map(fn (User $user) => [
             'school_id' => $user->school_id,
             'name' => $user->name,
@@ -417,10 +438,10 @@ class ReportController extends Controller
 
         $this->applyDateRange($query, 'requisitions.updated_at', $dateFrom, $dateTo);
 
-        $records = $query
+        $records = $this->records($request, $query
             ->groupBy('requisition_items.item_name', 'requisition_items.unit', 'supply_categories.category_name')
             ->orderByDesc('total_quantity')
-            ->get();
+        );
 
         $rows = $records->map(fn ($item) => [
             'item' => $item->item_name,
@@ -452,7 +473,7 @@ class ReportController extends Controller
 
     private function approvalAuditReport(Request $request, ?Carbon $dateFrom, ?Carbon $dateTo): array
     {
-        $query = ApprovalLog::with(['requisition.user', 'digitalSignature']);
+        $query = ApprovalLog::with(['requisition.user.academicDepartment', 'digitalSignature']);
 
         if ($request->filled('role')) {
             $query->where('role', $request->role);
@@ -463,7 +484,7 @@ class ReportController extends Controller
 
         $this->applyDateRange($query, 'created_at', $dateFrom, $dateTo);
 
-        $records = $query->latest()->get();
+        $records = $this->records($request, $query->latest()->orderByDesc('id'));
         $rows = $records->map(fn (ApprovalLog $log) => [
             'date' => $log->created_at->format('Y-m-d H:i'),
             'tracking' => $log->requisition?->tracking_code ?? '-',
@@ -515,7 +536,7 @@ class ReportController extends Controller
 
         $this->applyDateRange($query, 'created_at', $dateFrom, $dateTo);
 
-        $records = $query->latest()->get();
+        $records = $this->records($request, $query->latest()->orderByDesc('id'));
         $rows = $records->map(fn (SupplyInventoryLog $log) => [
             'date' => $log->created_at->format('Y-m-d H:i'),
             'item' => $log->supply?->item_name ?? 'Deleted item',
@@ -548,7 +569,7 @@ class ReportController extends Controller
 
     private function userActivityReport(Request $request, ?Carbon $dateFrom, ?Carbon $dateTo): array
     {
-        $query = UserActivityLog::with('user');
+        $query = UserActivityLog::with('user.academicDepartment');
 
         if ($request->filled('role')) {
             $query->whereHas('user', fn (Builder $userQuery) => $userQuery->where('role', $request->role));
@@ -559,7 +580,7 @@ class ReportController extends Controller
 
         $this->applyDateRange($query, 'created_at', $dateFrom, $dateTo);
 
-        $records = $query->latest('created_at')->get();
+        $records = $this->records($request, $query->latest('created_at')->orderByDesc('id'));
         $rows = $records->map(fn (UserActivityLog $log) => [
             'date' => Carbon::parse($log->created_at)->format('Y-m-d H:i'),
             'user' => $log->user?->name ?? 'Deleted user',

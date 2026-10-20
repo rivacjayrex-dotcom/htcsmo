@@ -45,14 +45,14 @@ Route::get('/dashboard', function () {
             ->where('user_id', $user->id)
             ->whereNotIn('status', Requisition::ARCHIVED_STATUSES)
             ->latest()
-            ->get();
+            ->take(15)->get();
     }
 
     // SCHOOL ADMIN DASHBOARD: Show only requests currently assigned to this approver.
     $approvalRequests = collect();
     $approvalDeadlineRequests = collect();
     if (in_array($user->role, ['dept_head', 'vp_finance', 'vp_admin', 'provost', 'president'])) {
-        $approvalQuery = Requisition::with(['items', 'user']);
+        $approvalQuery = Requisition::with(['items', 'user.academicDepartment']);
 
         switch ($user->role) {
             case 'dept_head':
@@ -74,7 +74,7 @@ Route::get('/dashboard', function () {
         }
 
         $approvalRequests = $approvalQuery->latest()->take(5)->get();
-        $approvalDeadlineRequests = Requisition::with(['items', 'user'])
+        $approvalDeadlineRequests = Requisition::with(['items', 'user.academicDepartment'])
             ->deadlineRisks()
             ->assignedToReviewer($user)
             ->oldest('due_at')
@@ -90,7 +90,7 @@ Route::get('/dashboard', function () {
     $lowStockSupplies = collect();
 
     if ($user->role == 'smo') {
-        $approvalDeadlineRequests = Requisition::with(['items', 'user'])
+        $approvalDeadlineRequests = Requisition::with(['items', 'user.academicDepartment'])
             ->deadlineRisks()
             ->oldest('due_at')
             ->take(6)
@@ -98,11 +98,7 @@ Route::get('/dashboard', function () {
         $stats['total'] = Requisition::count();
         $stats['pending'] = Requisition::whereNotIn('status', Requisition::ARCHIVED_STATUSES)->count();
         $stats['urgent'] = Requisition::deadlineRisks()->count();
-        $deadlineRequests = Requisition::with(['items', 'user'])
-            ->deadlineRisks()
-            ->oldest('due_at')
-            ->take(4)
-            ->get();
+        $deadlineRequests = $approvalDeadlineRequests->take(4);
         $inventoryStats = Supply::query()->selectRaw(
             'COALESCE(SUM(CASE WHEN quantity <= min_stock_level THEN 1 ELSE 0 END), 0) as low_stock,
              COALESCE(SUM(CASE WHEN quantity <= 0 THEN 1 ELSE 0 END), 0) as out_of_stock'
@@ -115,10 +111,11 @@ Route::get('/dashboard', function () {
             ->take(4)
             ->get();
         $stats['monthly_value'] = Requisition::whereIn('status', Requisition::FULFILLED_STATUSES)
-            ->whereMonth('updated_at', now()->month)->sum('grand_total');
+            ->where('updated_at', '>=', now()->startOfMonth())
+            ->where('updated_at', '<', now()->startOfMonth()->addMonth())->sum('grand_total');
 
         // SMO TABLE: Only pull active items that still need to be processed or released
-        $allStaffRequests = Requisition::with(['items', 'user'])
+        $allStaffRequests = Requisition::with(['items', 'user.academicDepartment'])
             ->whereNotIn('status', Requisition::ARCHIVED_STATUSES)
             ->latest()
             ->take(10)

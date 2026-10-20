@@ -391,13 +391,16 @@
                 }
             });
 
+            let lastRuntimeSignature = null;
             document.addEventListener('htc:runtime-state', event => {
                 const data = event.detail;
                 if (!data || Number(data.account_id) !== Number(center.dataset.notificationAccount)) return;
                 updateUnreadCount(data.unread_count);
-                if (Array.isArray(data.notifications) && data.notifications.length) {
+                const signature = `${data.latest_id}:${data.unread_count}`;
+                if (signature !== lastRuntimeSignature && Array.isArray(data.notifications) && data.notifications.length) {
                     loadFeed(window.location.href, false);
                 }
+                lastRuntimeSignature = signature;
             });
         })();
     </script>

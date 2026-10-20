@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Models\SupplyInventoryLog;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class InventoryForecastService
 {
@@ -12,6 +14,21 @@ class InventoryForecastService
      * Build an upcoming monthly or three-month forecast from 24 months of releases.
      */
     public function build(Collection $supplies, ?Carbon $asOf = null, string $period = 'monthly'): array
+    {
+        if ($asOf !== null) {
+            return $this->calculate($supplies, $asOf, $period);
+        }
+
+        $key = 'inventory-forecast:'.hash('sha256', implode(':', [
+            app(WorkspaceVersionService::class)->version('inventory'),
+            now()->format('Y-m'), $period, $supplies->pluck('id')->implode(','),
+        ]));
+
+        // A stock edit or release changes the version after its transaction commits.
+        return Cache::remember($key, 300, fn () => $this->calculate($supplies, null, $period));
+    }
+
+    private function calculate(Collection $supplies, ?Carbon $asOf, string $period): array
     {
         $period = $period === 'quarterly' ? 'quarterly' : 'monthly';
         $currentMonth = ($asOf ?? now())->copy()->startOfMonth();
@@ -21,11 +38,21 @@ class InventoryForecastService
             ->map(fn (int $offset) => $targetMonth->copy()->addMonths($offset));
         $targetEnd = $targetMonths->last()->copy()->endOfMonth();
         $historyStart = $currentMonth->copy()->subMonths(23);
+        $monthExpression = match (DB::connection()->getDriverName()) {
+            'mysql', 'mariadb' => "DATE_FORMAT(created_at, '%Y-%m')",
+            'pgsql' => "TO_CHAR(created_at, 'YYYY-MM')",
+            'sqlsrv' => "FORMAT(created_at, 'yyyy-MM')",
+            default => "strftime('%Y-%m', created_at)",
+        };
 
         $logs = SupplyInventoryLog::query()
+            ->select('supply_id')
+            ->selectRaw($monthExpression.' as usage_month')
+            ->selectRaw('SUM(CASE WHEN quantity_change < 0 THEN -quantity_change ELSE 0 END) as used_quantity, COUNT(*) as event_count')
+            ->whereIn('supply_id', $supplies->pluck('id'))
             ->where('transaction_type', 'release_deduction')
             ->where('created_at', '>=', $historyStart)
-            ->orderBy('created_at')
+            ->groupBy('supply_id')->groupByRaw($monthExpression)
             ->get()
             ->groupBy('supply_id');
 
@@ -34,12 +61,11 @@ class InventoryForecastService
             $monthlyUsage = [];
 
             foreach ($itemLogs as $log) {
-                $key = $log->created_at->format('Y-m');
-                $monthlyUsage[$key] = ($monthlyUsage[$key] ?? 0) + abs(min(0, (int) $log->quantity_change));
+                $monthlyUsage[$log->usage_month] = (int) $log->used_quantity;
             }
 
             $earliestMonth = $itemLogs->isNotEmpty()
-                ? $itemLogs->min('created_at')->copy()->startOfMonth()->max($historyStart)
+                ? Carbon::parse($itemLogs->min('usage_month').'-01')->max($historyStart)
                 : $currentMonth->copy();
             $observedMonths = max(1, $earliestMonth->diffInMonths($currentMonth) + 1);
             $recentMonthCount = min(3, $observedMonths);
@@ -100,7 +126,7 @@ class InventoryForecastService
 
             $confidence = match (true) {
                 $observedMonths >= 12 && $monthlyProjections->contains(fn (array $projection) => ($projection['seasonality_index'] ?? 0) > 0) => 'high',
-                $observedMonths >= 6 || $itemLogs->count() >= 4 => 'medium',
+                $observedMonths >= 6 || $itemLogs->sum('event_count') >= 4 => 'medium',
                 default => 'low',
             };
 
@@ -114,7 +140,7 @@ class InventoryForecastService
                 'seasonality_percent' => $seasonalityIndex !== null ? (int) round(($seasonalityIndex - 1) * 100) : null,
                 'peak_month' => $peakMonthNumber ? Carbon::create(2000, $peakMonthNumber, 1)->format('F') : null,
                 'months_observed' => $observedMonths,
-                'release_events' => $itemLogs->count(),
+                'release_events' => (int) $itemLogs->sum('event_count'),
                 'confidence' => $confidence,
                 'reason' => $this->reason(
                     $strongestSeason['month'] ?? $targetMonth,

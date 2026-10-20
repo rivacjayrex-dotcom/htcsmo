@@ -3,11 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ArchiveIndexRequest;
-use App\Mail\RequisitionAlertMail;
+use App\Jobs\SendRequisitionEmail;
 use App\Models\ApprovalLog;
 use App\Models\Department;
 use App\Models\DigitalSignature;
-use App\Models\EmailLog;
 use App\Models\Notification;
 use App\Models\Requisition;
 use App\Models\Supply;
@@ -17,11 +16,12 @@ use App\Services\DeadlineNotificationService;
 use App\Services\InventoryAlertService;
 use App\Services\NotificationActionResolver;
 use App\Services\NotificationService;
+use App\Services\WorkspaceVersionService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 
 class RequestController extends Controller
 {
@@ -39,7 +39,10 @@ class RequestController extends Controller
      */
     public function runtimeState(Request $request, NotificationActionResolver $actionResolver)
     {
-        $validated = $request->validate(['after_id' => ['nullable', 'integer', 'min:0']]);
+        $validated = $request->validate([
+            'after_id' => ['nullable', 'integer', 'min:0'],
+            'scope' => ['nullable', 'in:all,inventory,requests,approvals,users,notifications,none'],
+        ]);
         $user = $request->user();
         $afterId = (int) ($validated['after_id'] ?? 0);
         $notificationState = Notification::query()->forUser($user)
@@ -59,9 +62,11 @@ class RequestController extends Controller
             )
         )->values();
         $latestId = (int) $notificationState->latest_id;
+        $versions = app(WorkspaceVersionService::class)->versions();
 
         return response()->json([
-            'version' => $this->runtimeVersion(),
+            'version' => $versions[$validated['scope'] ?? 'all'],
+            'versions' => $versions,
             'account_id' => $user->id,
             'latest_id' => $latestId,
             'cursor' => (int) ($notifications->last()?->id ?? $latestId),
@@ -73,28 +78,7 @@ class RequestController extends Controller
 
     private function runtimeVersion(): string
     {
-        $state = DB::query()->selectRaw('(
-                SELECT COUNT(*) FROM requisitions
-            ) as requisition_total, (
-                SELECT COALESCE(MAX(id), 0) FROM requisitions
-            ) as requisition_latest_id, (
-                SELECT MAX(updated_at) FROM requisitions
-            ) as requisition_latest_update, (
-                SELECT COUNT(*) FROM approval_logs
-            ) as approval_total, (
-                SELECT COALESCE(MAX(id), 0) FROM approval_logs
-            ) as approval_latest_id, (
-                SELECT MAX(created_at) FROM approval_logs
-            ) as approval_latest_update, (
-                SELECT COUNT(*) FROM supplies
-            ) as supply_total, (
-                SELECT COALESCE(MAX(id), 0) FROM supplies
-            ) as supply_latest_id, (
-                SELECT MAX(updated_at) FROM supplies
-            ) as supply_latest_update')
-            ->first();
-
-        return hash('sha256', json_encode($state));
+        return app(WorkspaceVersionService::class)->version();
     }
 
     /**
@@ -128,7 +112,7 @@ class RequestController extends Controller
             'deadline' => (clone $scopeQuery)->deadlineRisks()->count(),
         ];
 
-        $query = (clone $scopeQuery)->with(['items', 'user']);
+        $query = (clone $scopeQuery)->with(['items', 'user.academicDepartment']);
 
         $query->search($validated['search'] ?? null);
         if ($request->filled('status')) {
@@ -155,7 +139,7 @@ class RequestController extends Controller
         $approvalDeadlineRequests = collect();
         if ($user->role === 'smo' || in_array($user->role, ['dept_head', 'vp_finance', 'vp_admin', 'provost', 'president'], true)) {
             $deadlineQuery = Requisition::query()
-                ->with(['items', 'user'])
+                ->with(['items', 'user.academicDepartment'])
                 ->approvalDeadlineRisks();
 
             if ($user->role !== 'smo') {
@@ -206,7 +190,7 @@ class RequestController extends Controller
             ->archived()
             ->visibleTo($user)
             ->withArchiveFilters($filters, allowDepartment: $user->role === 'smo')
-            ->with(['items', 'user'])
+            ->with(['items', 'user.academicDepartment'])
             ->orderBy('closed_at', $order)
             ->orderBy('id', $order);
         $archivedRequests = $request->boolean('print')
@@ -227,7 +211,7 @@ class RequestController extends Controller
         $user = Auth::user();
 
         // Standard pending query
-        $query = Requisition::with(['items', 'user']);
+        $query = Requisition::with(['items', 'user.academicDepartment']);
 
         switch ($user->role) {
             case 'dept_head':
@@ -264,45 +248,41 @@ class RequestController extends Controller
             $query->prioritizeExecutiveRequestors();
         }
 
-        $pendingRequests = $query->latest()->get();
-
-        // A notification can deep-link to one request, but only when that
-        // request is already visible in the signed-in user's authorized queue.
-        $focusedRequestId = request()->integer('request');
-        $focusedRequest = $focusedRequestId > 0
-            ? $pendingRequests->firstWhere('id', $focusedRequestId)
-            : null;
-
         // Dedicated list for requests placed on hold / for clarification
         $clarificationRequests = Requisition::with([
             'items',
-            'user',
+            'user.academicDepartment',
             'logs' => fn ($query) => $query->orderBy('id'),
         ])
             ->where('status', 'for_clarification')
-            ->latest()
-            ->get();
+            ->latest();
 
         // SMO coordinates every inquiry; signatories only handle inquiries they initiated.
         if ($user->role !== 'smo') {
-            $clarificationRequests = $clarificationRequests
-                ->filter(function ($requisition) use ($user) {
-                    $clarificationLog = $requisition->logs
-                        ->filter(fn ($log) => str_contains($log->action, 'Clarification'))
-                        ->sortByDesc('id')
-                        ->first();
-
-                    return $clarificationLog?->role === $user->role;
-                })
-                ->values();
+            $clarificationRequests->whereRaw(
+                '(SELECT role FROM approval_logs WHERE requisition_id = requisitions.id AND action LIKE ? ORDER BY id DESC LIMIT 1) = ?',
+                ['%Clarification%', $user->role],
+            );
         }
 
+        $focusedRequestId = request()->integer('request');
+        $focusedRequest = $focusedRequestId > 0
+            ? ((clone $query)->find($focusedRequestId) ?? (clone $clarificationRequests)->find($focusedRequestId))
+            : null;
+        $clarificationRequests = $clarificationRequests->orderByDesc('id')->paginate(15, ['*'], 'inquiry_page')
+            ->withQueryString()->appends(['tab' => 'clarification', 'request' => null]);
+
         if ($user->role === 'smo') {
-            $pendingMinor = $pendingRequests->where('request_type', 'minor');
-            $pendingMajor = $pendingRequests->where('request_type', 'major');
+            $pendingMinor = (clone $query)->where('request_type', 'minor')->latest()->orderByDesc('id')->paginate(15, ['*'], 'minor_page')
+                ->withQueryString()->appends(['tab' => 'minor', 'request' => null]);
+            $pendingMajor = (clone $query)->where('request_type', 'major')->latest()->orderByDesc('id')->paginate(15, ['*'], 'major_page')
+                ->withQueryString()->appends(['tab' => 'major', 'request' => null]);
 
             return view('admin.approvals', compact('pendingMinor', 'pendingMajor', 'clarificationRequests', 'focusedRequest'));
         }
+
+        $pendingRequests = $query->latest()->orderByDesc('id')->paginate(15)
+            ->withQueryString()->appends(['tab' => 'pending', 'request' => null]);
 
         return view('admin.approvals', compact('pendingRequests', 'clarificationRequests', 'focusedRequest'));
     }
@@ -324,7 +304,7 @@ class RequestController extends Controller
         try {
             // Lock the workflow row so two reviewers cannot advance the same
             // stage concurrently and generate contradictory notifications.
-            $sr = Requisition::with(['items', 'user'])->lockForUpdate()->findOrFail($id);
+            $sr = Requisition::with(['items', 'user.academicDepartment'])->lockForUpdate()->findOrFail($id);
 
             abort_unless(
                 $this->canReviewRequisition($sr, Auth::user()),
@@ -520,7 +500,7 @@ class RequestController extends Controller
         }
 
         $outcome = DB::transaction(function () use ($id, $notifications) {
-            $requisition = Requisition::with(['items', 'user'])->lockForUpdate()->findOrFail($id);
+            $requisition = Requisition::with(['items', 'user.academicDepartment'])->lockForUpdate()->findOrFail($id);
             $isFullyApproved = ($requisition->request_type === 'minor' && $requisition->status === 'approved_vp')
                 || ($requisition->request_type === 'major' && $requisition->status === 'approved_president');
 
@@ -565,7 +545,7 @@ class RequestController extends Controller
         }
 
         $outcome = DB::transaction(function () use ($id, $alertService) {
-            $sr = Requisition::with(['items', 'user'])->lockForUpdate()->findOrFail($id);
+            $sr = Requisition::with(['items', 'user.academicDepartment'])->lockForUpdate()->findOrFail($id);
 
             if (in_array($sr->status, ['ready_for_pickup', 'completed', 'released'], true)) {
                 return ['error' => 'This requisition has already been prepared for pickup.'];
@@ -801,28 +781,13 @@ class RequestController extends Controller
         string $accentColor = '#185b3b',
     ): void {
         try {
-            // 1. Send the SMTP email
-            Mail::to($recipientEmail)->send(
-                new RequisitionAlertMail($requisition, $subject, $headline, $message, $accentColor)
+            SendRequisitionEmail::dispatch(
+                $recipientEmail, $user?->id, $requisition->id,
+                $subject, $headline, $message, $accentColor,
             );
-
-            // 2. Log successful transmission to database
-            EmailLog::create([
-                'user_id' => $user?->id,
-                'recipient_email' => $recipientEmail,
-                'subject' => $subject,
-                'status' => 'sent',
-                'sent_at' => now(),
-            ]);
         } catch (\Exception $e) {
-            // Log failure without crashing the user request
-            EmailLog::create([
-                'user_id' => $user?->id,
-                'recipient_email' => $recipientEmail,
-                'subject' => $subject,
-                'status' => 'failed',
-                'error_message' => $e->getMessage(),
-                'sent_at' => now(),
+            Log::error('Could not queue requisition email.', [
+                'requisition_id' => $requisition->id, 'exception' => $e->getMessage(),
             ]);
         }
     }

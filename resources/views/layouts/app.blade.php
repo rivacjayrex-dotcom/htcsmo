@@ -1897,7 +1897,7 @@
         }
     </style>
 </head>
-<body>
+<body data-runtime-scope="{{ $workspaceScope }}" data-runtime-version="{{ $workspaceVersion }}">
     <div class="d-flex">
         <button type="button" class="sidebar-backdrop" id="sidebarBackdrop" aria-label="Close navigation"></button>
         <!-- SIDEBAR -->
@@ -2048,7 +2048,7 @@
             </header>
 
             <div class="p-1 p-lg-3">
-                <div class="main-content-inner p-3 p-md-4">
+                <div class="main-content-inner p-3 p-md-4" @if($liveWorkspace) data-live-region="workspace" @endif>
                     {{ $slot }}
                 </div>
             </div>
@@ -2307,6 +2307,7 @@
     <div id="liveRefreshNotice" class="live-refresh-notice" role="status" aria-live="polite" hidden>
         <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
         <span id="liveRefreshMessage">New activity detected. Refreshing…</span>
+        <button type="button" id="liveRefreshButton" class="btn btn-sm btn-outline-success">Refresh</button>
     </div>
 
     @include('layouts.partials.runtime-guard')
@@ -2761,11 +2762,13 @@
         (() => {
             const endpoint = @json(route('api.runtime-state'));
             const expectedAccountId = {{ (int) Auth::id() }};
+            const scope = document.body?.dataset.runtimeScope || 'all';
             const notificationKey = 'htc-presented-notification-{{ Auth::id() }}';
             const cacheKey = 'htc-runtime-state:{{ Auth::id() }}';
             const notice = document.getElementById('liveRefreshNotice');
             const message = document.getElementById('liveRefreshMessage');
-            let currentVersion = null;
+            let currentVersion = document.body?.dataset.runtimeVersion || null;
+            let pendingVersion = currentVersion;
             let refreshPending = false;
             let checking = false;
             let timer = null;
@@ -2773,11 +2776,37 @@
             let lastCheckedAt = 0;
             let notificationBusy = false;
             let refreshTimer = null;
+            let refreshing = false;
+            const tabId = window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
+            const leaseKey = `htc-runtime-poller:${expectedAccountId}`;
+            const syncChannel = 'BroadcastChannel' in window ? new BroadcastChannel(`htc-runtime-${expectedAccountId}`) : null;
+
+            const releaseLease = () => {
+                if (!syncChannel) return;
+                try {
+                    if (JSON.parse(localStorage.getItem(leaseKey) || 'null')?.tab === tabId) {
+                        localStorage.removeItem(leaseKey);
+                        syncChannel.postMessage({type: 'released'});
+                    }
+                } catch (error) { /* Each tab can poll independently if storage is unavailable. */ }
+            };
+
+            const ownPollingLease = () => {
+                if (!syncChannel) return true;
+                try {
+                    const lease = JSON.parse(localStorage.getItem(leaseKey) || 'null');
+                    if (lease && lease.tab !== tabId && lease.until > Date.now()) return false;
+                    localStorage.setItem(leaseKey, JSON.stringify({tab: tabId, until: Date.now() + 30000}));
+                    return JSON.parse(localStorage.getItem(leaseKey) || 'null')?.tab === tabId;
+                } catch (error) { return true; }
+            };
 
             const userIsWorking = () => {
                 const active = document.activeElement;
                 const editing = active && ['INPUT', 'TEXTAREA', 'SELECT'].includes(active.tagName);
-                return document.hidden || notificationBusy || editing || Boolean(document.querySelector('.modal.show'));
+                return document.hidden || notificationBusy || editing
+                    || document.documentElement?.getAttribute('aria-busy') === 'true'
+                    || Boolean(document.querySelector('.modal.show, .main-content-inner [data-dirty], .main-content-inner form[aria-busy="true"], .main-content-inner input[type="checkbox"]:checked'));
             };
 
             const showNotice = (deferred = false) => {
@@ -2787,8 +2816,65 @@
                 notice.hidden = false;
             };
 
+            const refreshWorkspace = async () => {
+                if (refreshing || !refreshPending || userIsWorking()) return;
+                const regions = [...document.querySelectorAll('[data-live-region]')];
+                if (!regions.length) {
+                    message.textContent = 'New activity is available. Refresh to update this page.';
+                    return;
+                }
+                refreshing = true;
+                const targetVersion = pendingVersion;
+                const controller = new AbortController();
+                const timeout = window.setTimeout(() => controller.abort(), 10000);
+                try {
+                    const response = await fetch(window.location.href, {
+                        headers: {'Accept': 'text/html', 'X-Workspace-Refresh': 'true'},
+                        credentials: 'same-origin', cache: 'no-store', signal: controller.signal,
+                    });
+                    if (!response.ok || response.redirected) throw new Error('Workspace refresh unavailable');
+                    const parsed = new DOMParser().parseFromString(await response.text(), 'text/html');
+                    const replacements = regions.map(region => ({
+                        region,
+                        next: parsed.querySelector(`[data-live-region="${region.dataset.liveRegion}"]`),
+                    }));
+                    if (replacements.some(item => !item.next)) throw new Error('Missing live content');
+                    // An action can begin while the response is in flight. Keep the user's work.
+                    if (userIsWorking()) return;
+                    const activeTabs = [...document.querySelectorAll('[data-bs-toggle="pill"].active')].map(tab => tab.id);
+                    replacements.forEach(({region, next}) => {
+                        next.querySelectorAll('script').forEach(script => script.remove());
+                        const replace = () => {
+                            if (window.bootstrap) {
+                                region.querySelectorAll('[data-bs-toggle="pill"]').forEach(tab => window.bootstrap.Tab.getInstance(tab)?.dispose());
+                                region.querySelectorAll('.collapse').forEach(element => window.bootstrap.Collapse.getInstance(element)?.dispose());
+                            }
+                            window.Alpine?.destroyTree(region);
+                            region.innerHTML = next.innerHTML;
+                            window.Alpine?.initTree(region);
+                        };
+                        if (window.Alpine?.mutateDom) window.Alpine.mutateDom(replace);
+                        else replace();
+                    });
+                    activeTabs.forEach(id => {
+                        const tab = document.getElementById(id);
+                        if (tab && window.bootstrap) window.bootstrap.Tab.getOrCreateInstance(tab).show();
+                    });
+                    window.lucide?.createIcons();
+                    currentVersion = targetVersion;
+                    refreshPending = pendingVersion !== currentVersion;
+                    notice.hidden = !refreshPending;
+                    document.dispatchEvent(new CustomEvent('htc:workspace-updated'));
+                } catch (error) {
+                    message.textContent = 'New activity is available. Refresh to update this page.';
+                } finally {
+                    window.clearTimeout(timeout);
+                    refreshing = false;
+                }
+            };
+
             const refreshWhenSafe = () => {
-                if (!refreshPending) return;
+                if (!refreshPending || refreshing) return;
                 if (userIsWorking()) {
                     window.clearTimeout(refreshTimer);
                     refreshTimer = null;
@@ -2800,7 +2886,7 @@
                 refreshTimer = window.setTimeout(() => {
                     refreshTimer = null;
                     if (userIsWorking()) refreshWhenSafe();
-                    else window.location.reload();
+                    else return refreshWorkspace();
                 }, 500);
             };
 
@@ -2822,6 +2908,27 @@
                 }
             };
 
+            const acceptRuntimeState = data => {
+                if (Number(data.account_id) !== expectedAccountId) return;
+                failures = 0;
+                lastCheckedAt = Date.now();
+                cacheMetadata(data);
+                window.htcRuntimeState = data;
+                document.dispatchEvent(new CustomEvent('htc:runtime-state', {detail: data}));
+                const version = data.versions?.[scope] || data.version;
+                if (currentVersion === null) currentVersion = version;
+                else if (version !== currentVersion) {
+                    pendingVersion = version;
+                    refreshPending = true;
+                    refreshWhenSafe();
+                }
+            };
+
+            syncChannel?.addEventListener('message', event => {
+                if (event.data?.type === 'state') acceptRuntimeState(event.data.data);
+                if (event.data?.type === 'released' && !document.hidden) scheduleCheck(0);
+            });
+
             const initialDelay = () => {
                 try {
                     const cached = JSON.parse(sessionStorage.getItem(cacheKey) || 'null');
@@ -2838,7 +2945,12 @@
             const checkForUpdates = async () => {
                 if (checking) return;
                 if (document.hidden) {
+                    releaseLease();
                     scheduleCheck(60000);
+                    return;
+                }
+                if (!ownPollingLease()) {
+                    scheduleCheck(15000);
                     return;
                 }
                 checking = true;
@@ -2852,7 +2964,7 @@
                     } catch (error) {
                         // The popup component keeps an in-memory cursor when storage is disabled.
                     }
-                    const response = await fetch(`${endpoint}?after_id=${afterId}`, {
+                    const response = await fetch(`${endpoint}?after_id=${afterId}&scope=${scope}`, {
                         headers: {'Accept': 'application/json'},
                         cache: 'no-store',
                         credentials: 'same-origin',
@@ -2865,20 +2977,8 @@
                         window.location.reload();
                         return;
                     }
-                    failures = 0;
-                    lastCheckedAt = Date.now();
-                    cacheMetadata(data);
-                    window.htcRuntimeState = data;
-                    document.dispatchEvent(new CustomEvent('htc:runtime-state', {detail: data}));
-
-                    if (currentVersion === null) {
-                        currentVersion = data.version;
-                        return;
-                    }
-                    if (data.version !== currentVersion) {
-                        refreshPending = true;
-                        refreshWhenSafe();
-                    }
+                    acceptRuntimeState(data);
+                    syncChannel?.postMessage({type: 'state', data});
                 } catch (error) {
                     failures++;
                 } finally {
@@ -2890,6 +2990,7 @@
             };
 
             document.addEventListener('visibilitychange', () => {
+                if (document.hidden) releaseLease();
                 if (!document.hidden && Date.now() - lastCheckedAt > 5000) checkForUpdates();
                 if (!document.hidden) refreshWhenSafe();
             });
@@ -2899,6 +3000,12 @@
             });
             document.addEventListener('focusout', () => window.setTimeout(refreshWhenSafe, 150));
             document.addEventListener('hidden.bs.modal', refreshWhenSafe);
+            document.addEventListener('input', event => {
+                const form = event.target.closest?.('.main-content-inner form');
+                if (form && (form.method || 'get').toLowerCase() !== 'get') form.dataset.dirty = 'true';
+            });
+            window.addEventListener('pagehide', releaseLease);
+            document.getElementById('liveRefreshButton')?.addEventListener('click', () => window.location.reload());
             scheduleCheck(initialDelay());
         })();
 

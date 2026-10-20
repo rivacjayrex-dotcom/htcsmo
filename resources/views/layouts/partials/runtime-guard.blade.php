@@ -113,6 +113,7 @@
         let logoutPending = false;
         let skipNextUnloadLoader = false;
         let previousFocus = null;
+        let loaderTimer = null;
 
         // Legacy form.submit() skips submit events. Route it through requestSubmit()
         // so filter forms receive the same loader and duplicate-submit protection.
@@ -130,11 +131,15 @@
                 previousFocus = document.activeElement;
             }
             loaderMessage.textContent = message.replace('&hellip;', '…');
-            loader.hidden = false;
             runtimeLocked = true;
-            document.body.classList.add('runtime-locked');
             document.documentElement.setAttribute('aria-busy', 'true');
-            loader.focus({preventScroll: true});
+            if (loaderTimer !== null || !loader.hidden) return;
+            loaderTimer = window.setTimeout(() => {
+                loaderTimer = null;
+                loader.hidden = false;
+                document.body.classList.add('runtime-locked');
+                loader.focus({preventScroll: true});
+            }, 180);
         };
 
         const showLogoutModal = () => {
@@ -151,6 +156,8 @@
         };
 
         const hideLoader = () => {
+            window.clearTimeout(loaderTimer);
+            loaderTimer = null;
             runtimeLocked = false;
             logoutPending = false;
             document.body.classList.remove('runtime-locked');

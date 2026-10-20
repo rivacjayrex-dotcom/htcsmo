@@ -200,7 +200,10 @@
                     <h5 class="fw-black mb-0">{{ $title }}</h5>
                     <span class="badge bg-success-subtle text-success rounded-pill">{{ $periodLabel }}</span>
                 </div>
-                <small class="text-muted">{{ number_format($rows->count()) }} matching records</small>
+                <small class="text-muted">{{ number_format($pagination?->total() ?? $rows->count()) }} matching records</small>
+                @if($pagination)
+                    <small class="text-muted d-block">Table and summary show this page. CSV and PDF exports include all matches.</small>
+                @endif
             </div>
 
             <div class="report-preview-summary d-flex align-items-center gap-4">
@@ -220,6 +223,9 @@
             </div>
         </div>
 
+        @if($pagination)
+            <div class="px-3 py-2">{{ $pagination->links() }}</div>
+        @endif
         <div class="table-responsive report-table-wrap">
             <table class="table table-hover align-middle mb-0 report-table report-responsive-table" style="font-size: 0.82rem;">
                 <thead class="bg-light small text-muted text-uppercase">

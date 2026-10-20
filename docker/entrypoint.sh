@@ -24,5 +24,6 @@ php artisan migrate --force
 # The scheduler uses a shared cache lock, so horizontally scaled instances do
 # not execute the same daily notification job more than once.
 php artisan schedule:work >> storage/logs/scheduler.log 2>&1 &
+php artisan queue:work --queue=mail,default --sleep=5 --tries=3 --timeout=30 >> storage/logs/queue.log 2>&1 &
 
 exec apache2-foreground
