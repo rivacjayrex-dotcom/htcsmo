@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Notification;
 use App\Models\Requisition;
 use App\Models\Supply;
+use App\Services\EmployeeDashboardService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -13,6 +14,10 @@ class DashboardController extends Controller
     public function __invoke(Request $request): View
     {
         $user = $request->user();
+
+        if ($user->role === 'employee') {
+            return view('dashboard', app(EmployeeDashboardService::class)->build($user));
+        }
 
         $activeCount = 0;
         $approvedLast24h = 0;

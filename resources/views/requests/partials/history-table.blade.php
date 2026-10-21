@@ -1,3 +1,6 @@
+@php
+    $isPersonalEmployee = Auth::user()->role === 'employee';
+@endphp
 <div class="card request-history-card">
     <div class="table-responsive">
         <table class="table workflow-responsive-table request-history-table">
@@ -7,7 +10,7 @@
                     @if(Auth::user()->role === 'smo')<th>Requestor</th>@endif
                     <th>Requested item</th>
                     <th>Tier</th>
-                    <th class="text-end">Value</th>
+                    <th class="text-end">{{ $isPersonalEmployee ? 'Requested value' : 'Value' }}</th>
                     <th>Status</th>
                     <th class="text-end">Actions</th>
                 </tr>
@@ -17,32 +20,41 @@
                     @php
                         $isOverdue = method_exists($req, 'isOverdue') && $req->isOverdue();
                         $isNear = method_exists($req, 'isNearingDeadline') && $req->isNearingDeadline();
-                        $statusTone = match($req->status) {
-                            'completed', 'released' => 'released',
-                            'rejected' => 'rejected',
-                            'for_clarification' => 'clarification',
-                            'approved_vp', 'approved_president', 'ready_for_pickup' => 'ready',
-                            default => 'progress',
-                        };
-                        $stageLabel = match($req->status) {
-                            'pending' => 'Department review',
-                            'approved_dept' => $req->request_type === 'minor' ? 'VP Finance review' : 'VP Administration review',
-                            'approved_vp' => $req->request_type === 'minor' ? 'Awaiting SMO processing' : 'Provost review',
-                            'approved_provost' => 'Presidential review',
-                            'approved_president' => 'Awaiting SMO processing',
-                            'processing' => 'SMO processing',
-                            'ready_for_pickup' => 'Ready for requestor pickup',
-                            'completed' => 'Pickup completed',
-                            'for_clarification' => 'Requestor clarification required',
-                            'released' => 'Released and completed',
-                            'rejected' => 'Request disapproved',
-                            default => str_replace('_', ' ', $req->status),
-                        };
+                        if (! $isPersonalEmployee) {
+                            $statusTone = match($req->status) {
+                                'completed', 'released' => 'released',
+                                'rejected' => 'rejected',
+                                'for_clarification' => 'clarification',
+                                'approved_vp', 'approved_president', 'ready_for_pickup' => 'ready',
+                                default => 'progress',
+                            };
+                            $stageLabel = match($req->status) {
+                                'pending' => 'Department review',
+                                'approved_dept' => $req->request_type === 'minor' ? 'VP Finance review' : 'VP Administration review',
+                                'approved_vp' => $req->request_type === 'minor' ? 'Awaiting SMO processing' : 'Provost review',
+                                'approved_provost' => 'Presidential review',
+                                'approved_president' => 'Awaiting SMO processing',
+                                'processing' => 'SMO processing',
+                                'ready_for_pickup' => 'Ready for requestor pickup',
+                                'completed' => 'Pickup completed',
+                                'for_clarification' => 'Requestor clarification required',
+                                'released' => 'Released and completed',
+                                'rejected' => 'Request disapproved',
+                                default => str_replace('_', ' ', $req->status),
+                            };
+                        } else {
+                            $personalStage = $req->requestorStatus();
+                            $stageLabel = $personalStage['next_step'];
+                            $statusTone = match($personalStage['tone']) {
+                                'ready' => 'ready', 'clarification' => 'clarification',
+                                'success' => 'released', 'danger' => 'rejected', default => 'progress',
+                            };
+                        }
                     @endphp
                     <tr class="{{ $isOverdue ? 'request-overdue' : ($isNear ? 'request-near' : '') }}">
                         <td data-label="Request">
                             <div class="history-request-code">{{ $req->tracking_code }}</div>
-                            <small><i data-lucide="calendar"></i>{{ $type === 'archive' ? 'Closed '.($req->closed_at?->format('M d, Y') ?? 'date unavailable') : $req->created_at?->format('M d, Y') }}</small>
+                            <small><i data-lucide="calendar"></i>{{ $type === 'archive' ? 'Closed '.($req->closed_at?->format('M d, Y') ?? 'date unavailable') : ($isPersonalEmployee ? ($req->submitted_at ?? $req->created_at)?->format('M d, Y') : $req->created_at?->format('M d, Y')) }}</small>
                         </td>
 
                         @if(Auth::user()->role === 'smo')
@@ -67,19 +79,23 @@
                         </td>
 
                         <td data-label="Tier"><span class="history-tier {{ $req->request_type }}">{{ $req->request_type }}</span></td>
-                        <td class="text-end" data-label="Value"><strong class="history-value">₱{{ number_format($req->grand_total, 2) }}</strong></td>
+                        <td class="text-end" data-label="{{ $isPersonalEmployee ? 'Requested value' : 'Value' }}"><strong class="history-value">₱{{ number_format($req->grand_total, 2) }}</strong></td>
                         <td data-label="Status">
-                            <span class="history-status {{ $statusTone }}">{{ str_replace('_', ' ', $req->status) }}</span>
+                            <span class="history-status {{ $statusTone }}">{{ $isPersonalEmployee ? $personalStage['label'] : str_replace('_', ' ', $req->status) }}</span>
                             <small class="history-stage">{{ $stageLabel }}</small>
+                            @if($isPersonalEmployee && $req->status === 'for_clarification')
+                                <a href="{{ route('requests.show', $req) }}#employee-next-step" class="history-stage">Read clarification remarks</a>
+                                @if($req->clarificationRemarks())<small class="history-stage">{{ Str::limit($req->clarificationRemarks(), 120) }}</small>@endif
+                            @endif
                             @if($isOverdue && !in_array($req->status, App\Models\Requisition::ARCHIVED_STATUSES, true))
                                 <span class="history-deadline overdue"><i data-lucide="siren"></i> Overdue</span>
                             @elseif($isNear && !in_array($req->status, App\Models\Requisition::ARCHIVED_STATUSES, true))
-                                <span class="history-deadline near"><i data-lucide="clock-alert"></i> Day 2 warning</span>
+                                <span class="history-deadline near"><i data-lucide="clock-alert"></i> {{ $isPersonalEmployee ? 'Nearing SLA deadline' : 'Day 2 warning' }}</span>
                             @endif
                         </td>
                         <td class="text-end" data-label="Actions">
                             <div class="request-actions">
-                                <a href="{{ route('requests.show', $req->id) }}" class="history-action details" title="View request details"><i data-lucide="arrow-up-right"></i><span>Details</span></a>
+                                <a href="{{ route('requests.show', $req->id) }}" class="history-action details" aria-label="View details for {{ $req->tracking_code }}" title="View request details"><i data-lucide="arrow-up-right"></i><span>{{ $isPersonalEmployee && $req->status === 'ready_for_pickup' ? 'View pickup status' : 'Details' }}</span></a>
                                 @if($type === 'archive')
                                     <a href="{{ route('requests.download', $req->id) }}" class="history-action" title="Download requisition PDF" download><i data-lucide="file-down"></i><span>PDF</span></a>
                                 @endif
@@ -99,11 +115,16 @@
                         <td colspan="{{ Auth::user()->role === 'smo' ? '7' : '6' }}">
                             <div class="request-empty">
                                 <span><i data-lucide="{{ $type === 'active' ? 'inbox' : 'archive' }}"></i></span>
-                                <strong>{{ $type === 'active' ? 'No active requisitions found' : 'No archived requisitions found' }}</strong>
+                                <strong>{{ $isPersonalEmployee && request()->anyFilled(['search', 'status', 'date_from', 'date_to']) ? 'No requests match these filters' : ($type === 'active' ? 'No active requisitions found' : 'No archived requisitions found') }}</strong>
                                 <p>{{ request()->hasAny(['search', 'status', 'dept', 'date_from', 'date_to']) ? 'Try changing or clearing the current filters.' : ($type === 'active' ? 'New requests will appear here after submission.' : 'Completed and rejected requests will appear here.') }}</p>
-                                @if($type === 'active' && !request()->hasAny(['search', 'status', 'dept', 'date_from', 'date_to']))
+                                @if($isPersonalEmployee && request()->anyFilled(['search', 'status', 'date_from', 'date_to']))
+                                    <a href="{{ route($type === 'archive' ? 'requests.archive' : 'requests.index') }}" class="btn btn-htc">Clear filters</a>
+                                @elseif($isPersonalEmployee && $type === 'active')
+                                    <button type="button" data-bs-toggle="modal" data-bs-target="#globalRequestModal">Create requisition</button>
+                                @elseif($type === 'active' && !request()->hasAny(['search', 'status', 'dept', 'date_from', 'date_to']))
                                     <button type="button" data-bs-toggle="modal" data-bs-target="#globalRequestModal">Create requisition</button>
                                 @endif
+                                @if($isPersonalEmployee && $type === 'archive')<a href="{{ route('requests.index') }}">View my active requests</a>@endif
                             </div>
                         </td>
                     </tr>

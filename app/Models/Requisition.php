@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Requisition extends Model
 {
@@ -96,6 +97,72 @@ class Requisition extends Model
     public function logs(): HasMany
     {
         return $this->hasMany(ApprovalLog::class);
+    }
+
+    public function latestClarificationLog(): HasOne
+    {
+        return $this->hasOne(ApprovalLog::class)->ofMany(
+            ['id' => 'max'],
+            fn (Builder $logs) => $logs->where('action', 'like', '%Clarification%'),
+        );
+    }
+
+    public function clarificationRemarks(): ?string
+    {
+        if ($this->status !== 'for_clarification') {
+            return null;
+        }
+
+        $log = $this->relationLoaded('logs')
+            ? $this->logs->filter(fn ($log) => str_contains($log->action, 'Clarification'))->sortByDesc('id')->first()
+            : $this->latestClarificationLog;
+
+        return filled($log?->remarks) ? $log->remarks : (filled($this->remarks) ? $this->remarks : null);
+    }
+
+    /** Personal workflow copy; labels describe the next stage, not a new approval event. */
+    public function requestorStatus(): array
+    {
+        [$label, $tone, $icon, $nextStep] = match ($this->status) {
+            'pending' => ['Department review', 'progress', 'clock-3', 'Waiting for your department head. You can still edit or delete this pending request.'],
+            'approved_dept' => $this->request_type === 'minor'
+                ? ['VP Finance review', 'progress', 'clock-3', 'Waiting for VP Finance review. No action is currently required from you.']
+                : ['VP Administration review', 'progress', 'clock-3', 'Waiting for VP Administration review. No action is currently required from you.'],
+            'approved_vp' => $this->request_type === 'major'
+                ? ['Provost review', 'progress', 'clock-3', 'Waiting for Provost review before presidential review. This request is not ready for pickup.']
+                : ['Awaiting SMO processing', 'progress', 'package-open', 'Approvals are complete; waiting for SMO processing. This request is not ready for pickup.'],
+            'approved_provost' => ['President review', 'progress', 'clock-3', 'Waiting for presidential review. This request is not ready for pickup.'],
+            'approved_president' => ['Awaiting SMO processing', 'progress', 'package-open', 'Approvals are complete; waiting for SMO processing. This request is not ready for pickup.'],
+            'processing' => ['SMO processing', 'progress', 'package-open', 'SMO is processing your request. Wait for a ready-for-pickup update.'],
+            'ready_for_pickup' => ['Ready for pickup', 'ready', 'package-check', 'SMO has marked this request ready for pickup. Review its details and any recorded instructions.'],
+            'for_clarification' => ['Clarification required', 'clarification', 'message-circle-question', 'Read the clarification remarks and follow up with the reviewing office and SMO.'],
+            'completed' => ['Pickup completed', 'success', 'circle-check', 'This request is closed after handover. You can review its history or download the requisition PDF.'],
+            'released' => ['Released and completed', 'success', 'circle-check', 'This legacy request is recorded as released. You can review its history or download the requisition PDF.'],
+            'rejected' => ['Request disapproved', 'danger', 'circle-x', 'Review the decision remarks in the request history.'],
+            default => ['Status under review', 'progress', 'circle-help', 'Open the request history for the latest recorded update.'],
+        };
+
+        return ['label' => $label, 'tone' => $tone, 'icon' => $icon, 'next_step' => $nextStep];
+    }
+
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query->whereNotIn('status', self::ARCHIVED_STATUSES);
+    }
+
+    public function scopeNeedingRequestorAction(Builder $query): Builder
+    {
+        return $query->whereIn('status', ['for_clarification', 'ready_for_pickup']);
+    }
+
+    public function scopePrioritizeForRequestor(Builder $query): Builder
+    {
+        return $query->orderByRaw(
+            "CASE WHEN status = 'for_clarification' THEN 0 WHEN status = 'ready_for_pickup' THEN 1
+             WHEN due_at <= ? THEN 2 WHEN sla_warning_at <= ? THEN 3 ELSE 4 END",
+            [now(), now()],
+        )->orderByRaw('CASE WHEN due_at <= ? THEN due_at END', [now()])
+            ->orderByRaw('COALESCE(submitted_at, created_at) DESC')->orderByDesc('id');
     }
 
     public function scopeArchived(Builder $query): Builder
@@ -322,7 +389,7 @@ class Requisition extends Model
     }
 
     /**
-     * Check if nearing the 3-day SLA (2 days elapsed since final approval)
+     * Check the saved warning for the three-working-day submission SLA.
      */
     public function isNearingDeadline(): bool
     {
@@ -330,7 +397,7 @@ class Requisition extends Model
     }
 
     /**
-     * Check if exceeded the 3-day processing deadline
+     * Check the saved deadline for the three-working-day submission SLA.
      */
     public function isOverdue(): bool
     {

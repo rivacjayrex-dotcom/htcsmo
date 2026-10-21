@@ -6,6 +6,10 @@
     @php
         $lastLog = $request->logs->sortByDesc('created_at')->first();
         $questioningRole = $request->status === 'for_clarification' ? $lastLog?->role : null;
+        $isEmployee = Auth::user()->role === 'employee';
+        if ($isEmployee && $request->status === 'for_clarification') {
+            $questioningRole = $request->currentReviewerRole();
+        }
         $vpTitle = $request->request_type === 'minor' ? 'VP Finance' : 'VP Admin';
 
         $statusMeta = match ($request->status) {
@@ -26,6 +30,9 @@
         };
 
         $fulfillmentStatuses = ['processing', 'ready_for_pickup', 'completed', 'released'];
+        if ($isEmployee) {
+            $statusMeta = $request->requestorStatus();
+        }
         $isDeptDone = in_array($request->status, ['approved_dept', 'approved_vp', 'approved_provost', 'approved_president', ...$fulfillmentStatuses], true)
             || ($request->status === 'for_clarification' && in_array($questioningRole, ['vp_finance', 'vp_admin', 'provost', 'president'], true));
         $isDeptQuestioning = $request->status === 'for_clarification' && ($questioningRole === 'dept_head' || is_null($questioningRole));
@@ -102,12 +109,13 @@
                 </div>
             </div>
             <div class="request-hero-stats">
-                <div><span>Total value</span><strong>₱{{ number_format($request->grand_total, 2) }}</strong></div>
-                <div><span>Items</span><strong>{{ $request->items->sum('quantity') }}</strong></div>
-                <div><span>Submitted</span><strong>{{ $request->created_at->format('M d, Y') }}</strong></div>
+                <div><span>{{ $isEmployee ? 'Requested value' : 'Total value' }}</span><strong>₱{{ number_format($request->grand_total, 2) }}</strong></div>
+                <div><span>{{ $isEmployee ? 'Item lines' : 'Items' }}</span><strong>{{ $isEmployee ? $request->items->count() : $request->items->sum('quantity') }}</strong></div>
+                <div><span>Submitted</span><strong>{{ ($isEmployee ? ($request->submitted_at ?? $request->created_at) : $request->created_at)->format('M d, Y') }}</strong></div>
                 <div><span>SLA deadline</span><strong>{{ $request->due_at?->format('M d, Y') ?? 'Not set' }}</strong></div>
             </div>
         </header>
+        @if($isEmployee) @include('requests.partials.personal-guidance') @endif
 
         <div class="request-detail-grid">
             <main class="request-detail-main">
@@ -191,7 +199,7 @@
                         @if(in_array($request->status, ['completed', 'released'], true))
                             <article class="request-audit-entry is-released">
                                 <div class="request-audit-dot"><i data-lucide="package-check"></i></div>
-                                <div><time>{{ ($request->closed_at ?? $request->updated_at)->format('M d, Y · h:i A') }}</time><h3>Fulfillment completed</h3><p>The requestor received the prepared supplies.</p></div>
+                                <div><time>{{ $isEmployee ? ($request->closed_at?->format('M d, Y · h:i A') ?? 'Completion date unavailable') : ($request->closed_at ?? $request->updated_at)->format('M d, Y · h:i A') }}</time><h3>Fulfillment completed</h3><p>The requestor received the prepared supplies.</p></div>
                             </article>
                         @endif
                     </div>

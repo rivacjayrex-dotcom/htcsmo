@@ -3,7 +3,15 @@
         {{ __('Requisition Archives') }}
     </x-slot>
 
-    <div class="container-fluid py-2">
+    <div class="container-fluid py-2 {{ Auth::user()->role === 'employee' ? 'personal-list' : '' }}">
+        @if(Auth::user()->role === 'employee')
+            <nav class="personal-navigation" aria-label="My requisitions">
+                <button type="button" class="btn btn-htc" data-bs-toggle="modal" data-bs-target="#globalRequestModal">New requisition</button>
+                <a href="{{ route('dashboard') }}" class="btn btn-light border">My dashboard</a>
+                <a href="{{ route('requests.index') }}" class="btn btn-light border">View my active requests</a>
+            </nav>
+            @include('requests.partials.personal-styles')
+        @endif
         <div class="workflow-page-heading d-flex justify-content-between align-items-center mb-4 gap-3">
             <div>
                 <h4 class="fw-black text-dark mb-0">Requisition Archive</h4>
@@ -30,7 +38,7 @@
                         <input type="search" name="search" value="{{ old('search', request('search')) }}" maxlength="100" class="form-control form-control-sm border-0 bg-light rounded-3 shadow-none" placeholder="Search code, item, or requestor" aria-label="Search archived requisitions">
                     </div>
                     <div class="col-md-3">
-                        <select name="status" class="form-select form-select-sm border-0 bg-light rounded-3 shadow-none" onchange="this.form.submit()">
+                        <select name="status" class="form-select form-select-sm border-0 bg-light rounded-3 shadow-none" aria-label="Archived request status" onchange="this.form.submit()">
                             <option value="">All Archived Statuses</option>
                             <option value="completed" @selected(old('status', request('status')) === 'completed')>Completed</option>
                             <option value="released" @selected(old('status', request('status')) === 'released')>Released (Legacy)</option>

@@ -1,5 +1,5 @@
 <x-app-layout>
-    <x-slot name="header">{{ Auth::user()->role === 'smo' ? 'SMO Command Center' : 'Institutional Dashboard' }}</x-slot>
+    <x-slot name="header">{{ Auth::user()->role === 'smo' ? 'SMO Command Center' : (Auth::user()->role === 'employee' ? 'My requisitions' : 'Institutional Dashboard') }}</x-slot>
 
     @php
         $isSmo = Auth::user()->role === 'smo';
@@ -15,6 +15,8 @@
                 <p>
                     @if($isSmo)
                         Monitor institutional demand, deadline risks, and requests moving through fulfillment.
+                    @elseif(Auth::user()->role === 'employee')
+                        See what needs your attention, track your requests, and submit your supply needs.
                     @else
                         Track requests, review approvals, and submit supply needs from one place.
                     @endif
@@ -31,6 +33,7 @@
                     <a href="{{ route('inventory.index') }}" class="hero-btn secondary"><i data-lucide="boxes"></i> Manage stock</a>
                 @else
                     <button type="button" class="hero-btn primary" data-bs-toggle="modal" data-bs-target="#globalRequestModal"><i data-lucide="plus"></i> New requisition</button>
+                    @if(Auth::user()->role === 'employee')<a href="{{ route('requests.index') }}" class="hero-btn secondary">View all requests <i data-lucide="arrow-right"></i></a>@endif
                     <a href="{{ route('requests.archive') }}" class="hero-btn secondary"><i data-lucide="archive"></i> View archive</a>
                 @endif
             </div>
@@ -204,6 +207,8 @@
                     <a href="{{ route('notifications') }}" class="activity-footer">View notification center <i data-lucide="arrow-right"></i></a>
                 </aside>
             </div>
+        @elseif(Auth::user()->role === 'employee')
+            @include('dashboard.employee')
         @else
             <section class="dashboard-metric-grid two">
                 <article class="modern-metric amber">

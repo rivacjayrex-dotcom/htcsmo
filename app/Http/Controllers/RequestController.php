@@ -18,6 +18,7 @@ use App\Services\NotificationActionResolver;
 use App\Services\NotificationService;
 use App\Services\WorkspaceVersionService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -90,6 +91,12 @@ class RequestController extends Controller
         $user = Auth::user();
         $validated = $request->validate([
             'search' => ['nullable', 'string', 'max:100'],
+            ...($user->role === 'employee' ? [
+                'status' => ['nullable', 'in:pending,approved_dept,approved_vp,approved_provost,approved_president,processing,ready_for_pickup,for_clarification,deadline,action_required'],
+                'date_from' => ['nullable', 'date_format:Y-m-d'],
+                'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],
+                'order' => ['nullable', 'in:asc,desc'],
+            ] : []),
         ]);
 
         $scopeQuery = Requisition::query()
@@ -114,25 +121,40 @@ class RequestController extends Controller
         ];
 
         $query = (clone $scopeQuery)->with(['items', 'user.academicDepartment']);
+        if ($user->role === 'employee') {
+            $query->with('latestClarificationLog');
+            $requestStats['pickup'] = (clone $scopeQuery)->where('status', 'ready_for_pickup')->count();
+        }
 
         $query->search($validated['search'] ?? null);
         if ($request->filled('status')) {
-            $request->status === 'deadline'
-                ? $query->deadlineRisks()
-                : $query->where('status', $request->status);
+            if ($user->role === 'employee' && $request->status === 'action_required') {
+                $query->needingRequestorAction();
+            } else {
+                $request->status === 'deadline'
+                    ? $query->deadlineRisks()
+                    : $query->where('status', $request->status);
+            }
         }
         if ($user->role == 'smo' && $request->filled('dept')) {
             $query->whereHas('user', fn ($q) => $q->inDepartment($request->dept));
         }
         if ($request->filled('date_from')) {
-            $query->whereDate('created_at', '>=', $request->date_from);
+            $user->role === 'employee'
+                ? $query->whereRaw('COALESCE(submitted_at, created_at) >= ?', [Carbon::parse($request->date_from)->startOfDay()])
+                : $query->whereDate('created_at', '>=', $request->date_from);
         }
         if ($request->filled('date_to')) {
-            $query->whereDate('created_at', '<=', $request->date_to);
+            $user->role === 'employee'
+                ? $query->whereRaw('COALESCE(submitted_at, created_at) < ?', [Carbon::parse($request->date_to)->startOfDay()->addDay()])
+                : $query->whereDate('created_at', '<=', $request->date_to);
         }
 
         $order = $request->get('order') === 'asc' ? 'asc' : 'desc';
-        $activeRequests = $query->orderBy('created_at', $order)->paginate(15)->withQueryString();
+        $user->role === 'employee'
+            ? $query->orderByRaw('COALESCE(submitted_at, created_at) '.$order)->orderBy('id', $order)
+            : $query->orderBy('created_at', $order);
+        $activeRequests = $query->paginate(15)->withQueryString();
         $departments = $user->role === 'smo'
             ? Department::query()->whereHas('users')->orderBy('dept_code')->pluck('dept_code')
             : collect();

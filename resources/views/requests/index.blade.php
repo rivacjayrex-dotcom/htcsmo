@@ -1,14 +1,35 @@
 <x-app-layout>
     <x-slot name="header">{{ __('Active Requisitions') }}</x-slot>
 
-    <div class="request-workspace">
+    @php($isEmployee = Auth::user()->role === 'employee')
+    <div class="request-workspace {{ $isEmployee ? 'personal-list' : '' }}">
+        @if($isEmployee)
+            <header class="personal-list-heading">
+                <div><span class="personal-eyebrow">Your requisition workspace</span><h2>My active requests</h2><p>A clear view of your progress and next steps.</p></div>
+                <nav class="personal-navigation" aria-label="My requisitions">
+                    <button type="button" class="btn btn-htc" data-bs-toggle="modal" data-bs-target="#globalRequestModal"><i data-lucide="plus" aria-hidden="true"></i>New requisition</button>
+                    <a href="{{ route('dashboard') }}" class="btn btn-light border">My dashboard</a>
+                    <a href="{{ route('requests.archive') }}" class="btn btn-light border"><i data-lucide="archive" aria-hidden="true"></i>View my archive</a>
+                </nav>
+            </header>
+            @if($errors->any())<div class="alert alert-warning" role="alert"><strong>Request filters were not applied.</strong> {{ $errors->first() }} <a href="{{ route('requests.index') }}">Clear filters</a></div>@endif
+        @endif
         <section class="request-metrics">
             <article class="request-metric total"><span><i data-lucide="layers-3"></i></span><div><strong>{{ $requestStats['total'] }}</strong><h3>All active</h3><p>Currently in the pipeline</p></div></article>
             <article class="request-metric pending"><span><i data-lucide="clock-3"></i></span><div><strong>{{ $requestStats['pending'] }}</strong><h3>New submissions</h3><p>Awaiting first review</p></div></article>
             <article class="request-metric clarification"><span><i data-lucide="message-circle-warning"></i></span><div><strong>{{ $requestStats['clarification'] }}</strong><h3>Needs clarification</h3><p>Requires requestor action</p></div></article>
-            <article class="request-metric ready"><span><i data-lucide="package-check"></i></span><div><strong>{{ $requestStats['ready'] }}</strong><h3>Ready for release</h3><p>Fully approved requests</p></div></article>
+            <article class="request-metric ready"><span><i data-lucide="package-check"></i></span><div><strong>{{ $isEmployee ? $requestStats['pickup'] : $requestStats['ready'] }}</strong><h3>{{ $isEmployee ? 'Ready for pickup' : 'Ready for release' }}</h3><p>{{ $isEmployee ? 'Marked ready by SMO' : 'Fully approved requests' }}</p></div></article>
             <article class="request-metric deadline {{ $requestStats['deadline'] > 0 ? 'attention' : '' }}"><span><i data-lucide="siren"></i></span><div><strong>{{ $requestStats['deadline'] }}</strong><h3>Deadline watch</h3><p>Day 2 or already overdue</p></div></article>
         </section>
+        @if($isEmployee)
+            <p class="small text-muted">The three-working-day target runs from submission and excludes weekends and institutional holidays. It is not a guaranteed pickup date.</p>
+            <nav class="personal-filter-tabs" aria-label="Personal request filters">
+                <a href="{{ route('requests.index') }}" @if(!request('status')) aria-current="page" @endif>All requests <span>{{ $requestStats['total'] }}</span></a>
+                <a href="{{ route('requests.index', ['status' => 'action_required']) }}" @if(request('status') === 'action_required') aria-current="page" @endif>Action required <span>{{ $requestStats['clarification'] + $requestStats['pickup'] }}</span></a>
+                <a href="{{ route('requests.index', ['status' => 'ready_for_pickup']) }}" @if(request('status') === 'ready_for_pickup') aria-current="page" @endif>Ready for pickup <span>{{ $requestStats['pickup'] }}</span></a>
+                <a href="{{ route('requests.index', ['status' => 'for_clarification']) }}" @if(request('status') === 'for_clarification') aria-current="page" @endif>Clarification required <span>{{ $requestStats['clarification'] }}</span></a>
+            </nav>
+        @endif
 
         @if(in_array(Auth::user()->role, ['smo', 'dept_head', 'vp_finance', 'vp_admin', 'provost', 'president'], true))
             @include('requests.partials.approval-deadline-watch', ['approvalDeadlineRequests' => $approvalDeadlineRequests])
@@ -36,10 +57,15 @@
                     <select name="status">
                         <option value="">All active stages</option>
                         <option value="pending" @selected(request('status') === 'pending')>Pending Department Head</option>
-                        <option value="approved_dept" @selected(request('status') === 'approved_dept')>Department approved</option>
-                        <option value="approved_vp" @selected(request('status') === 'approved_vp')>VP approved</option>
-                        <option value="approved_provost" @selected(request('status') === 'approved_provost')>Provost approved</option>
-                        <option value="approved_president" @selected(request('status') === 'approved_president')>President approved</option>
+                        <option value="approved_dept" @selected(request('status') === 'approved_dept')>{{ $isEmployee ? 'VP review (Finance / Administration)' : 'Department approved' }}</option>
+                        <option value="approved_vp" @selected(request('status') === 'approved_vp')>{{ $isEmployee ? 'SMO processing queue (minor) / Provost review (major)' : 'VP approved' }}</option>
+                        <option value="approved_provost" @selected(request('status') === 'approved_provost')>{{ $isEmployee ? 'President review' : 'Provost approved' }}</option>
+                        <option value="approved_president" @selected(request('status') === 'approved_president')>{{ $isEmployee ? 'SMO processing queue (presidential approval)' : 'President approved' }}</option>
+                        @if($isEmployee)
+                            <option value="processing" @selected(request('status') === 'processing')>SMO processing</option>
+                            <option value="ready_for_pickup" @selected(request('status') === 'ready_for_pickup')>Ready for pickup</option>
+                            <option value="action_required" @selected(request('status') === 'action_required')>Action required (clarification / pickup)</option>
+                        @endif
                         <option value="for_clarification" @selected(request('status') === 'for_clarification')>Needs clarification</option>
                         <option value="deadline" @selected(request('status') === 'deadline')>Deadline risks</option>
                     </select>
@@ -55,8 +81,8 @@
                         </select>
                     </label>
                 @endif
-                <label><span>From</span><input type="date" name="date_from" value="{{ request('date_from') }}"></label>
-                <label><span>To</span><input type="date" name="date_to" value="{{ request('date_to') }}"></label>
+                <label><span>{{ $isEmployee ? 'Submitted from' : 'From' }}</span><input type="date" name="date_from" value="{{ request('date_from') }}"></label>
+                <label><span>{{ $isEmployee ? 'Submitted through' : 'To' }}</span><input type="date" name="date_to" value="{{ request('date_to') }}"></label>
                 <label><span>Sort</span><select name="order"><option value="desc" @selected(request('order', 'desc') === 'desc')>Newest first</option><option value="asc" @selected(request('order') === 'asc')>Oldest first</option></select></label>
                 <button type="submit"><i data-lucide="list-filter"></i> Apply</button>
             </form>
@@ -68,6 +94,7 @@
             @endif
         </section>
     </div>
+    @if($isEmployee) @include('requests.partials.personal-styles') @endif
 
     @pushOnce('styles', 'page-styles:requests/index.blade.php')
     <style>
