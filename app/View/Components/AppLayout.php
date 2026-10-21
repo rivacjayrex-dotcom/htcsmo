@@ -16,6 +16,7 @@ class AppLayout extends Component
     public function render(): View
     {
         $scope = match (true) {
+            request()->routeIs('dashboard') => 'dashboard',
             request()->routeIs('inventory.*') => 'inventory',
             request()->routeIs('requests.*', 'admin.archive') => 'requests',
             request()->routeIs('admin.approvals') => 'approvals',
@@ -42,6 +43,11 @@ class AppLayout extends Component
                     [false]
                 )->first()
             : null;
+
+        if ($scope === 'dashboard') {
+            $workspaceData['workspaceVersion'] = app(WorkspaceVersionService::class)
+                ->dashboardVersion($workspaceData['workspaceVersion'], (int) ($notificationState?->latest_id ?? 0));
+        }
 
         return view('layouts.app', [
             ...$workspaceData,

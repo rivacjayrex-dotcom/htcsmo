@@ -188,7 +188,7 @@ class ReportWorkspaceTest extends TestCase
                 'period' => 'current_semester',
             ]))
             ->assertOk()
-            ->assertSee('Departmental Expenditure')
+            ->assertSee('Department Fulfillment Value')
             ->assertSee('CETE')
             ->assertSee('₱1,500.00')
             ->assertSee('Active Requestors');

@@ -11,7 +11,7 @@
         <section class="dashboard-hero">
             <div class="dashboard-hero-copy">
                 <span class="dashboard-kicker">{{ $isSmo ? 'Inventory and fulfillment overview' : 'Your requisition workspace' }}</span>
-                <h2>{{ $isSmo ? 'GoodHoly, '.$firstName.'.' : 'Welcome back, '.$firstName.'.' }}</h2>
+                <h2>{{ 'Welcome back, '.$firstName.'.' }}</h2>
                 <p>
                     @if($isSmo)
                         Monitor institutional demand, deadline risks, and requests moving through fulfillment.
@@ -55,16 +55,16 @@
                     <p>Awaiting approval or fulfillment.</p>
                 </article>
                 <article class="modern-metric {{ $stats['urgent'] > 0 ? 'red urgent' : 'green' }}">
-                    <div class="metric-top"><span class="metric-icon"><i data-lucide="{{ $stats['urgent'] > 0 ? 'siren' : 'shield-check' }}"></i></span><span class="metric-trend">3-day SLA</span></div>
+                    <div class="metric-top"><span class="metric-icon"><i data-lucide="{{ $stats['urgent'] > 0 ? 'siren' : 'shield-check' }}"></i></span><span class="metric-trend">3 working days</span></div>
                     <strong x-data="countUp({{ $stats['urgent'] }})" x-text="current">{{ $stats['urgent'] }}</strong>
                     <h3>{{ $stats['urgent'] > 0 ? 'Deadline risks' : 'SLA healthy' }}</h3>
-                    <p>{{ $stats['urgent'] > 0 ? 'Near-deadline or overdue releases.' : 'No requests require deadline action.' }}</p>
+                    <p>{{ $stats['urgent'] > 0 ? 'Near-deadline or overdue active requests.' : 'No requests require deadline action.' }}</p>
                 </article>
                 <article class="modern-metric green">
                     <div class="metric-top"><span class="metric-icon"><i data-lucide="circle-dollar-sign"></i></span><span class="metric-trend">This month</span></div>
-                    <strong class="money">₱<span x-data="countUp({{ (float) $stats['monthly_value'] }})" x-text="Math.round(current).toLocaleString()">{{ number_format(round((float) $stats['monthly_value'])) }}</span></strong>
+                    <strong class="money">₱<span x-data="countUp({{ (float) $stats['monthly_value'] }})" x-text="current.toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2})">{{ number_format((float) $stats['monthly_value'], 2) }}</span></strong>
                     <h3>Released value</h3>
-                    <p>Value of fulfilled institutional supplies.</p>
+                    <p>Supplies completed or released this month.</p>
                 </article>
             </section>
 
@@ -74,9 +74,9 @@
                         <span class="priority-symbol"><i data-lucide="{{ $stats['urgent'] > 0 ? 'siren' : 'shield-check' }}"></i></span>
                         <div>
                             <span>Deadline monitor</span>
-                            <h3>{{ $stats['urgent'] > 0 ? $stats['urgent'].' requests need immediate attention' : 'All request deadlines are healthy' }}</h3>
+                            <h3>{{ $stats['urgent'] > 0 ? ($stats['urgent'] === 1 ? '1 request needs attention' : $stats['urgent'].' requests need attention') : 'All request deadlines are healthy' }}</h3>
                         </div>
-                        <a href="{{ route('notifications') }}">View deadline center <i data-lucide="arrow-up-right"></i></a>
+                        <a href="{{ route('requests.index', ['status' => 'deadline']) }}">View deadline requests <i data-lucide="arrow-up-right"></i></a>
                     </div>
                     <div class="priority-list">
                         @forelse($deadlineRequests as $deadlineRequest)
@@ -86,13 +86,16 @@
                             @endphp
                             <a href="{{ route('requests.show', $deadlineRequest) }}" class="priority-row">
                                 <span class="priority-state {{ $deadlineState }}">{{ $deadlineRequest->isDeadlineOverdue() ? 'Overdue' : 'Near deadline' }}</span>
-                                <span class="priority-detail"><b>{{ $deadlineRequest->tracking_code }}</b><small>{{ $deadlineRequest->items->first()->item_name ?? 'Supply requisition' }} · {{ $deadlineRequest->user->department ?: 'General' }}</small></span>
+                                <span class="priority-detail"><b>{{ $deadlineRequest->tracking_code }}</b><small>{{ $deadlineRequest->items->first()->item_name ?? 'Supply requisition' }} · {{ $deadlineRequest->user?->department ?: 'General' }}</small></span>
                                 <span class="priority-value">Day {{ $waitingDays }}<i data-lucide="chevron-right"></i></span>
                             </a>
                         @empty
                             <div class="priority-clear"><i data-lucide="circle-check-big"></i><span><b>No near or overdue requests</b><small>The institutional workflow is currently within the three-working-day target.</small></span></div>
                         @endforelse
                     </div>
+                    @if($stats['urgent'] > $deadlineRequests->count())
+                        <a href="{{ route('requests.index', ['status' => 'deadline']) }}" class="activity-footer">Showing {{ $deadlineRequests->count() }} of {{ $stats['urgent'] }} deadline risks <i data-lucide="arrow-right"></i></a>
+                    @endif
                 </article>
 
                 <article class="priority-panel stock {{ $stats['low_stock'] > 0 ? 'has-alerts' : 'is-clear' }}">
@@ -100,7 +103,8 @@
                         <span class="priority-symbol"><i data-lucide="{{ $stats['low_stock'] > 0 ? 'package-minus' : 'package-check' }}"></i></span>
                         <div>
                             <span>Inventory warning</span>
-                            <h3>{{ $stats['low_stock'] > 0 ? $stats['low_stock'].' items require restocking' : 'Inventory thresholds are healthy' }}</h3>
+                            <h3>{{ $stats['low_stock'] > 0 ? ($stats['low_stock'] === 1 ? '1 item requires restocking' : $stats['low_stock'].' items require restocking') : 'Inventory thresholds are healthy' }}</h3>
+                            @if($stats['out_of_stock'] > 0)<small>{{ $stats['out_of_stock'] }} out of stock</small>@endif
                         </div>
                         <a href="{{ route('inventory.index') }}">Manage inventory <i data-lucide="arrow-up-right"></i></a>
                     </div>
@@ -115,6 +119,9 @@
                             <div class="priority-clear"><i data-lucide="circle-check-big"></i><span><b>No low-stock items</b><small>Every inventory item is currently above its minimum level.</small></span></div>
                         @endforelse
                     </div>
+                    @if($stats['low_stock'] > $lowStockSupplies->count())
+                        <a href="{{ route('inventory.index') }}" class="activity-footer">Showing {{ $lowStockSupplies->count() }} of {{ $stats['low_stock'] }} stock warnings <i data-lucide="arrow-right"></i></a>
+                    @endif
                 </article>
             </section>
 
@@ -123,6 +130,7 @@
                     <div class="panel-heading">
                         <div>
                             <h3>Active requisitions</h3>
+                            <p>Latest {{ $allStaffRequests->count() }} of {{ $stats['pending'] }} active requests.</p>
                         </div>
                         <a href="{{ route('requests.index') }}" class="panel-action"><i data-lucide="arrow-up-right"></i> View All</a>
                     </div>
@@ -130,16 +138,28 @@
                     <div class="table-responsive dashboard-table-wrap">
                         <table class="table dashboard-table responsive-dashboard-table">
                             <thead>
-                                <tr><th>Request</th><th>Requestor</th><th>Primary item</th><th>Status</th><th></th></tr>
+                                <tr><th scope="col">Request</th><th scope="col">Requestor</th><th scope="col">Primary item</th><th scope="col">Status</th><th scope="col"><span class="visually-hidden">Action</span></th></tr>
                             </thead>
                             <tbody>
                                 @forelse($allStaffRequests as $req)
                                     @php
-                                        $isOverdue = method_exists($req, 'isOverdue') && $req->isOverdue();
-                                        $isNearDeadline = method_exists($req, 'isNearingDeadline') && $req->isNearingDeadline();
+                                        $isOverdue = $req->isDeadlineOverdue();
+                                        $isNearDeadline = $req->isDeadlineNearing();
+                                        $statusLabel = match($req->status) {
+                                            'pending' => 'Department review',
+                                            'approved_dept' => $req->request_type === 'minor' ? 'VP Finance review' : 'VP Administration review',
+                                            'approved_vp' => $req->request_type === 'minor' ? 'Awaiting SMO processing' : 'Provost review',
+                                            'approved_provost' => 'President review',
+                                            'approved_president' => 'Awaiting SMO processing',
+                                            'processing' => 'SMO processing',
+                                            'ready_for_pickup' => 'Ready for pickup',
+                                            'for_clarification' => 'For clarification',
+                                            default => ucfirst(str_replace('_', ' ', $req->status)),
+                                        };
                                         $statusTone = match($req->status) {
                                             'for_clarification' => 'warning',
-                                            'approved_vp', 'approved_president', 'ready_for_pickup' => 'ready',
+                                            'approved_vp' => $req->request_type === 'minor' ? 'ready' : 'pending',
+                                            'approved_president', 'processing', 'ready_for_pickup' => 'ready',
                                             default => 'pending',
                                         };
                                     @endphp
@@ -149,12 +169,12 @@
                                             <small>{{ $req->created_at->format('M d, Y') }}</small>
                                         </td>
                                         <td data-label="Requestor">
-                                            <div class="person-cell"><span>{{ strtoupper(substr($req->user->name, 0, 1)) }}</span><div><b>{{ $req->user->name }}</b><small>{{ $req->user->department ?: 'General' }}</small></div></div>
+                                            <div class="person-cell"><span>{{ mb_strtoupper(mb_substr($req->user?->name ?? '?', 0, 1)) }}</span><div><b>{{ $req->user?->name ?? 'Unavailable requestor' }}</b><small>{{ $req->user?->department ?: 'General' }}</small></div></div>
                                         </td>
                                         <td data-label="Primary item"><b>{{ $req->items->first()->item_name ?? 'Supplies' }}</b>@if($req->items->count() > 1)<small>+{{ $req->items->count() - 1 }} more item(s)</small>@endif</td>
                                         <td data-label="Status">
-                                            <span class="status-pill {{ $statusTone }}">{{ str_replace('_', ' ', $req->status) }}</span>
-                                            @if($isOverdue)<small class="deadline-text overdue">Overdue by SLA</small>@elseif($isNearDeadline)<small class="deadline-text near">Day 2 warning</small>@endif
+                                            <span class="status-pill {{ $statusTone }}">{{ $statusLabel }}</span>
+                                            @if($isOverdue)<small class="deadline-text overdue">Overdue by SLA</small>@elseif($isNearDeadline)<small class="deadline-text near">Near SLA deadline</small>@endif
                                         </td>
                                         <td data-label="Action"><a href="{{ route('requests.show', $req->id) }}" class="row-action" aria-label="View {{ $req->tracking_code }}"><i data-lucide="arrow-right"></i></a></td>
                                     </tr>
@@ -174,8 +194,8 @@
                     <div class="activity-list">
                         @forelse($recentActivity as $activity)
                             <article class="activity-item">
-                                <span class="activity-icon {{ $activity->type }}"><i data-lucide="{{ $activity->icon ?: 'bell' }}"></i></span>
-                                <div><h4>{{ $activity->title }}</h4><p>{{ Str::limit($activity->message, 92) }}</p><time>{{ $activity->created_at->diffForHumans() }}</time></div>
+                                <span class="activity-icon {{ $activity->safeType() }}"><i data-lucide="{{ $activity->safeIcon() }}"></i></span>
+                                <div><h4><a href="{{ route('notifications') }}">{{ $activity->title }}</a></h4><p>{{ Str::limit($activity->message, 92) }}</p><time datetime="{{ $activity->created_at->toIso8601String() }}">{{ $activity->created_at->diffForHumans() }}</time></div>
                             </article>
                         @empty
                             <div class="dashboard-empty small"><i data-lucide="bell-off"></i><strong>No recent alerts</strong><span>New system activity will appear here.</span></div>
@@ -713,6 +733,8 @@
 
         .modern-metric > strong.money {
             font-size: 1.45rem;
+            overflow-wrap: anywhere;
+            line-height: 1.2;
         }
 
         .modern-metric h3 {
@@ -1060,6 +1082,20 @@
             color: #34473c;
             font-size: .68rem;
             font-weight: 800;
+        }
+
+        .activity-item h4 a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .activity-item h4 a:hover {
+            text-decoration: underline;
+        }
+
+        .dashboard-page :is(a, button):focus-visible {
+            outline: 3px solid #b47b16;
+            outline-offset: 3px;
         }
 
         .activity-item p {

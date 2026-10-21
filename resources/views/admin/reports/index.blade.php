@@ -2,15 +2,15 @@
     $reportOptions = [
         'requisitions' => ['Requisition Transactions', 'Every request, item, status, and amount', 'file-text'],
         'inventory' => ['Inventory Valuation', 'Stock levels, pricing, value, and health', 'boxes'],
-        'dept_spending' => ['Department Spending', 'Cost and request totals by department', 'building-2'],
+        'dept_spending' => ['Department Fulfillment', 'Recorded fulfilled value by department', 'building-2'],
         'users' => ['Users & Personnel', 'Accounts by department, role, and status', 'users'],
-        'item_consumption' => ['Item Consumption', 'Distributed quantities and item costs', 'package-check'],
+        'item_consumption' => ['Fulfilled Request Items', 'Requested quantities on fulfilled requests', 'package-check'],
         'approval_audit' => ['Approval Audit', 'Signatory actions and approval history', 'stamp'],
         'inventory_movements' => ['Inventory Movements', 'Restocks, releases, and adjustments', 'arrow-left-right'],
         'user_activity' => ['User Activity', 'Authentication and security activity log', 'shield-check'],
     ];
 
-    $departments = ['CETE', 'CTE', 'CBMA', 'CCJE', 'CAS'];
+    $departments = $departmentOptions;
     $roles = [
         'employee' => 'Employee',
         'dept_head' => 'Department Head',
@@ -23,6 +23,7 @@
 @endphp
 
     <form action="{{ route('admin.reports.builder') }}" method="GET" id="reportForm" class="report-control-panel no-print">
+        @if(request('supply_id'))<input type="hidden" name="supply_id" value="{{ request('supply_id') }}">@endif
         <div class="report-section-heading">
             <span>1</span>
             <div><h5>Select a report</h5><p>Choose the institutional dataset you want to review.</p></div>
@@ -82,6 +83,9 @@
                             <label for="dept" class="form-label mini-label">Department</label>
                             <select id="dept" name="dept" class="form-select border-0 bg-light rounded-3 shadow-none">
                                 <option value="">All Departments</option>
+                                @if(in_array($reportType, ['requisitions', 'dept_spending', 'item_consumption']))
+                                    <option value="__unassigned" @selected(request('dept') === '__unassigned')>Unassigned</option>
+                                @endif
                                 @foreach($departments as $department)
                                     <option value="{{ $department }}" @selected(request('dept') === $department)>{{ $department }}</option>
                                 @endforeach
@@ -116,6 +120,13 @@
 
                 @if($reportType === 'requisitions')
                     <div class="row g-3 mt-1">
+                        <div class="col-md-4">
+                            <label for="date_basis" class="form-label mini-label">Date basis</label>
+                            <select id="date_basis" name="date_basis" class="form-select border-0 bg-light rounded-3 shadow-none">
+                                <option value="submitted" @selected(request('date_basis', 'submitted') === 'submitted')>Submitted requests</option>
+                                <option value="fulfilled" @selected(request('date_basis') === 'fulfilled')>Completed / released requests</option>
+                            </select>
+                        </div>
                         <div class="col-md-4">
                             <label for="tier" class="form-label mini-label">Requisition Tier</label>
                             <select id="tier" name="tier" class="form-select border-0 bg-light rounded-3 shadow-none">

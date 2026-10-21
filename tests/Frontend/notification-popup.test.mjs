@@ -459,6 +459,34 @@ test("an unrelated inventory change does not refresh a request page", async () =
     assert.equal(fixture.region.innerHTML, "original content");
 });
 
+test("a dashboard clock change refreshes its content even when business data is unchanged", async () => {
+    const fixture = browser();
+    fixture.document.body.dataset.runtimeScope = "dashboard";
+    fixture.document.body.dataset.runtimeVersion = "minute-before";
+    fixture.region.querySelectorAll = () => [];
+    let dashboardVersion = "minute-before";
+    fixture.context.fetch = async (url) => {
+        if (url.startsWith("/api/")) return {
+            ok: true,
+            json: async () => ({
+                account_id: 7,
+                version: "unchanged-business-data",
+                versions: { dashboard: dashboardVersion },
+                notifications: [],
+            }),
+        };
+        return { ok: true, text: async () => "fragment" };
+    };
+    vm.runInContext(runtimeSource, fixture.context);
+    await fixture.runTimer(0);
+    assert.equal(fixture.region.innerHTML, "original content");
+    dashboardVersion = "minute-after";
+    await fixture.runTimer(15000);
+    await fixture.runTimer(500);
+    assert.equal(fixture.region.innerHTML, "updated content");
+    assert.equal(fixture.window.reloads, 0);
+});
+
 test("an edit begun during a background fetch prevents replacement of unsaved work", async () => {
     const fixture = browser();
     let version = "before";

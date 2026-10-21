@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ApprovalLog;
+use App\Models\Department;
 use App\Models\Requisition;
 use App\Models\RequisitionItem;
 use App\Models\Supply;
@@ -10,14 +11,17 @@ use App\Models\SupplyCategory;
 use App\Models\SupplyInventoryLog;
 use App\Models\User;
 use App\Models\UserActivityLog;
+use App\Services\OperationalAnalyticsService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Database\Query\Expression;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class ReportController extends Controller
 {
@@ -35,69 +39,30 @@ class ReportController extends Controller
     /**
      * Display the operational analytics dashboard.
      */
-    public function index(Request $request)
+    public function index(Request $request, OperationalAnalyticsService $analytics)
     {
-        [$semesterStart, $semesterEnd, $semesterLabel] = $this->currentSemester();
-
-        $releasedThisSemester = Requisition::whereIn('status', Requisition::FULFILLED_STATUSES)
-            ->whereBetween('updated_at', [$semesterStart, $semesterEnd]);
-
-        $stats = [
-            'week' => Requisition::whereIn('status', Requisition::FULFILLED_STATUSES)->where('updated_at', '>=', now()->startOfWeek())->count(),
-            'month' => Requisition::whereIn('status', Requisition::FULFILLED_STATUSES)->where('updated_at', '>=', now()->startOfMonth())->count(),
-            'year' => Requisition::whereIn('status', Requisition::FULFILLED_STATUSES)->where('updated_at', '>=', now()->startOfYear())->count(),
-            'semester' => (clone $releasedThisSemester)->count(),
-            'users' => User::where('account_status', User::ACCOUNT_ACTIVE)->count(),
-            'inventory_items' => Supply::count(),
-        ];
-
-        $costs = [
-            'total_spent' => Requisition::whereIn('status', Requisition::FULFILLED_STATUSES)->sum('grand_total'),
-            'semester_spent' => (clone $releasedThisSemester)->sum('grand_total'),
-            'avg_per_req' => Requisition::whereIn('status', Requisition::FULFILLED_STATUSES)->avg('grand_total') ?? 0,
-            'inventory_value' => Supply::selectRaw('COALESCE(SUM(quantity * unit_price), 0) as value')->value('value') ?? 0,
-        ];
-
-        $monthExpression = match (DB::connection()->getDriverName()) {
-            'mysql', 'mariadb', 'sqlsrv' => 'MONTH(updated_at)',
-            'pgsql' => 'EXTRACT(MONTH FROM updated_at)',
-            default => "CAST(strftime('%m', updated_at) AS INTEGER)",
-        };
-        $monthlyData = Requisition::whereIn('status', Requisition::FULFILLED_STATUSES)
-            ->where('updated_at', '>=', now()->startOfYear())
-            ->where('updated_at', '<', now()->startOfYear()->addYear())
-            ->selectRaw($monthExpression.' as month_number, COUNT(*) as release_count')
-            ->groupByRaw($monthExpression)->orderBy('month_number')->get()
-            ->map(fn ($month) => (object) [
-                'month' => Carbon::create(now()->year, (int) $month->month_number, 1)->format('F'),
-                'month_number' => (int) $month->month_number,
-                'count' => (int) $month->release_count,
-            ])
-            ->sortBy('month_number')
-            ->values();
-
-        $deptSpending = User::join('requisitions', 'users.id', '=', 'requisitions.user_id')
-            ->leftJoin('departments', 'users.department_id', '=', 'departments.id')
-            ->selectRaw('departments.dept_code as department, SUM(requisitions.grand_total) as total')
-            ->whereIn('requisitions.status', Requisition::FULFILLED_STATUSES)
-            ->groupBy('departments.dept_code')
-            ->get();
-
-        $topItems = RequisitionItem::select('item_name', DB::raw('SUM(quantity) as total_qty'))
-            ->join('requisitions', 'requisition_items.requisition_id', '=', 'requisitions.id')
-            ->whereIn('requisitions.status', Requisition::FULFILLED_STATUSES)
-            ->groupBy('item_name')
-            ->orderByDesc('total_qty')
-            ->take(5)
-            ->get();
+        $request->validate([
+            'period' => ['nullable', 'in:current_semester,this_month,this_year,custom'],
+            'date_from' => ['nullable', 'required_if:period,custom', 'date_format:Y-m-d'],
+            'date_to' => ['nullable', 'required_if:period,custom', 'date_format:Y-m-d', 'after_or_equal:date_from'],
+        ]);
+        [$dateFrom, $dateTo, $periodLabel] = $this->resolvePeriod($request);
+        if ($dateFrom->diffInMonths($dateTo) > 120) {
+            throw ValidationException::withMessages([
+                'date_to' => 'Choose a reporting range of ten years or less.',
+            ]);
+        }
+        $periodQuery = ['period' => $request->input('period') ?: 'current_semester'];
+        if ($periodQuery['period'] === 'custom') {
+            $periodQuery += $request->only('date_from', 'date_to');
+        }
 
         return view('admin.reports', [
-            'stats' => $stats,
-            'costs' => $costs,
-            'semesterLabel' => $semesterLabel,
-            'monthlyData' => $monthlyData,
-            'deptSpending' => $deptSpending,
-            'topItems' => $topItems,
+            ...$analytics->build($dateFrom, $dateTo),
+            'periodLabel' => $periodLabel,
+            'periodQuery' => $periodQuery,
+            'dateFrom' => $dateFrom,
+            'dateTo' => $dateTo,
         ]);
     }
 
@@ -112,6 +77,8 @@ class ReportController extends Controller
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
             'account_status' => ['nullable', 'in:pending,active,suspended'],
+            'date_basis' => ['nullable', 'in:submitted,fulfilled'],
+            'supply_id' => ['nullable', 'integer', 'min:1'],
         ]);
 
         $report = $this->buildReport($request);
@@ -170,6 +137,17 @@ class ReportController extends Controller
         return [
             'reportType' => $reportType,
             'periodLabel' => $periodLabel,
+            'departmentOptions' => Department::orderBy('dept_code')->pluck('dept_code'),
+            'basisLabel' => match ($reportType) {
+                'requisitions' => $request->input('date_basis') === 'fulfilled'
+                    ? 'Period: completion date (closed_at); completed and legacy released requests only. Values are recorded request amounts, not audited expenditure.'
+                    : 'Period: submission date (submitted_at, falling back to creation date). Quantities and values are requested amounts, regardless of fulfillment.',
+                'dept_spending' => 'Period: completion date (closed_at); completed and legacy released requests only. Recorded request value, not audited accounting expenditure.',
+                'item_consumption' => 'Period: completion date (closed_at). Requested quantities and prices on fulfilled requests; these are not actual stock deductions. Use Inventory Movements for the release ledger.',
+                'inventory' => 'Current snapshot: estimated on-hand value = current quantity × current catalog price. This is not historical movement value or audited expenditure.',
+                'inventory_movements' => 'Period: ledger transaction date. Signed quantity changes record additions and deductions; release deductions may precede request completion.',
+                default => null,
+            },
             ...$report,
             'pagination' => $request->attributes->get('report_pagination'),
             'summaryLabel' => $request->attributes->has('report_pagination')
@@ -194,7 +172,9 @@ class ReportController extends Controller
         $query = Requisition::with(['user.academicDepartment', 'items.supply.supplyCategory', 'items.supply.supplyUnit', 'items.supply.options.values', 'logs']);
 
         if ($request->filled('dept')) {
-            $query->whereHas('user', fn (Builder $userQuery) => $userQuery->inDepartment($request->dept));
+            $request->dept === '__unassigned'
+                ? $query->whereHas('user', fn (Builder $users) => $users->whereNull('department_id'))
+                : $query->whereHas('user', fn (Builder $userQuery) => $userQuery->inDepartment($request->dept));
         }
         if ($request->filled('tier')) {
             $query->where('request_type', $request->tier);
@@ -203,7 +183,12 @@ class ReportController extends Controller
             $query->where('status', $request->status);
         }
 
-        $this->applyDateRange($query, 'created_at', $dateFrom, $dateTo);
+        $isFulfilled = $request->input('date_basis') === 'fulfilled';
+        if ($isFulfilled) {
+            $query->whereIn('status', Requisition::FULFILLED_STATUSES);
+        }
+        $dateColumn = $isFulfilled ? 'closed_at' : DB::raw('COALESCE(submitted_at, created_at)');
+        $this->applyDateRange($query, $dateColumn, $dateFrom, $dateTo);
 
         $records = $this->records($request, $query->latest('created_at')->orderByDesc('id'));
         // One row per line item prevents specifications, quantities, and prices
@@ -219,7 +204,8 @@ class ReportController extends Controller
 
             return $items->map(fn ($item) => [
                 'tracking' => $requisition->tracking_code,
-                'submitted' => $requisition->created_at->format('Y-m-d H:i'),
+                'submitted' => ($requisition->submitted_at ?? $requisition->created_at)->format('Y-m-d H:i'),
+                'fulfilled_date' => $requisition->closed_at?->format('Y-m-d H:i') ?? '-',
                 'request_date' => $requisition->created_at->format('M d, Y'),
                 'submitted_at' => $formatTimestamp($requisition->submitted_at ?? $requisition->created_at),
                 'sla_warning_at' => $formatTimestamp($requisition->sla_warning_at),
@@ -251,19 +237,20 @@ class ReportController extends Controller
             [
                 $this->column('tracking', 'Tracking No.'),
                 $this->column('submitted', 'Submitted'),
+                ...($isFulfilled ? [$this->column('fulfilled_date', 'Completed / Released At')] : []),
                 $this->column('requestor', 'Requestor'),
                 $this->column('department', 'Department'),
                 $this->column('tier', 'Tier'),
                 $this->column('purpose', 'Purpose'),
                 $this->column('item', 'Item'),
                 $this->column('specifications', 'Specifications'),
-                $this->column('quantity', 'Qty', 'number'),
+                $this->column('quantity', 'Requested Qty', 'number'),
                 $this->column('unit', 'Unit'),
                 $this->column('unit_price', 'Unit Price', 'money'),
                 $this->column('line_total', 'Line Total', 'money'),
                 $this->column('status', 'Status'),
             ],
-            'Total Requested Value',
+            $isFulfilled ? 'Recorded Fulfilled Value' : 'Total Requested Value',
             $records->sum('grand_total'),
             'money',
         );
@@ -301,7 +288,7 @@ class ReportController extends Controller
         ]);
 
         return $this->reportResult(
-            'Inventory and Asset Valuation',
+            'Inventory and Estimated On-hand Value',
             $rows,
             [
                 $this->column('item', 'Item'),
@@ -314,10 +301,10 @@ class ReportController extends Controller
                 $this->column('unit', 'Unit'),
                 $this->column('minimum', 'Minimum', 'number'),
                 $this->column('unit_price', 'Unit Price', 'money'),
-                $this->column('asset_value', 'Asset Value', 'money'),
+                $this->column('asset_value', 'Estimated On-hand Value', 'money'),
                 $this->column('health', 'Stock Health'),
             ],
-            'Total Inventory Value',
+            'Estimated On-hand Value',
             $rows->sum('asset_value'),
             'money',
         );
@@ -325,7 +312,7 @@ class ReportController extends Controller
 
     private function departmentSpendingReport(Request $request, ?Carbon $dateFrom, ?Carbon $dateTo): array
     {
-        $query = Requisition::join('users', 'requisitions.user_id', '=', 'users.id')
+        $query = Requisition::leftJoin('users', 'requisitions.user_id', '=', 'users.id')
             ->leftJoin('departments', 'users.department_id', '=', 'departments.id')
             ->select(
                 DB::raw('departments.dept_code as department'),
@@ -337,10 +324,12 @@ class ReportController extends Controller
             ->whereIn('requisitions.status', Requisition::FULFILLED_STATUSES);
 
         if ($request->filled('dept')) {
-            $query->where('departments.dept_code', $request->dept);
+            $request->dept === '__unassigned'
+                ? $query->whereNull('departments.id')
+                : $query->where('departments.dept_code', $request->dept);
         }
 
-        $this->applyDateRange($query, 'requisitions.updated_at', $dateFrom, $dateTo);
+        $this->applyDateRange($query, 'requisitions.closed_at', $dateFrom, $dateTo);
 
         $records = $this->records($request, $query->groupBy('departments.dept_code')->orderByDesc('total_spent'));
         $rows = $records->map(fn ($department) => [
@@ -352,16 +341,16 @@ class ReportController extends Controller
         ]);
 
         return $this->reportResult(
-            'Departmental Expenditure',
+            'Department Fulfillment Value',
             $rows,
             [
                 $this->column('department', 'Department'),
-                $this->column('requests', 'Released Requests', 'number'),
+                $this->column('requests', 'Fulfilled Requests (Completion Date)', 'number'),
                 $this->column('requestors', 'Active Requestors', 'number'),
-                $this->column('average', 'Average Cost', 'money'),
-                $this->column('total', 'Total Spending', 'money'),
+                $this->column('average', 'Average Recorded Value', 'money'),
+                $this->column('total', 'Recorded Fulfilled Value', 'money'),
             ],
-            'Combined Department Spending',
+            'Recorded Fulfilled Value',
             $rows->sum('total'),
             'money',
         );
@@ -433,10 +422,12 @@ class ReportController extends Controller
             ->whereIn('requisitions.status', Requisition::FULFILLED_STATUSES);
 
         if ($request->filled('dept')) {
-            $query->where('departments.dept_code', $request->dept);
+            $request->dept === '__unassigned'
+                ? $query->whereNull('departments.id')
+                : $query->where('departments.dept_code', $request->dept);
         }
 
-        $this->applyDateRange($query, 'requisitions.updated_at', $dateFrom, $dateTo);
+        $this->applyDateRange($query, 'requisitions.closed_at', $dateFrom, $dateTo);
 
         $records = $this->records($request, $query
             ->groupBy('requisition_items.item_name', 'requisition_items.unit', 'supply_categories.category_name')
@@ -454,18 +445,18 @@ class ReportController extends Controller
         ]);
 
         return $this->reportResult(
-            'Item Consumption and Distribution',
+            'Fulfilled Request Items',
             $rows,
             [
                 $this->column('item', 'Item'),
                 $this->column('category', 'Category'),
                 $this->column('requests', 'Requisitions', 'number'),
-                $this->column('quantity', 'Quantity Distributed', 'number'),
+                $this->column('quantity', 'Requested Qty on Fulfilled Requests', 'number'),
                 $this->column('unit', 'Unit'),
                 $this->column('average_price', 'Average Unit Price', 'money'),
-                $this->column('cost', 'Distributed Value', 'money'),
+                $this->column('cost', 'Recorded Line Value', 'money'),
             ],
-            'Total Distributed Value',
+            'Recorded Fulfilled Line Value',
             $rows->sum('cost'),
             'money',
         );
@@ -526,6 +517,10 @@ class ReportController extends Controller
     private function inventoryMovementReport(Request $request, ?Carbon $dateFrom, ?Carbon $dateTo): array
     {
         $query = SupplyInventoryLog::with(['supply', 'user', 'requisition']);
+
+        if ($request->filled('supply_id')) {
+            $query->where('supply_id', $request->integer('supply_id'));
+        }
 
         if ($request->filled('transaction_type')) {
             $query->where('transaction_type', $request->transaction_type);
@@ -651,21 +646,21 @@ class ReportController extends Controller
         $definitions = [
             'requisitions' => [
                 'purpose' => 'Provides a line-by-line register of submitted requisitions, including requestor, purpose, item specifications, quantities, pricing, and current workflow status.',
-                'basis' => 'Requisition submission date',
+                'basis' => $request->input('date_basis') === 'fulfilled' ? 'Completion date (closed_at); completed / released only' : 'Submission date (submitted_at, falling back to created_at)',
                 'source' => 'Requisitions, requisition line items, and requestor account records. Amounts represent submitted values and may include requests that were not released.',
                 'group' => ['status', 'Workflow Status', 'line_total', 'Line Value', 'money'],
             ],
             'inventory' => [
-                'purpose' => 'Documents the current catalog, stock position, reorder threshold, pricing, and recorded asset value for every matching supply item.',
+                'purpose' => 'Documents the current catalog, stock position, reorder threshold, and estimated on-hand value at current catalog prices.',
                 'basis' => 'Current inventory snapshot',
-                'source' => 'Live supply catalog balances at generation time. Historical stock levels are available in the Inventory Movement Ledger.',
-                'group' => ['category', 'Supply Category', 'asset_value', 'Asset Value', 'money'],
+                'source' => 'Current quantity multiplied by current catalog price, not historical cost or audited expenditure. Historical quantities are available in the Inventory Movement Ledger.',
+                'group' => ['category', 'Supply Category', 'asset_value', 'Estimated On-hand Value', 'money'],
             ],
             'dept_spending' => [
                 'purpose' => 'Summarizes released requisition value, transaction volume, and participation by requesting department.',
-                'basis' => 'Requisition release date',
-                'source' => 'Released requisitions joined to the requestor department. Rejected and unreleased requests are excluded.',
-                'group' => ['department', 'Department', 'total', 'Spending', 'money'],
+                'basis' => 'Completion date (closed_at)',
+                'source' => 'Recorded grand totals of completed and legacy released requisitions, attributed to the requestor current department. Operational value, not audited accounting expenditure.',
+                'group' => ['department', 'Department', 'total', 'Recorded Fulfilled Value', 'money'],
             ],
             'users' => [
                 'purpose' => 'Lists personnel accounts and their institutional identifiers, departments, roles, approval state, and registration dates.',
@@ -674,10 +669,10 @@ class ReportController extends Controller
                 'group' => ['role', 'Personnel Role', null, null, 'number'],
             ],
             'item_consumption' => [
-                'purpose' => 'Aggregates released quantities and costs by item and category to support consumption review and purchasing decisions.',
-                'basis' => 'Requisition release date',
-                'source' => 'Line items from released requisitions. Catalog category is shown when the line item remains linked to a supply record.',
-                'group' => ['category', 'Supply Category', 'cost', 'Distributed Value', 'money'],
+                'purpose' => 'Summarizes requested line quantities and recorded prices on fulfilled requisitions.',
+                'basis' => 'Completion date (closed_at)',
+                'source' => 'Requested line items on completed and legacy released requests. These quantities are not stock deductions. Use the Inventory Movement Ledger for actual release_deduction transactions.',
+                'group' => ['category', 'Supply Category', 'cost', 'Recorded Line Value', 'money'],
             ],
             'approval_audit' => [
                 'purpose' => 'Presents the complete decision trail for requisitions, including acting role, remarks, signer identity, signing time, and verification reference.',
@@ -810,7 +805,7 @@ class ReportController extends Controller
             ],
             'dept_spending' => [
                 ['label' => 'Departments', 'value' => $rows->count(), 'type' => 'number'],
-                ['label' => 'Released Requests', 'value' => $rows->sum('requests'), 'type' => 'number'],
+                ['label' => 'Fulfilled Requests', 'value' => $rows->sum('requests'), 'type' => 'number'],
                 ['label' => 'Active Requestors', 'value' => $rows->sum('requestors'), 'type' => 'number'],
             ],
             'users' => [
@@ -820,7 +815,7 @@ class ReportController extends Controller
             ],
             'item_consumption' => [
                 ['label' => 'Distinct Item Groups', 'value' => $rows->count(), 'type' => 'number'],
-                ['label' => 'Units Distributed', 'value' => $rows->sum('quantity'), 'type' => 'number'],
+                ['label' => 'Requested Units on Fulfilled Requests', 'value' => $rows->sum('quantity'), 'type' => 'number'],
                 ['label' => 'Requisition Links', 'value' => $rows->sum('requests'), 'type' => 'number'],
             ],
             'approval_audit' => [
@@ -862,7 +857,8 @@ class ReportController extends Controller
         $notes[] = match ($type) {
             'requisitions' => 'Items are grouped by catalog category and printed one per row; the same tracking number may therefore appear more than once.',
             'inventory' => 'Stock health is based on the current quantity compared with the configured minimum stock level.',
-            'dept_spending', 'item_consumption' => 'Only released requisitions contribute to expenditure and distribution figures.',
+            'dept_spending' => 'Only completed and legacy released requisitions contribute, filtered by closed_at. Recorded request values are not audited expenditure.',
+            'item_consumption' => 'These are requested quantities on fulfilled requests, filtered by closed_at. Actual stock deductions are recorded separately by ledger transaction date.',
             'approval_audit' => 'Actions without a digital signature remain visible and are explicitly identified as unsigned.',
             'inventory_movements' => 'Review the signed quantity change together with the balance after each transaction.',
             'user_activity' => 'Handle this report according to institutional privacy and access-control policies.',
@@ -879,6 +875,7 @@ class ReportController extends Controller
             'role' => 'Role', 'account_status' => 'Account Status',
             'category' => 'Category', 'stock_filter' => 'Stock Health',
             'transaction_type' => 'Transaction Type',
+            'supply_id' => 'Catalog Item ID', 'date_basis' => 'Requisition Date Basis',
         ];
 
         return collect($labels)
@@ -888,13 +885,13 @@ class ReportController extends Controller
             ->join('; ');
     }
 
-    private function applyDateRange(Builder|QueryBuilder $query, string $column, ?Carbon $dateFrom, ?Carbon $dateTo): void
+    private function applyDateRange(Builder|QueryBuilder $query, string|Expression $column, ?Carbon $dateFrom, ?Carbon $dateTo): void
     {
         if ($dateFrom) {
             $query->where($column, '>=', $dateFrom->copy()->startOfDay());
         }
         if ($dateTo) {
-            $query->where($column, '<=', $dateTo->copy()->endOfDay());
+            $query->where($column, '<', $dateTo->copy()->startOfDay()->addDay());
         }
     }
 

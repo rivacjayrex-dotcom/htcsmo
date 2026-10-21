@@ -4,7 +4,7 @@ This document describes the first-party application code in this repository as i
 
 ## 1. System at a glance
 
-The application is a server-rendered Laravel 12 system. HTTP routes dispatch to controllers (or the dashboard closure), controllers validate input and coordinate Eloquent models/services, and Blade templates render the response. The central domain is a multi-item requisition moving through role-specific approvals and then SMO stock fulfillment.
+The application is a server-rendered Laravel 12 system. HTTP routes dispatch to controllers, controllers validate input and coordinate Eloquent models/services, and Blade templates render the response. The central domain is a multi-item requisition moving through role-specific approvals and then SMO stock fulfillment.
 
 ```mermaid
 flowchart LR
@@ -65,7 +65,7 @@ flowchart LR
 
 `bootstrap/app.php` connects `routes/web.php`, `routes/console.php`, and Laravel's `/up` health route. It aliases `role` to `RoleManager`, and trusts proxies from any address (`*`); deployments should ensure the application is only reachable through trusted proxy infrastructure.
 
-The root route redirects to login. `/dashboard` is an authenticated route closure: it computes employee request counters, approver-specific queues, and SMO statistics/filters, then renders `resources/views/dashboard.blade.php`. Other routes are grouped by authentication and role:
+The root route redirects to login. `/dashboard` dispatches to the authenticated `DashboardController`: it computes employee request counters, approver-specific queues, and SMO statistics, then renders `resources/views/dashboard.blade.php`. See [the October 21 SMO dashboard review](docs/SMO-DASHBOARD-REVIEW.md) for its metric definitions, fixes, and validation. Other routes are grouped by authentication and role:
 
 | Route family                                       | Main controller/action                                                                                                                                                    | Who may enter per route middleware                                                  |
 | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |

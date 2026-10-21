@@ -6,6 +6,7 @@
         'vp_admin' => 'VP for Administration',
         'provost' => 'Provost',
         'president' => 'President',
+        'smo' => 'SMO In-Charge',
     ];
 @endphp
 
@@ -22,12 +23,15 @@
             <span class="approval-deadline-eyebrow">Approval deadline watch</span>
             <h3 id="approvalDeadlineHeading">
                 {{ $isSmoDeadlineView ? 'Approvals needing follow-up' : 'Requests requiring your attention' }}
-                <em>{{ $approvalDeadlineRequests->count() }}</em>
+                <em>{{ $approvalDeadlineCount ?? $approvalDeadlineRequests->count() }}</em>
             </h3>
             <p>
                 {{ $isSmoDeadlineView
-                    ? 'Notify only the administrator currently responsible for a request that has reached Day 2 or later.'
-                    : 'These requisitions are nearing or have passed the three-day approval-stage target.' }}
+                    ? 'Send a deadline reminder to the current owner, requestor, and SMO for requests at risk under the three-working-day target.'
+                    : 'These requisitions are nearing or have passed the three-working-day target measured from submission.' }}
+                @if(($approvalDeadlineCount ?? 0) > $approvalDeadlineRequests->count())
+                    Showing the earliest {{ $approvalDeadlineRequests->count() }} of {{ $approvalDeadlineCount }} approval follow-ups.
+                @endif
             </p>
         </div>
         <div class="approval-deadline-heading__actions">
@@ -45,7 +49,7 @@
                 $isOverdue = $deadlineRequest->isApprovalDeadlineOverdue();
                 $reviewerRole = $deadlineRequest->currentReviewerRole();
             @endphp
-            <article class="approval-deadline-item {{ $isOverdue ? 'overdue' : 'near' }}" x-data="{ expanded: false }">
+            <article class="approval-deadline-item {{ $isOverdue ? 'overdue' : 'near' }}" x-data="{ expanded: false }" :data-dirty="expanded ? 'true' : null">
                 <span class="approval-deadline-state">
                     <i data-lucide="{{ $isOverdue ? 'siren' : 'clock-alert' }}"></i>
                     {{ $isOverdue ? 'At deadline' : 'Nearing deadline' }}
@@ -55,12 +59,12 @@
                     <span>{{ $deadlineRequest->user?->name ?? 'Unavailable requestor' }} · {{ $deadlineRequest->user?->department ?: 'General' }}</span>
                 </div>
                 <div class="approval-deadline-owner">
-                    <small>Current approver</small>
+                    <small>Current owner</small>
                     <strong>{{ $reviewerLabels[$reviewerRole] ?? 'Assigned administrator' }}</strong>
                 </div>
                 <div class="approval-deadline-age">
                     <strong>Day {{ $daysElapsed }}</strong>
-                    <span>in this stage</span>
+                    <span>working days since submission</span>
                 </div>
                 <div class="approval-deadline-action">
                     <button type="button" class="deadline-detail-toggle" @click="expanded = !expanded" :aria-expanded="expanded.toString()" aria-controls="deadline-details-{{ $deadlineRequest->id }}">
@@ -68,7 +72,7 @@
                         <span x-text="expanded ? 'Hide details' : 'Details'">Details</span>
                     </button>
                     @if($isSmoDeadlineView)
-                        <form method="POST" action="{{ route('admin.requests.deadline-reminder', $deadlineRequest) }}" data-confirm="Send a deadline reminder to the current approver for {{ $deadlineRequest->tracking_code }}?" data-confirm-title="Notify the approver?" data-confirm-accept="Send reminder">
+                        <form method="POST" action="{{ route('admin.requests.deadline-reminder', $deadlineRequest) }}" data-confirm="Send a deadline reminder to the current owner, requestor, and SMO for {{ $deadlineRequest->tracking_code }}?" data-confirm-title="Send a deadline reminder?" data-confirm-accept="Send reminder">
                             @csrf
                             <button type="submit" data-loading-text="Notifying…">
                                 <i data-lucide="send"></i> Notify
@@ -98,7 +102,7 @@
                     <div class="deadline-detail-block">
                         <small>Submitted</small>
                         <strong>{{ ($deadlineRequest->submitted_at ?? $deadlineRequest->created_at)->format('M d, Y · g:i A') }}</strong>
-                        <span>Stage target: {{ $deadlineRequest->due_at?->format('M d, Y · g:i A') ?? 'Not set' }}</span>
+                        <span>Request deadline: {{ $deadlineRequest->due_at?->format('M d, Y · g:i A') ?? 'Not set' }}</span>
                     </div>
                     <div class="deadline-detail-block">
                         <small>Request value</small>

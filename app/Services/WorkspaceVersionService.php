@@ -35,4 +35,10 @@ class WorkspaceVersionService
     {
         Cache::forever('workspace-version:'.$domain, (string) Str::uuid());
     }
+
+    public function dashboardVersion(string $dataVersion, int $latestNotificationId): string
+    {
+        // Deadlines and month boundaries can change without a database write.
+        return hash('sha256', $dataVersion.':'.$latestNotificationId.':'.now()->format('Y-m-d H:i'));
+    }
 }

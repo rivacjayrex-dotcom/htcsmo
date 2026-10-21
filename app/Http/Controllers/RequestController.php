@@ -41,7 +41,7 @@ class RequestController extends Controller
     {
         $validated = $request->validate([
             'after_id' => ['nullable', 'integer', 'min:0'],
-            'scope' => ['nullable', 'in:all,inventory,requests,approvals,users,notifications,none'],
+            'scope' => ['nullable', 'in:all,dashboard,inventory,requests,approvals,users,notifications,none'],
         ]);
         $user = $request->user();
         $afterId = (int) ($validated['after_id'] ?? 0);
@@ -63,6 +63,7 @@ class RequestController extends Controller
         )->values();
         $latestId = (int) $notificationState->latest_id;
         $versions = app(WorkspaceVersionService::class)->versions();
+        $versions['dashboard'] = app(WorkspaceVersionService::class)->dashboardVersion($versions['all'], $latestId);
 
         return response()->json([
             'version' => $versions[$validated['scope'] ?? 'all'],
