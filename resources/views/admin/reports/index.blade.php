@@ -139,7 +139,7 @@
                             <label for="status" class="form-label mini-label">Request Status</label>
                             <select id="status" name="status" class="form-select border-0 bg-light rounded-3 shadow-none">
                                 <option value="">All Statuses</option>
-                                @foreach(['pending', 'pending_dept', 'approved_dept', 'approved_vp', 'approved_provost', 'approved_president', 'for_clarification', 'processing', 'ready_for_pickup', 'completed', 'released', 'rejected'] as $status)
+                                @foreach(['pending', 'pending_dept', 'approved_dept', 'approved_vp', 'approved_provost', 'approved_president', 'for_clarification', 'processing', 'ready_for_pickup', 'completed', 'released', 'rejected', 'withdrawn'] as $status)
                                     <option value="{{ $status }}" @selected(request('status') === $status)>{{ ucwords(str_replace('_', ' ', $status)) }}</option>
                                 @endforeach
                             </select>
@@ -533,7 +533,7 @@
                 const response = await fetch(url, {
                     method: 'GET',
                     credentials: 'same-origin',
-                    headers: {Accept: 'application/pdf'},
+                    headers: {Accept: 'application/pdf', 'X-Requested-With': 'XMLHttpRequest'},
                     signal: controller.signal,
                 });
                 if (!response.ok) throw new Error(`PDF request failed with status ${response.status}`);
@@ -543,6 +543,10 @@
 
                 const filename = filenameFrom(response);
                 const blob = await response.blob();
+                if (window.htcSession?.expired) {
+                    closePdfModal();
+                    return;
+                }
                 if (controller.signal.aborted) return;
 
                 const objectUrl = URL.createObjectURL(blob);
@@ -556,6 +560,10 @@
                 download.remove();
                 window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
             } catch (error) {
+                if (error.name === 'SessionExpiredError') {
+                    closePdfModal();
+                    return;
+                }
                 if (error.name === 'AbortError') {
                     closePdfModal();
                 } else {

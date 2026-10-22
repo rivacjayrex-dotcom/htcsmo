@@ -322,9 +322,14 @@
     @stack('styles')
 </head>
 <body>
+    @include('layouts.partials.session-recovery')
     <main class="login-card">
         {{ $slot }}
     </main>
+
+    @if(request()->routeIs('login', 'register'))
+        @include('layouts.partials.auth-progress')
+    @endif
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {

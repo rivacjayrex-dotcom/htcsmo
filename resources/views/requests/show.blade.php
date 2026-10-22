@@ -23,8 +23,9 @@
             'processing' => ['label' => 'Processing', 'tone' => 'progress', 'icon' => 'package-open'],
             'ready_for_pickup' => ['label' => 'Ready for pickup', 'tone' => 'ready', 'icon' => 'package-check'],
             'completed' => ['label' => 'Completed', 'tone' => 'success', 'icon' => 'badge-check'],
-            'released' => ['label' => 'Released', 'tone' => 'success', 'icon' => 'badge-check'],
+            'released' => ['label' => 'Released (legacy)', 'tone' => 'success', 'icon' => 'badge-check'],
             'rejected' => ['label' => 'Rejected', 'tone' => 'danger', 'icon' => 'circle-x'],
+            'withdrawn' => ['label' => 'Withdrawn by requestor', 'tone' => 'neutral', 'icon' => 'circle-minus'],
             'for_clarification' => ['label' => 'Clarification requested', 'tone' => 'clarification', 'icon' => 'message-circle-question'],
             default => ['label' => ucwords(str_replace('_', ' ', $request->status)), 'tone' => 'neutral', 'icon' => 'circle-dot'],
         };
@@ -95,7 +96,7 @@
 
     <div class="container-fluid request-details-page">
         <nav class="request-detail-nav" aria-label="Requisition navigation">
-            <a href="{{ route('dashboard') }}" class="request-back-link"><i data-lucide="arrow-left"></i><span>Back to dashboard</span></a>
+            <a href="{{ $archiveReturnUrl ?? route('dashboard') }}" class="request-back-link"><i data-lucide="arrow-left"></i><span>{{ $archiveReturnUrl ? 'Back to archive results' : 'Back to dashboard' }}</span></a>
             <a href="{{ route('requests.download', $request->id) }}" class="request-pdf-action btn btn-htc" download><i data-lucide="file-down"></i><span>Export official PDF</span></a>
         </nav>
 
@@ -111,8 +112,12 @@
             <div class="request-hero-stats">
                 <div><span>{{ $isEmployee ? 'Requested value' : 'Total value' }}</span><strong>₱{{ number_format($request->grand_total, 2) }}</strong></div>
                 <div><span>{{ $isEmployee ? 'Item lines' : 'Items' }}</span><strong>{{ $isEmployee ? $request->items->count() : $request->items->sum('quantity') }}</strong></div>
-                <div><span>Submitted</span><strong>{{ ($isEmployee ? ($request->submitted_at ?? $request->created_at) : $request->created_at)->format('M d, Y') }}</strong></div>
-                <div><span>SLA deadline</span><strong>{{ $request->due_at?->format('M d, Y') ?? 'Not set' }}</strong></div>
+                <div><span>Submitted</span><strong>{{ ($request->submitted_at ?? $request->created_at)->format('M d, Y') }}</strong></div>
+                @if(in_array($request->status, \App\Models\Requisition::ARCHIVED_STATUSES, true))
+                    <div><span>Closed</span><strong>{{ $request->closed_at?->format('M d, Y') ?? 'Date unavailable' }}</strong></div>
+                @else
+                    <div><span>SLA deadline</span><strong>{{ $request->due_at?->format('M d, Y') ?? 'Not set' }}</strong></div>
+                @endif
             </div>
         </header>
         @if($isEmployee) @include('requests.partials.personal-guidance') @endif
@@ -141,6 +146,23 @@
                     </div>
                 </section>
 
+                @if(in_array($request->status, \App\Models\Requisition::ARCHIVED_STATUSES, true))
+                    <section class="request-panel" aria-labelledby="final-outcome-heading">
+                        <div class="request-section-heading"><div><span>Archived outcome</span><h2 id="final-outcome-heading">{{ $request->archiveStatusLabel() }}</h2></div></div>
+                        <div class="p-3">
+                            @if($request->closureRemarks())<p class="mb-2">{{ $request->closureRemarks() }}</p>@endif
+                            @if($request->status === 'withdrawn')
+                                <p class="small text-muted mb-0">This request was withdrawn before approval. Its items and history are retained. Submit a new request if you still need supplies.</p>
+                            @elseif($request->status === 'released')
+                                <p class="small text-muted mb-0">Legacy released record. This older status does not separately confirm pickup in the current workflow.</p>
+                            @elseif($request->status === 'rejected')
+                                <p class="small text-muted mb-0">This request is closed and will not continue through approval.</p>
+                            @else
+                                <p class="small text-muted mb-0">Pickup was confirmed by SMO. Requested value is not an expenditure report.</p>
+                            @endif
+                        </div>
+                    </section>
+                @else
                 <section class="request-panel request-approval-panel">
                     <div class="request-section-heading"><div><span>Approval route</span><h2>Requisition progress</h2></div><small>Live workflow status</small></div>
                     <div class="request-progress-scroll" tabindex="0" aria-label="Approval route; scroll horizontally to see every step">
@@ -154,6 +176,7 @@
                         </ol>
                     </div>
                 </section>
+                @endif
 
                 <section class="request-panel request-items-panel">
                     <div class="request-section-heading request-items-heading"><div><span>Order contents</span><h2>Requested items</h2></div><span class="request-item-count">{{ $request->items->count() }} {{ Str::plural('line item', $request->items->count()) }}</span></div>
@@ -191,6 +214,7 @@
                                 <div class="request-audit-dot"><i data-lucide="check"></i></div>
                                 <div>
                                     <time>{{ $log->created_at->format('M d, Y · h:i A') }}</time><h3>{{ $log->action }}</h3>
+                                    <p>{{ $log->actor?->name ?? 'Actor not recorded' }} · {{ str_replace('_', ' ', $log->role ?? 'Role not recorded') }}</p>
                                     @if($log->remarks)<blockquote>{{ $log->remarks }}</blockquote>@endif
                                     @if($log->digitalSignature)<span class="request-signature-badge"><i data-lucide="badge-check"></i> Digitally signed by {{ $log->digitalSignature->signer_name }}</span>@endif
                                 </div>
@@ -199,7 +223,7 @@
                         @if(in_array($request->status, ['completed', 'released'], true))
                             <article class="request-audit-entry is-released">
                                 <div class="request-audit-dot"><i data-lucide="package-check"></i></div>
-                                <div><time>{{ $isEmployee ? ($request->closed_at?->format('M d, Y · h:i A') ?? 'Completion date unavailable') : ($request->closed_at ?? $request->updated_at)->format('M d, Y · h:i A') }}</time><h3>Fulfillment completed</h3><p>The requestor received the prepared supplies.</p></div>
+                                <div><time>{{ $request->closed_at?->format('M d, Y · h:i A') ?? 'Completion date unavailable' }}</time><h3>{{ $request->status === 'released' ? 'Legacy release recorded' : 'Fulfillment completed' }}</h3><p>{{ $request->status === 'released' ? 'Historical release status; separate pickup confirmation was not recorded.' : 'The requestor received the prepared supplies.' }}</p></div>
                             </article>
                         @endif
                     </div>

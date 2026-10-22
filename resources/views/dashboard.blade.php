@@ -7,20 +7,10 @@
         $firstName = explode(' ', trim(Auth::user()->name))[0] ?: Auth::user()->name;
     @endphp
 
-    <div class="dashboard-page">
+    <div class="dashboard-page{{ Auth::user()->role === 'employee' ? ' employee-dashboard' : '' }}">
         <section class="dashboard-hero">
             <div class="dashboard-hero-copy">
-                <span class="dashboard-kicker">{{ $isSmo ? 'Inventory and fulfillment overview' : 'Your requisition workspace' }}</span>
                 <h2>{{ 'Welcome back, '.$firstName.'.' }}</h2>
-                <p>
-                    @if($isSmo)
-                        Monitor institutional demand, deadline risks, and requests moving through fulfillment.
-                    @elseif(Auth::user()->role === 'employee')
-                        See what needs your attention, track your requests, and submit your supply needs.
-                    @else
-                        Track requests, review approvals, and submit supply needs from one place.
-                    @endif
-                </p>
                 <div class="dashboard-hero-meta">
                     <span><i data-lucide="calendar-days"></i>{{ now()->format('l, F d, Y') }}</span>
                     <span><i data-lucide="building-2"></i>{{ Auth::user()->department ?: 'Institutional Office' }}</span>

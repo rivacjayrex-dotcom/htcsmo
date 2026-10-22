@@ -16,7 +16,10 @@ class AuthenticationTest extends TestCase
     {
         $response = $this->get('/login');
 
-        $response->assertStatus(200);
+        $response->assertStatus(200)
+            ->assertSee('data-auth-progress="login"', false)
+            ->assertSee('id="authProgressDialog"', false)
+            ->assertSee('aria-labelledby="authProgressTitle"', false);
     }
 
     public function test_users_can_authenticate_using_the_login_screen(): void

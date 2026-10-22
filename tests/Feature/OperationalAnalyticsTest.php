@@ -31,6 +31,7 @@ class OperationalAnalyticsTest extends TestCase
         $this->requisition($owner, 'released', '2026-12-31 23:59:59', 50.25);
         $this->requisition($owner, 'completed', '2027-01-01 00:00:00', 800);
         $this->requisition($owner, 'rejected', '2026-10-01 10:00:00', 700);
+        $this->requisition($owner, 'withdrawn', '2026-10-01 10:00:00', 5000);
         $this->requisition($owner, 'ready_for_pickup', null, 600);
         $old->update(['remarks' => 'Edited in October, but completed in July']);
 
@@ -151,7 +152,8 @@ class OperationalAnalyticsTest extends TestCase
         $owner = User::factory()->create(['department' => null]);
         $match = $this->requisition($owner, 'completed', '2026-10-01 00:00:00', 25);
         $old = $this->requisition($owner, 'released', '2026-09-30 23:59:59', 900);
-        foreach ([$match, $old] as $request) {
+        $withdrawn = $this->requisition($owner, 'withdrawn', '2026-10-01 10:00:00', 5000);
+        foreach ([$match, $old, $withdrawn] as $request) {
             $request->items()->create(['item_name' => $request->is($match) ? 'Matching manual item' : 'Old manual item', 'quantity' => 5, 'unit' => 'Piece', 'unit_price' => 5, 'subtotal' => 25]);
         }
         $old->update(['remarks' => 'Later October edit']);

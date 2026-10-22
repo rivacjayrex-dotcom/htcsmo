@@ -233,6 +233,39 @@ test("notifications from another account are ignored", () => {
     assert.equal(center.show, false);
 });
 
+test('runtime expiry stops polling and preserves the current workspace', async () => {
+    const fixture = browser();
+    const {window, document, context, region} = fixture;
+    window.htcSession = {expired: false, show() {
+        this.expired = true;
+        document.dispatchEvent(new Event('htc:session-expired'));
+    }};
+    context.fetch = async () => {
+        window.htcSession.show();
+        throw Object.assign(new Error('Expired'), {name: 'SessionExpiredError'});
+    };
+    vm.runInContext(runtimeSource, context);
+    await fixture.runTimer(0);
+    assert.equal(window.reloads, 0);
+    assert.equal(region.innerHTML, 'original content');
+    assert.equal([...fixture.timers.values()].some(timer => timer.delay >= 15000), false);
+});
+
+test('a cross-tab account change offers recovery without reloading unsaved work', async () => {
+    const fixture = browser();
+    const {window, document, context, region} = fixture;
+    window.htcSession = {expired: false, show() {
+        this.expired = true;
+        document.dispatchEvent(new Event('htc:session-expired'));
+    }};
+    context.fetch = async () => ({ok: true, json: async () => ({account_id: 8})});
+    vm.runInContext(runtimeSource, context);
+    await fixture.runTimer(0);
+    assert.equal(window.htcSession.expired, true);
+    assert.equal(window.reloads, 0);
+    assert.equal(region.innerHTML, 'original content');
+});
+
 test("automatic refresh waits until the entire popup stack is dismissed", async () => {
     const fixture = browser();
     const { center, context, window, payload, runTimer, region } = fixture;

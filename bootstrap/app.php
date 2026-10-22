@@ -2,9 +2,15 @@
 
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\RoleManager;
+use App\Http\Middleware\StartApplicationSession;
+use App\Support\SessionRecovery;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
+use Illuminate\Session\Middleware\StartSession;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -14,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->trustProxies(at: '*');
+        $middleware->web(replace: [StartSession::class => StartApplicationSession::class]);
         $middleware->web(append: [
             EnsureAccountIsActive::class,
         ]);
@@ -23,5 +30,14 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->render(function (AuthenticationException $exception, Request $request) {
+            if ($request->expectsJson() || $request->ajax() || $request->hasHeader('X-Workspace-Refresh') || ! $request->isMethod('GET')) {
+                return SessionRecovery::response($request, 401);
+            }
+        });
+        $exceptions->render(function (HttpExceptionInterface $exception, Request $request) {
+            if ($exception->getStatusCode() === 419) {
+                return SessionRecovery::response($request, 419);
+            }
+        });
     })->create();

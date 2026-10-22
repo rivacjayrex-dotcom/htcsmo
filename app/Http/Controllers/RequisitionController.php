@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ApprovalLog;
 use App\Models\Requisition;
 use App\Models\RequisitionItem;
 use App\Models\Supply;
@@ -321,17 +322,34 @@ class RequisitionController extends Controller
         return redirect()->route('requests.index')->with('success', 'Requisition updated successfully.');
     }
 
-    // 3. Delete Requisition
-    public function destroy(int $id)
+    // Keep the existing DELETE URL compatible, but retain the submitted record.
+    public function destroy(Request $request, int $id)
     {
-        $requisition = Requisition::where('user_id', Auth::id())->findOrFail($id);
+        $validated = $request->validate(['withdrawal_reason' => ['nullable', 'string', 'max:500']]);
+        $withdrawn = DB::transaction(function () use ($id, $validated, $request) {
+            $requisition = Requisition::where('user_id', $request->user()->id)->lockForUpdate()->findOrFail($id);
+            if ($requisition->status !== 'pending') {
+                return false;
+            }
+            $closedAt = now();
+            $requisition->update(['status' => 'withdrawn', 'closed_at' => $closedAt]);
+            $log = new ApprovalLog([
+                'requisition_id' => $requisition->id, 'acted_by_user_id' => $request->user()->id,
+                'action' => 'Withdrawn by requestor', 'role' => $request->user()->role,
+                'remarks' => filled($validated['withdrawal_reason'] ?? null)
+                    ? trim($validated['withdrawal_reason']) : 'Withdrawn by the requestor before approval.',
+            ]);
+            $log->created_at = $closedAt;
+            $log->save();
 
-        if ($requisition->status !== 'pending') {
-            return back()->with('error', 'Cannot delete: The Department Head has already acted on this requisition.');
+            return true;
+        });
+
+        if (! $withdrawn) {
+            return back()->with('error', 'Only your pending requests can be withdrawn. This request has already moved on or is closed.');
         }
 
-        $requisition->delete(); // This also deletes items because of onDelete('cascade') in migration
-
-        return redirect()->route('requests.index')->with('success', 'Requisition deleted successfully.');
+        return redirect()->route('requests.archive', ['category' => 'withdrawn'])
+            ->with('success', 'Request withdrawn. Its items and history have been kept in your archive.');
     }
 }

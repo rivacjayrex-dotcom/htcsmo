@@ -85,6 +85,7 @@
                 if (sequence !== requestSequence) return;
 
                 const html = await response.text();
+                if (window.htcSession?.expired) return;
                 const documentCopy = new DOMParser().parseFromString(html, 'text/html');
                 const nextContent = documentCopy.querySelector(contentSelector);
                 if (!nextContent) throw new Error('Search response did not contain the page content.');
@@ -109,7 +110,7 @@
                     document.dispatchEvent(new CustomEvent('htc:dynamic-search-updated', {detail: {url: url.href}}));
                 });
             } catch (error) {
-                if (error.name === 'AbortError') return;
+                if (error.name === 'AbortError' || error.name === 'SessionExpiredError') return;
                 // Retain a reliable server-rendered fallback if an asynchronous refresh fails.
                 window.location.assign(url);
             } finally {

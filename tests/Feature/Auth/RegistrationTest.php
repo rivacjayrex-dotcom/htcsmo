@@ -20,7 +20,10 @@ class RegistrationTest extends TestCase
     {
         $response = $this->get('/register');
 
-        $response->assertStatus(200);
+        $response->assertStatus(200)
+            ->assertSee('data-auth-progress="register"', false)
+            ->assertSee('id="authProgressDialog"', false)
+            ->assertSee('aria-describedby="authProgressMessage"', false);
     }
 
     public function test_new_users_can_register(): void

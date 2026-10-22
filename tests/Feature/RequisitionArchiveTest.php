@@ -7,6 +7,7 @@ use App\Models\Requisition;
 use App\Models\RequisitionItem;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class RequisitionArchiveTest extends TestCase
@@ -204,6 +205,160 @@ class RequisitionArchiveTest extends TestCase
 
         $this->assertNotNull($closedAt);
         $this->assertTrue($requisition->fresh()->closed_at->equalTo($closedAt));
+    }
+
+    public function test_categories_separate_withdrawn_rejected_and_fulfilled_records_and_summaries(): void
+    {
+        $owner = User::factory()->create();
+        $smo = User::factory()->create(['role' => 'smo']);
+        $completed = $this->requisition($owner, 'completed');
+        $released = $this->requisition($owner, 'released');
+        $rejected = $this->requisition($owner, 'rejected');
+        $withdrawn = $this->requisition($owner, 'withdrawn');
+        $private = $this->requisition(User::factory()->create(), 'withdrawn');
+
+        foreach ([[$owner, 'requests.archive'], [$smo, 'admin.archive']] as [$viewer, $route]) {
+            $response = $this->actingAs($viewer)->get(route($route, ['category' => 'fulfilled']))
+                ->assertOk()->assertSee($completed->tracking_code)->assertSee($released->tracking_code)
+                ->assertDontSee($rejected->tracking_code)->assertDontSee($withdrawn->tracking_code)
+                ->assertDontSee($private->tracking_code)->assertSee('Released (legacy)');
+            $this->assertEquals(2, $response->viewData('summary')->total);
+            $this->assertEquals(400, $response->viewData('summary')->requested_value);
+            $this->assertEquals(0, $response->viewData('summary')->withdrawn);
+            $this->get(route($route, ['category' => 'rejected']))->assertOk()
+                ->assertSee($rejected->tracking_code)->assertDontSee($withdrawn->tracking_code)->assertDontSee($completed->tracking_code);
+            $this->get(route($route, ['category' => 'withdrawn']))->assertOk()
+                ->assertSee($withdrawn->tracking_code)->assertDontSee($rejected->tracking_code)->assertDontSee($completed->tracking_code);
+        }
+        $response = $this->actingAs($owner)->get(route('requests.archive'))->assertOk()->assertDontSee($private->tracking_code);
+        $this->assertEquals(4, $response->viewData('summary')->total);
+        $this->assertSame(['all' => 4, 'fulfilled' => 2, 'rejected' => 1, 'withdrawn' => 1], $response->viewData('categoryCounts'));
+        $this->assertFalse($withdrawn->isSlaActive());
+        $this->assertFalse(Requisition::active()->whereKey($withdrawn)->exists());
+        $this->assertFalse(Requisition::whereIn('status', Requisition::FULFILLED_STATUSES)->whereKey($withdrawn)->exists());
+    }
+
+    public function test_submission_and_closure_date_bases_are_inclusive_and_unknown_dates_are_not_guessed(): void
+    {
+        $owner = User::factory()->create();
+        $match = $this->requisition($owner, 'completed', '2026-10-02 23:59:59');
+        $match->update(['submitted_at' => '2026-09-01 00:00:00']);
+        $unknown = $this->requisition($owner, 'completed');
+        DB::table('requisitions')->where('id', $unknown->id)->update([
+            'closed_at' => null, 'submitted_at' => null, 'created_at' => '2026-09-01 23:59:59',
+        ]);
+        $this->actingAs($owner);
+        $range = ['date_from' => '2026-09-01', 'date_to' => '2026-09-01'];
+        $this->get(route('requests.archive', [...$range, 'date_basis' => 'submitted']))->assertOk()
+            ->assertSee($match->tracking_code)->assertSee($unknown->tracking_code)->assertSee('Closure date unavailable');
+        $this->get(route('requests.archive', $range))->assertOk()
+            ->assertDontSee($match->tracking_code)->assertDontSee($unknown->tracking_code);
+        $this->get(route('requests.archive', ['date_from' => '2026-10-02', 'date_to' => '2026-10-02']))->assertOk()
+            ->assertSee($match->tracking_code)->assertDontSee($unknown->tracking_code);
+        $this->get(route('requests.archive', ['date_to' => '2026-10-02']))->assertOk()->assertSee($match->tracking_code);
+        $sorted = $this->get(route('requests.archive', ['order' => 'desc']))->assertOk();
+        $this->assertSame([$match->id, $unknown->id], $sorted->viewData('records')->pluck('id')->all());
+        $this->assertEquals(1, $sorted->viewData('summary')->undated);
+        $this->assertNull($unknown->fresh()->closed_at);
+    }
+
+    public function test_audit_remarks_search_remains_private_and_clear_filters_removes_search_and_all_other_filters(): void
+    {
+        $owner = User::factory()->create();
+        $match = $this->requisition($owner, 'withdrawn', '2026-09-10 09:00:00');
+        $private = $this->requisition(User::factory()->create(), 'withdrawn', '2026-09-10 09:00:00');
+        foreach ([$match, $private] as $record) {
+            ApprovalLog::create(['requisition_id' => $record->id, 'acted_by_user_id' => $record->user_id,
+                'action' => 'Withdrawn by requestor', 'role' => 'employee', 'remarks' => 'Duplicate seminar supplies']);
+        }
+        $this->actingAs($owner)->get(route('requests.archive', [
+            'search' => 'Duplicate seminar', 'category' => 'withdrawn', 'status' => 'withdrawn',
+            'date_from' => '2026-09-10', 'date_to' => '2026-09-10', 'date_basis' => 'closed', 'order' => 'asc',
+        ]))->assertOk()->assertSee($match->tracking_code)->assertDontSee($private->tracking_code)
+            ->assertSee('Duplicate seminar supplies')->assertSee('href="'.route('requests.archive').'">Clear all filters', false);
+
+        $clear = $this->get(route('requests.archive'))->assertOk();
+        $this->assertSame([], $clear->viewData('filters'));
+        $this->assertEquals(1, $clear->viewData('summary')->total);
+        $this->get(route('requests.archive', ['search' => 'No match']))->assertOk()->assertSee('No requests match these filters');
+        $this->actingAs(User::factory()->create())->get(route('requests.archive'))->assertOk()->assertSee('No archived requisitions found');
+        $smo = User::factory()->create(['role' => 'smo']);
+        $this->actingAs($smo)->get(route('admin.archive', ['search' => 'Duplicate', 'dept' => $owner->department]))
+            ->assertOk()->assertSee('href="'.route('admin.archive').'">Clear all filters', false);
+    }
+
+    public function test_filtered_exports_and_print_include_all_pages_and_enforce_the_same_privacy_rules(): void
+    {
+        $owner = User::factory()->create(['department' => 'CETE']);
+        $smo = User::factory()->create(['role' => 'smo']);
+        $records = collect(range(1, 18))->map(fn () => $this->requisition($owner, 'withdrawn', '2026-09-10 09:00:00'));
+        $private = $this->requisition(User::factory()->create(['department' => 'CAS']), 'withdrawn', '2026-09-10 09:00:00');
+        $wrongStatus = $this->requisition($owner, 'completed', '2026-09-10 09:00:00');
+        $wrongDate = $this->requisition($owner, 'withdrawn', '2026-08-10 09:00:00');
+        $first = $records->first();
+        RequisitionItem::create(['requisition_id' => $first->id, 'item_name' => '=HYPERLINK("https://example.test")',
+            'quantity' => 1, 'unit' => 'Unit', 'unit_price' => 200, 'subtotal' => 200]);
+        ApprovalLog::create(['requisition_id' => $first->id, 'acted_by_user_id' => $owner->id,
+            'action' => 'Withdrawn by requestor', 'role' => 'employee', 'remarks' => 'Seminar was cancelled']);
+
+        foreach ([[$owner, 'requests.archive'], [$smo, 'admin.archive']] as [$viewer, $route]) {
+            $filters = ['category' => 'withdrawn', 'date_from' => '2026-09-10', 'date_to' => '2026-09-10', 'order' => 'asc'];
+            if ($viewer->role === 'smo') {
+                $filters['dept'] = 'CETE';
+            }
+            $this->actingAs($viewer);
+            $page = $this->get(route($route, $filters))->assertOk();
+            $this->assertCount(15, $page->viewData('records'));
+            $this->assertEquals(18, $page->viewData('summary')->total);
+            $this->assertEquals(3600, $page->viewData('summary')->requested_value);
+            $print = $this->get(route($route, [...$filters, 'print' => 1, 'page' => 2]))->assertOk()
+                ->assertSee('Seminar was cancelled')->assertDontSee($private->tracking_code)
+                ->assertDontSee($wrongStatus->tracking_code)->assertDontSee($wrongDate->tracking_code);
+            $this->assertCount(18, $print->viewData('records'));
+            $download = $this->get(route($route, [...$filters, 'export' => 'csv', 'page' => 2]))->assertOk()->assertDownload();
+            $csv = $download->streamedContent();
+            foreach ($records as $record) {
+                $this->assertStringContainsString($record->tracking_code, $csv);
+                $print->assertSee($record->tracking_code);
+            }
+            $this->assertStringNotContainsString($private->tracking_code, $csv);
+            $this->assertStringNotContainsString($wrongStatus->tracking_code, $csv);
+            $this->assertStringNotContainsString($wrongDate->tracking_code, $csv);
+            $this->assertStringContainsString("'=HYPERLINK", $csv);
+            $this->assertStringContainsString('Requested value (PHP; not expenditure)', $csv);
+            $this->assertStringContainsString('Seminar was cancelled', $csv);
+            $this->assertSame(19, count(array_filter(explode("\n", trim($csv)))));
+        }
+        foreach (['dept_head', 'vp_finance', 'vp_admin', 'provost', 'president', 'employee'] as $role) {
+            $this->actingAs(User::factory()->create(['role' => $role]));
+            foreach ([['export' => 'csv'], ['print' => 1]] as $output) {
+                $this->get(route('admin.archive', $output))->assertRedirect(route('dashboard'));
+                $this->get(route('requests.archive', $output))->assertOk()->assertDontSee($first->tracking_code);
+            }
+        }
+        $this->actingAs($owner)->from(route('requests.archive'))
+            ->get(route('requests.archive', ['dept' => 'CAS', 'export' => 'csv']))
+            ->assertRedirect(route('requests.archive'))->assertSessionHasErrors('dept');
+    }
+
+    public function test_details_preserve_validated_archive_filters_and_never_use_arbitrary_return_urls(): void
+    {
+        $owner = User::factory()->create();
+        $record = $this->requisition($owner, 'withdrawn');
+        $filters = ['search' => 'Archive', 'category' => 'withdrawn', 'date_basis' => 'submitted', 'order' => 'asc', 'page' => 2];
+        $this->actingAs($owner)->get(route('requests.show', [$record, 'archive' => 'personal', 'archive_filters' => $filters]))
+            ->assertOk()->assertSee('Back to archive results')->assertSee(route('requests.archive', $filters));
+        foreach ([
+            ['archive' => 'https://evil.test'],
+            ['archive' => 'institutional', 'archive_filters' => $filters],
+            ['archive' => 'personal', 'archive_filters' => ['status' => 'invalid']],
+            ['archive' => 'personal', 'archive_filters' => 'https://evil.test'],
+        ] as $context) {
+            $this->get(route('requests.show', [$record, ...$context]))->assertOk()->assertSee('Back to dashboard')->assertDontSee('Back to archive results');
+        }
+        $smo = User::factory()->create(['role' => 'smo']);
+        $this->actingAs($smo)->get(route('requests.show', [$record, 'archive' => 'institutional', 'archive_filters' => $filters]))
+            ->assertOk()->assertSee(route('admin.archive', $filters));
     }
 
     private function requisition(User $user, string $status, ?string $closedAt = null): Requisition

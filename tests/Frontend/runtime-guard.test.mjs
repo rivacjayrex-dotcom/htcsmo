@@ -75,6 +75,30 @@ function browser() {
 
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
+test('session expiry releases runtime locks so recovery and copying remain accessible', () => {
+    const b = browser();
+    b.form.method = 'post';
+    b.dispatch('submit', b.form, {submitter: b.submitter});
+    assert.equal(b.form.dataset.runtimeSubmitting, 'true');
+    b.document.dispatchEvent(new Event('htc:session-expired'));
+    assert.equal(b.form.dataset.runtimeSubmitting, undefined);
+    assert.equal(b.submitter.disabled, false);
+    assert.equal(b.document.documentElement.hasAttribute('aria-busy'), false);
+    assert.equal(b.loader.hidden, true);
+});
+
+test('a verified native form retains its runtime loader without redispatching submission', () => {
+    const b = browser();
+    const event = new Event('htc:session-submit');
+    event.detail = {form: b.form};
+    b.document.dispatchEvent(event);
+    b.runTimer(180);
+    assert.equal(b.loader.hidden, false);
+    assert.equal(b.document.documentElement.hasAttribute('aria-busy'), true);
+    b.document.dispatchEvent(new Event('htc:session-expired'));
+    assert.equal(b.loader.hidden, true);
+});
+
 test('downloads and browser reloads do not create a loader from beforeunload', async () => {
     const b = browser();
     b.link.setAttribute('download', '');

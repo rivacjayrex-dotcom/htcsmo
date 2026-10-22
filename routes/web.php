@@ -1,13 +1,18 @@
 <?php
 
 use App\Http\Controllers\ArchiveController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RequestController;
 use App\Http\Controllers\RequisitionController;
+use App\Http\Controllers\SessionRecoveryController;
 use App\Http\Controllers\SupplyController;
 use Illuminate\Support\Facades\Route;
+
+Route::get('/session/recover', [SessionRecoveryController::class, 'recover'])->name('session.recover');
+Route::post('/session/check', [SessionRecoveryController::class, 'check'])->name('session.check');
 
 // Welcome Page
 Route::get('/', function () {
@@ -17,7 +22,7 @@ Route::get('/', function () {
 Route::view('/terms-of-service', 'legal.terms')->name('legal.terms');
 Route::view('/privacy-policy', 'legal.privacy')->name('legal.privacy');
 
-Route::get('/dashboard', \App\Http\Controllers\DashboardController::class)
+Route::get('/dashboard', DashboardController::class)
     ->middleware('auth')->name('dashboard');
 
 // EMPLOYEE REQUEST & ARCHIVE ROUTES

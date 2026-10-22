@@ -1,6 +1,9 @@
 @php
     $isPersonalEmployee = Auth::user()->role === 'employee';
 @endphp
+@if($type === 'archive')
+    @include('requests.partials.archive-table')
+@else
 <div class="card request-history-card">
     <div class="table-responsive">
         <table class="table workflow-responsive-table request-history-table">
@@ -38,7 +41,7 @@
                                 'ready_for_pickup' => 'Ready for requestor pickup',
                                 'completed' => 'Pickup completed',
                                 'for_clarification' => 'Requestor clarification required',
-                                'released' => 'Released and completed',
+                                'released' => 'Released (legacy)',
                                 'rejected' => 'Request disapproved',
                                 default => str_replace('_', ' ', $req->status),
                             };
@@ -101,11 +104,15 @@
                                 @endif
                                 @if($type === 'active' && Auth::id() === $req->user_id && $req->status === 'pending')
                                     <a href="{{ route('requisitions.edit', $req->id) }}" class="history-action edit" title="Edit pending request"><i data-lucide="pencil"></i></a>
-                                    <form action="{{ route('requisitions.destroy', $req->id) }}" method="POST" data-confirm="Delete pending requisition {{ $req->tracking_code }} and its requested items? This cannot be undone." data-confirm-title="Delete this requisition?" data-confirm-accept="Delete requisition" data-confirm-tone="danger">
+                                    <details class="history-withdrawal"><summary class="history-action cancel">Withdraw<span class="visually-hidden"> {{ $req->tracking_code }}</span></summary>
+                                    <form action="{{ route('requisitions.destroy', $req->id) }}" method="POST" data-confirm="Withdraw pending requisition {{ $req->tracking_code }}? Its items and history will remain in the archive. It cannot be resumed." data-confirm-title="Withdraw this request?" data-confirm-accept="Withdraw request" data-confirm-tone="danger">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" class="history-action cancel" title="Cancel pending request"><i data-lucide="trash-2"></i></button>
+                                        <label for="withdrawalReason{{ $req->id }}">Reason (optional)</label>
+                                        <textarea id="withdrawalReason{{ $req->id }}" name="withdrawal_reason" rows="2" maxlength="500" class="form-control"></textarea>
+                                        <button type="submit" class="history-action cancel">Withdraw request</button>
                                     </form>
+                                    </details>
                                 @endif
                             </div>
                         </td>
@@ -133,9 +140,11 @@
         </table>
     </div>
 </div>
+@endif
 
 @pushOnce('styles', 'page-styles:requests/partials/history-table.blade.php')
 <style>
+    .history-withdrawal { text-align:left; }.history-withdrawal summary { cursor:pointer; }.history-withdrawal[open] { max-width:250px; }.history-withdrawal form { display:grid; gap:.5rem; padding:.65rem; border:1px solid #eadcdc; border-radius:8px; background:#fff; }.history-withdrawal label { font-size:.8rem; color:#5a6b60; }.history-withdrawal textarea { min-width:180px; }.history-withdrawal :is(summary,textarea):focus-visible { outline:3px solid #b38328; outline-offset:3px; }
     .request-history-table { margin: 0; font-size: .69rem; }.request-history-table thead th { padding: .78rem 1rem !important; background: #f4f8f5 !important; color: #839088 !important; font-size: .53rem !important; font-weight: 900 !important; }.request-history-table tbody td { padding: .85rem 1rem !important; }.history-request-code { color: #294c37; font-family: ui-monospace,SFMono-Regular,Menlo,monospace; font-size: .64rem; font-weight: 900; }.request-history-table td > small { display: flex; align-items: center; gap: .28rem; margin-top: .22rem; color: #909b94; font-size: .54rem; }.request-history-table td > small svg { width: 11px; height: 11px; }.request-person,.history-item { display: flex; align-items: center; gap: .55rem; }.request-person > span,.history-item > span { width: 32px; height: 32px; flex: 0 0 32px; display: grid; place-items: center; border-radius: 9px; background: #e8f4ec; color: #216b42; font-size: .61rem; font-weight: 900; }.history-item > span { background: #f1f4f2; color: #687a6f; }.history-item svg { width: 15px; }.request-person b,.request-person small,.history-item b,.history-item small { display: block; }.request-person b,.history-item b { color: #35473c; font-size: .65rem; }.request-person small,.history-item small { margin-top: .1rem; color: #8b978f; font-size: .53rem; }.history-tier,.history-status { display: inline-block; padding: .3rem .5rem; border-radius: 999px; font-size: .49rem; font-weight: 900; letter-spacing: .035em; text-transform: uppercase; white-space: nowrap; }.history-tier.minor { background: #e3f3e9; color: #226b44; }.history-tier.major { background: #fff0cd; color: #8f5c08; }.history-value { color: #33473a; font-size: .66rem; white-space: nowrap; }.history-status.progress { background: #edf2ef; color: #5a6b61; }.history-status.ready,.history-status.released { background: #ddf2e5; color: #17683f; }.history-status.clarification { background: #fff0c9; color: #8d5b08; }.history-status.rejected { background: #fde3e5; color: #b22e36; }.history-stage { display: block!important; color: #8b978f!important; line-height: 1.3; }.history-deadline { display: inline-flex; align-items: center; gap: .25rem; margin-top: .3rem; font-size: .5rem; font-weight: 900; text-transform: uppercase; }.history-deadline svg { width: 11px; }.history-deadline.overdue { color: #b82f38; }.history-deadline.near { color: #a56808; }.request-overdue { box-shadow: inset 3px 0 #d33e47; }.request-near { box-shadow: inset 3px 0 #e1a021; }.request-actions { display: inline-flex; align-items: center; justify-content: flex-end; gap: .3rem; }.request-actions form { margin: 0; }.history-action { min-height: 32px; display: inline-flex; align-items: center; justify-content: center; gap: .3rem; padding: .4rem .5rem; border: 1px solid #dbe5df; border-radius: 8px; color: #52665a; background: #fff; font-size: .55rem; font-weight: 800; text-decoration: none; }.history-action svg { width: 13px; height: 13px; }.history-action.details { color: #236c45; background: #f2f8f4; }.history-action.edit:hover { border-color: #9bae9f; color: #314b3a; background: #f1f5f2; }.history-action.cancel { color: #b33840; background: #fff8f8; }.history-action:hover { border-color: #237149; color: #fff; background: #237149; }
 </style>
 @endPushOnce

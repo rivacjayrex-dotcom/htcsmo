@@ -146,7 +146,7 @@ On macOS or Linux:
 cp .env.example .env
 ```
 
-Generate the application key:
+Generate the application key once for a new installation (never as a deployment step):
 
 ```bash
 php artisan key:generate
@@ -241,6 +241,36 @@ SESSION_SECURE_COOKIE=true
 SESSION_SAME_SITE=lax
 ```
 
+### Session expiry and deployment checks
+
+Keep the approved idle policy in `SESSION_LIFETIME` (the example remains 120 minutes); increasing it increases the exposure of unattended accounts. `SESSION_EXPIRE_ON_CLOSE=true` requests a browser-session cookie, but browsers may restore those cookies when restoring tabs. Remember-me authentication is a separate, explicit login choice; session expiry can still invalidate an old form's CSRF token.
+
+Runtime/version/notification polls and background workspace/feed refreshes read sessions without saving them or renewing the session cookie. Normal navigation, searches, and explicit actions remain session activity. There is no keep-alive heartbeat. A native write first checks its existing CSRF token and account with `POST /session/check`; the check never returns a fresh token and runs only when the user submits. It adds one request before the write and does not eliminate an expiry race between those requests.
+
+When expiry is detected, an accessible dialog offers sign-in in a new tab and leaves current entries on screen for copying. Background work stops; failed actions are never automatically replayed. After signing in, open a fresh form, copy the entries, and review before submitting. Passwords and file selections must be entered again. Drafts are not saved to browser storage. With JavaScript disabled or if expiry occurs after the check, the server returns a 401/419 recovery page: browser Back may retain entries, but restoration cannot be guaranteed. The UI explains that limitation. Recovery return URLs are restricted to validated local application screens and revalidated after login.
+
+Before deploying or investigating recurring 419s, verify these operator-controlled settings without logging their secret values:
+
+- Keep the same `APP_KEY` on every web instance and across releases. The Docker entrypoint already requires a configured key. `composer run setup` generates a key and is for initial local setup only; do not run it during production deployments. Planned key rotation can invalidate existing cookies and open forms.
+- Use one persistent, shared session backend for all instances. `SESSION_DRIVER=database` requires the migrated `sessions` table and the same database/`SESSION_CONNECTION` everywhere; Redis requires the same connection, database, and key prefix. An instance-local file driver or ephemeral SQLite database loses sessions on restarts and does not share sessions between replicas. Shared storage adds an infrastructure dependency; monitor availability and eviction/cleanup policy. Do not use `array` in production.
+- Set `APP_URL` to the canonical HTTPS origin, enforce HTTPS, and set `SESSION_SECURE_COOKIE=true`. The production default is secure cookies; HTTP local development must use false. Ensure the trusted reverse proxy supplies the correct forwarded scheme/host and prevent clients from bypassing that proxy (the current bootstrap trusts all proxies). A secure cookie is not sent over HTTP.
+- Prefer a host-only `SESSION_DOMAIN` (null/blank); do not put a scheme, port, or path in it. Configure a parent domain only when subdomains intentionally share authentication. Keep `SESSION_PATH` compatible with the application's mount path, `SESSION_HTTP_ONLY=true`, and `SESSION_SAME_SITE=lax` for this first-party app. Cross-site embedding would require a separate policy review; `SameSite=None` requires Secure and broadens cross-site cookie delivery.
+- Keep `APP_NAME` or an explicit `SESSION_COOKIE` stable across releases and distinct from other Laravel applications on the same host. Cookie name, domain, path, key, or storage changes can end existing sessions. Refresh configuration caches on every instance after environment changes; deploy compatible code/assets together. Exclude authenticated HTML, auth forms, and session endpoints from shared/CDN caches.
+
+These are deployment risks, not evidence of the current production configuration. Diagnose with HTTP status, cookie attributes, request scheme/host, backend availability, and deployment timing. Never capture passwords, form bodies, CSRF/session tokens, cookies, or `APP_KEY` in diagnostic logs.
+
+First-party browser paths covered by expiry recovery:
+
+| Path | Expiry behavior |
+| --- | --- |
+| Runtime polling and workspace refresh | Stop polling/replacement, leave work in place, show recovery |
+| Requisition catalog, dynamic search, notification feed, PDF fetch | Share 401/419 handling (including a login redirect); expiry bypasses navigation/retry fallbacks |
+| Notification mark-read and mark-all-read | Show recovery on expiry; other failures explain uncertain outcome without submitting the form again |
+| Requisition, inventory, profile/password, approval/release, user management, notification-open, logout, registration/login/reset/verification forms | Check the existing token/account before native writes; reject stale/missing tokens; preserve entries where possible and never replay after sign-in |
+| GET filters, report exports, downloads, and ordinary navigation | Standard authentication redirect for navigation; safe local return URL revalidated after sign-in |
+
+Regression checks: `php artisan test --filter=SessionRecoveryTest` and `npm run test:frontend`.
+
 The test suite is restricted to in-memory SQLite. Clear locally cached
 configuration with `php artisan config:clear` before running tests.
 
@@ -310,10 +340,31 @@ php artisan test
 
 The system generates institutional tracking numbers such as:
 
-- Minor: `MIN-CETE-20000026`
-- Major: `MAJ-CBMA-10000025`
+- Minor: `MIN-CETE-2026100001`
+- Major: `MAJ-CETE-2026200001`
+
+The format is `TIER-DEPARTMENT-YEAR` followed by the tier digit (`1` for minor, `2` for major) and the requisition ID padded to at least five digits. The year comes from the submission date, falling back to the creation date for older records. IDs remain unique across requisitions and do not reset by year, department, or tier. New requisitions and the missing-number backfill use this format; already assigned tracking numbers remain unchanged.
 
 Requisition items store a price snapshot so historical totals do not change when catalog prices are updated. Approval actions and inventory movements are stored in separate audit tables. Approved actions also receive a SHA-256 signature token associated with the signer, role, IP address, user agent, and signing time.
+
+### Archive and withdrawal
+
+Employees/faculty see only their own archived requests. The institutional archive is SMO-only, including filtered print and CSV exports. The older `/requests/archive` entry point also shows institutional records for SMO. Details and requisition PDFs remain restricted to the owner or SMO.
+
+The archive separates fulfilled (`completed` and legacy `released`), rejected, and withdrawn records. `completed` confirms handover in the current workflow; legacy `released` does not separately establish pickup confirmation. Only completed and released records contribute to fulfillment/value reports. Archive requested-value summaries include every matching outcome and are explicitly **not expenditure or actual issued supplies**.
+
+The owner can withdraw a request only while it is `pending`, before department approval. The existing DELETE endpoint now records `withdrawn`, an optional reason, the actor, and the closure timestamp in one transaction. It retains the request, items, previous audit events, signatures, and original details URL. Withdrawal cannot be resumed or restored; submit a new request when necessary. No Trash or retention expiry is introduced.
+
+Search includes tracking, request/item content, and recorded audit remarks. Closure date remains the default filter and sort basis; submission date is selectable and falls back to creation date only when the legacy submission timestamp is absent. Both range endpoints are inclusive in the application timezone. Unknown closure dates sort last and are excluded from closure-date ranges. Category counts follow search/date/department filters before category/status selection; result summaries count all matching records, including records beyond the current page. Clear all filters resets search, category, status, department, dates, ordering, and page. Details links retain validated archive filters and page through a local return link. Print and streamed CSV exports use all matching records with the same authorization and filters; spreadsheet formula cells are escaped.
+
+Deploy the two `2026_10_22` migrations with the normal `php artisan migrate --force` release step after taking the usual database backup:
+
+- `000001_backfill_completed_requisition_closures` fills only missing `completed.closed_at` from the latest timestamped `Completed by SMO In-Charge` approval event. Ready-for-pickup events and later edits are not completion evidence. Records with no completion event stay undated; audit data is never invented. A small `requisition_closure_backfills` table records the applied values so rollback clears only those values still unchanged and still completed, without removing audit events.
+- `000002_restrict_deletion_of_requisition_owners` changes the owner foreign key from cascade to restrict. Previously, deleting a user could cascade through requisitions, items, approval logs, and signatures. Account management currently suspends accounts; the new constraint also prevents direct account deletion from erasing owned requisitions. Actor references on other historical events retain their existing nullable behavior. Rollback restores the previous cascading foreign key, so review that consequence before rolling back.
+
+Historical limitations: the earlier `2026_10_07` migration omitted completed requests and could use `updated_at`/`created_at` for released/rejected rows lacking audit dates. Already-populated dates have no provenance marker and are preserved; review production audit events before correcting them. Previously deleted requests or missing events cannot be recovered from source code. This change does not inspect or certify production records. Large print views load all matches; narrow filters or use streamed CSV for larger archives.
+
+Regression checks: `php artisan test --filter="RequisitionArchiveTest|RequisitionArchiveLifecycleTest|RequisitionModificationTest|EmployeeRequestExperienceTest|OperationalAnalyticsTest"`.
 
 ## Project team
 

@@ -8,15 +8,22 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Facades\DB;
 
 class Requisition extends Model
 {
-    public const ARCHIVED_STATUSES = ['completed', 'released', 'rejected'];
+    public const ARCHIVED_STATUSES = ['completed', 'released', 'rejected', 'withdrawn'];
 
     public const FULFILLED_STATUSES = ['completed', 'released'];
 
+    public const ARCHIVE_CATEGORIES = [
+        'fulfilled' => self::FULFILLED_STATUSES,
+        'rejected' => ['rejected'],
+        'withdrawn' => ['withdrawn'],
+    ];
+
     protected $fillable = [
-        'tracking_number', // e.g. MIN-CETE-20000001
+        'tracking_number', // e.g. MIN-CETE-2026100001
         'user_id',
         'request_type',
         'status',
@@ -73,12 +80,7 @@ class Requisition extends Model
 
         static::created(function ($requisition) {
             if (empty($requisition->tracking_number)) {
-                $prefix = strtoupper($requisition->request_type) === 'MAJOR' ? 'MAJ' : 'MIN';
-                $tierCode = strtoupper($requisition->request_type) === 'MAJOR' ? '10' : '20';
-                $dept = strtoupper($requisition->user->department ?? 'HTC');
-                $uniqueNumber = $tierCode.str_pad($requisition->id, 6, '0', STR_PAD_LEFT);
-
-                $requisition->tracking_number = "{$prefix}-{$dept}-{$uniqueNumber}";
+                $requisition->tracking_number = $requisition->getTrackingCodeFallback();
                 $requisition->saveQuietly();
             }
         });
@@ -107,6 +109,33 @@ class Requisition extends Model
         );
     }
 
+    public function latestClosureLog(): HasOne
+    {
+        return $this->hasOne(ApprovalLog::class)->ofMany(['id' => 'max'], function (Builder $logs) {
+            $logs->where(fn (Builder $events) => $events->where('action', 'like', 'Rejected by %')
+                ->orWhere('action', 'Withdrawn by requestor')
+                ->orWhere('action', 'Completed by SMO In-Charge')
+                ->orWhere('action', 'like', 'Released by %'));
+        });
+    }
+
+    public function archiveStatusLabel(): string
+    {
+        return match ($this->status) {
+            'completed' => 'Completed (pickup confirmed)',
+            'released' => 'Released (legacy)',
+            'rejected' => 'Rejected / disapproved',
+            'withdrawn' => 'Withdrawn by requestor',
+            default => $this->requestorStatus()['label'],
+        };
+    }
+
+    public function closureRemarks(): ?string
+    {
+        return $this->latestClosureLog?->remarks
+            ?? ($this->status === 'rejected' ? $this->remarks : null);
+    }
+
     public function clarificationRemarks(): ?string
     {
         if ($this->status !== 'for_clarification') {
@@ -124,7 +153,7 @@ class Requisition extends Model
     public function requestorStatus(): array
     {
         [$label, $tone, $icon, $nextStep] = match ($this->status) {
-            'pending' => ['Department review', 'progress', 'clock-3', 'Waiting for your department head. You can still edit or delete this pending request.'],
+            'pending' => ['Department review', 'progress', 'clock-3', 'Waiting for your department head. You can still edit or withdraw this pending request.'],
             'approved_dept' => $this->request_type === 'minor'
                 ? ['VP Finance review', 'progress', 'clock-3', 'Waiting for VP Finance review. No action is currently required from you.']
                 : ['VP Administration review', 'progress', 'clock-3', 'Waiting for VP Administration review. No action is currently required from you.'],
@@ -137,8 +166,9 @@ class Requisition extends Model
             'ready_for_pickup' => ['Ready for pickup', 'ready', 'package-check', 'SMO has marked this request ready for pickup. Review its details and any recorded instructions.'],
             'for_clarification' => ['Clarification required', 'clarification', 'message-circle-question', 'Read the clarification remarks and follow up with the reviewing office and SMO.'],
             'completed' => ['Pickup completed', 'success', 'circle-check', 'This request is closed after handover. You can review its history or download the requisition PDF.'],
-            'released' => ['Released and completed', 'success', 'circle-check', 'This legacy request is recorded as released. You can review its history or download the requisition PDF.'],
+            'released' => ['Released (legacy)', 'success', 'circle-check', 'This legacy request is recorded as released. You can review its history or download the requisition PDF.'],
             'rejected' => ['Request disapproved', 'danger', 'circle-x', 'Review the decision remarks in the request history.'],
+            'withdrawn' => ['Withdrawn', 'neutral', 'circle-minus', 'You withdrew this request before approval. Its items and history remain in your archive. Submit a new request if supplies are still needed.'],
             default => ['Status under review', 'progress', 'circle-help', 'Open the request history for the latest recorded update.'],
         };
 
@@ -207,15 +237,23 @@ class Requisition extends Model
 
     public function scopeWithArchiveFilters(Builder $query, array $filters, bool $allowDepartment = false): Builder
     {
+        $dateColumn = ($filters['date_basis'] ?? 'closed') === 'submitted'
+            ? DB::raw('COALESCE(submitted_at, created_at)') : 'closed_at';
+
         return $query
-            ->search($filters['search'] ?? null)
+            ->when(trim($filters['search'] ?? '') !== '', fn (Builder $query) => $query->where(function (Builder $matches) use ($filters) {
+                $matches->search($filters['search'])->orWhereHas('logs', fn (Builder $logs) => $logs
+                    ->where(fn (Builder $events) => $events->where('remarks', 'like', '%'.trim($filters['search']).'%')
+                        ->orWhere('action', 'like', '%'.trim($filters['search']).'%')));
+            }))
+            ->when($filters['category'] ?? null, fn (Builder $query, string $category) => $query->whereIn('status', self::ARCHIVE_CATEGORIES[$category]))
             ->when($filters['status'] ?? null, fn (Builder $query, string $status) => $query->where('status', $status))
             ->when(
                 $allowDepartment && ($filters['dept'] ?? null),
                 fn (Builder $query) => $query->whereHas('user', fn (Builder $users) => $users->inDepartment($filters['dept']))
             )
-            ->when($filters['date_from'] ?? null, fn (Builder $query, string $date) => $query->whereDate('closed_at', '>=', $date))
-            ->when($filters['date_to'] ?? null, fn (Builder $query, string $date) => $query->whereDate('closed_at', '<=', $date));
+            ->when($filters['date_from'] ?? null, fn (Builder $query, string $date) => $query->whereDate($dateColumn, '>=', $date))
+            ->when($filters['date_to'] ?? null, fn (Builder $query, string $date) => $query->whereDate($dateColumn, '<=', $date));
     }
 
     public function scopePrioritizeExecutiveRequestors(Builder $query): Builder
@@ -380,10 +418,12 @@ class Requisition extends Model
 
     public function getTrackingCodeFallback(): string
     {
-        $prefix = strtoupper($this->request_type) === 'MAJOR' ? 'MAJ' : 'MIN';
-        $tierCode = strtoupper($this->request_type) === 'MAJOR' ? '10' : '20';
+        $isMajor = strtoupper($this->request_type) === 'MAJOR';
+        $prefix = $isMajor ? 'MAJ' : 'MIN';
+        $tierCode = $isMajor ? '2' : '1';
         $dept = strtoupper($this->user->department ?? 'HTC');
-        $uniqueNumber = $tierCode.str_pad($this->id, 6, '0', STR_PAD_LEFT);
+        $year = ($this->submitted_at ?? $this->created_at ?? now())->format('Y');
+        $uniqueNumber = $year.$tierCode.str_pad($this->id, 5, '0', STR_PAD_LEFT);
 
         return "{$prefix}-{$dept}-{$uniqueNumber}";
     }

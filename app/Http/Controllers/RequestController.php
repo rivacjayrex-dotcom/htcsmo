@@ -12,6 +12,7 @@ use App\Models\Requisition;
 use App\Models\Supply;
 use App\Models\SupplyInventoryLog;
 use App\Models\User;
+use App\Services\ArchiveService;
 use App\Services\DeadlineNotificationService;
 use App\Services\InventoryAlertService;
 use App\Services\NotificationActionResolver;
@@ -202,28 +203,11 @@ class RequestController extends Controller
     }
 
     /**
-     * Archived Requisitions (Released & Rejected)
+     * Archived requisitions, scoped to their owner unless the viewer is SMO.
      */
-    public function archive(ArchiveIndexRequest $request)
+    public function archive(ArchiveIndexRequest $request, ArchiveService $archives)
     {
-        $user = Auth::user();
-        $filters = $request->validated();
-        $order = $filters['order'] ?? 'desc';
-        $query = Requisition::query()
-            ->archived()
-            ->visibleTo($user)
-            ->withArchiveFilters($filters, allowDepartment: $user->role === 'smo')
-            ->with(['items', 'user.academicDepartment'])
-            ->orderBy('closed_at', $order)
-            ->orderBy('id', $order);
-        $archivedRequests = $request->boolean('print')
-            ? $query->get()
-            : $query->paginate(15)->withQueryString();
-        $departments = $user->role === 'smo'
-            ? Department::query()->whereHas('users')->orderBy('dept_code')->pluck('dept_code')
-            : collect();
-
-        return view('requests.archive', compact('archivedRequests', 'departments'));
+        return $archives->index($request);
     }
 
     /**
@@ -755,10 +739,11 @@ class RequestController extends Controller
 
     public function show(Request $httpRequest, int $id)
     {
-        $request = Requisition::with(['user', 'items', 'logs.digitalSignature'])->findOrFail($id);
+        $request = Requisition::with(['user', 'items', 'logs.digitalSignature', 'logs.actor', 'latestClosureLog.actor'])->findOrFail($id);
         abort_unless($request->canBeViewedBy($httpRequest->user()), 403);
+        $archiveReturnUrl = app(ArchiveService::class)->returnUrl($httpRequest);
 
-        return view('requests.show', compact('request'));
+        return view('requests.show', compact('request', 'archiveReturnUrl'));
     }
 
     public function downloadPDF(Request $httpRequest, int $id)

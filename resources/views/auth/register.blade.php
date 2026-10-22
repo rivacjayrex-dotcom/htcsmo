@@ -20,7 +20,7 @@
                         <p>Enter your official HTC details below.</p>
                     </header>
 
-                    <form method="POST" action="{{ route('register') }}">
+                    <form method="POST" action="{{ route('register') }}" data-auth-progress="register">
                         @csrf
 
                         <div class="row g-3">

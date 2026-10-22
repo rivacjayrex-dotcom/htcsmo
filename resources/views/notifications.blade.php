@@ -287,12 +287,13 @@
 
                 try {
                     const response = await fetch(url, {
-                        headers: {'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest'},
+                        headers: {'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-Background-Request': pushState ? 'false' : 'true'},
                         credentials: 'same-origin',
                         signal: controller.signal,
                     });
                     if (!response.ok) throw new Error(`Notification feed failed with HTTP ${response.status}`);
                     const data = await response.json();
+                    if (window.htcSession?.expired) return;
                     feed.innerHTML = data.html;
 
                     center.querySelectorAll('[data-notification-category]').forEach(link => {
@@ -306,7 +307,7 @@
                     if (pushState) window.history.pushState({notificationCategory: data.category}, '', url);
                     refreshIcons();
                 } catch (error) {
-                    if (error.name === 'AbortError') return;
+                    if (error.name === 'AbortError' || error.name === 'SessionExpiredError') return;
                     window.location.assign(url);
                 } finally {
                     if (feedController === controller) {
@@ -372,7 +373,16 @@
                     }
                     refreshIcons();
                 } catch (error) {
-                    form.submit();
+                    if (error.name === 'SessionExpiredError') return;
+                    // A failed response may follow a completed write. Never replay it.
+                    let status = center.querySelector('[data-notification-action-error]');
+                    if (!status) {
+                        status = document.createElement('p');
+                        status.dataset.notificationActionError = '';
+                        status.setAttribute('role', 'alert');
+                        center.prepend(status);
+                    }
+                    status.textContent = 'We could not confirm this action. Refresh the notification list to check its status before trying again.';
                 } finally {
                     delete form.dataset.submitting;
                     if (submitButton?.isConnected) submitButton.disabled = false;

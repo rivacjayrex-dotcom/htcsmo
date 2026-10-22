@@ -1,0 +1,109 @@
+@php
+    $archiveFilters = Illuminate\Support\Arr::except($filters, ['page', 'print', 'export']);
+    $hasArchiveFilters = collect($archiveFilters)->contains(fn ($value) => filled($value));
+    $dateBasisLabel = ($filters['date_basis'] ?? 'closed') === 'submitted' ? 'Submission date' : 'Closure date';
+    $categoryLabels = ['all' => 'All outcomes', 'fulfilled' => 'Fulfilled', 'rejected' => 'Rejected', 'withdrawn' => 'Withdrawn'];
+@endphp
+<div class="container-fluid py-2 archive-workspace {{ $institutional ? 'institutional-archive-page' : 'personal-list' }}">
+    @unless($institutional)
+        <nav class="personal-navigation archive-screen-only" aria-label="My requisitions">
+            <button type="button" class="btn btn-htc" data-bs-toggle="modal" data-bs-target="#globalRequestModal">New requisition</button>
+            <a href="{{ route('dashboard') }}" class="btn btn-light border">My dashboard</a>
+            <a href="{{ route('requests.index') }}" class="btn btn-light border">View my active requests</a>
+        </nav>
+        @include('requests.partials.personal-styles')
+    @endunless
+    <header class="archive-heading">
+        <div><span class="archive-eyebrow">{{ $institutional ? 'Institutional records' : 'My request history' }}</span><h1>{{ $institutional ? 'Institutional Archive' : 'My requisition archive' }}</h1><p>Find fulfilled, rejected, and withdrawn requests. Submitted records and their history are retained.</p></div>
+        <div class="archive-heading-actions archive-screen-only">
+            <a class="btn btn-light border" href="{{ route($archiveRoute, [...$archiveFilters, 'export' => 'csv']) }}" download data-download><i data-lucide="file-down" aria-hidden="true"></i>Export filtered CSV</a>
+            <a class="btn btn-htc" href="{{ route($archiveRoute, [...$archiveFilters, 'print' => 1]) }}" target="_blank" rel="noopener"><i data-lucide="printer" aria-hidden="true"></i>Print filtered archive</a>
+        </div>
+    </header>
+    @if(session('success'))<p class="alert alert-success" role="status">{{ session('success') }}</p>@endif
+    @if($errors->any())<p class="alert alert-warning" role="alert"><strong>Archive filters were not applied.</strong> {{ $errors->first() }}</p>@endif
+
+    <nav class="archive-categories archive-screen-only" aria-label="Archive outcomes">
+        @foreach($categoryLabels as $key => $label)
+            @php($categoryQuery = Illuminate\Support\Arr::except($archiveFilters, ['category', 'status']))
+            <a href="{{ route($archiveRoute, $key === 'all' ? $categoryQuery : [...$categoryQuery, 'category' => $key]) }}" @if(($filters['category'] ?? 'all') === $key) aria-current="page" @endif>{{ $label }} <span>{{ $categoryCounts[$key] }}</span></a>
+        @endforeach
+    </nav>
+    <p class="archive-help archive-screen-only">Category counts follow search, date, and department filters. Changing category clears the final-status filter.</p>
+
+    <form action="{{ route($archiveRoute) }}" method="GET" class="archive-filters archive-filter-card archive-screen-only" data-dynamic-search>
+        @if(filled($filters['category'] ?? null))<input type="hidden" name="category" value="{{ $filters['category'] }}">@endif
+        <div class="archive-search"><label for="archiveSearch">Search</label><input id="archiveSearch" type="search" name="search" value="{{ $filters['search'] ?? '' }}" maxlength="100" class="form-control" placeholder="{{ $institutional ? 'Tracking number, item, requestor, or remarks' : 'Tracking number, item, or remarks' }}"></div>
+        <div><label for="archiveStatus">Final status</label><select id="archiveStatus" name="status" class="form-select"><option value="">All final statuses</option>@foreach(['completed' => 'Completed (pickup confirmed)', 'released' => 'Released (legacy)', 'rejected' => 'Rejected / disapproved', 'withdrawn' => 'Withdrawn by requestor'] as $value => $label)<option value="{{ $value }}" @selected(($filters['status'] ?? '') === $value)>{{ $label }}</option>@endforeach</select></div>
+        @if($institutional)<div><label for="archiveDepartment">Department</label><select id="archiveDepartment" name="dept" class="form-select"><option value="">All departments</option>@foreach($departments as $department)<option value="{{ $department }}" @selected(($filters['dept'] ?? '') === $department)>{{ $department }}</option>@endforeach</select></div>@endif
+        <div><label for="archiveDateBasis">Date basis</label><select id="archiveDateBasis" name="date_basis" class="form-select"><option value="closed" @selected(($filters['date_basis'] ?? 'closed') === 'closed')>Closure date</option><option value="submitted" @selected(($filters['date_basis'] ?? '') === 'submitted')>Submission date</option></select></div>
+        <div><label for="archiveFrom">From (inclusive)</label><input id="archiveFrom" type="date" name="date_from" value="{{ $filters['date_from'] ?? '' }}" class="form-control"></div>
+        <div><label for="archiveTo">To (inclusive)</label><input id="archiveTo" type="date" name="date_to" value="{{ $filters['date_to'] ?? '' }}" class="form-control"></div>
+        <div><label for="archiveOrder">Sort selected date</label><select id="archiveOrder" name="order" class="form-select"><option value="desc" @selected(($filters['order'] ?? 'desc') === 'desc')>Newest first</option><option value="asc" @selected(($filters['order'] ?? '') === 'asc')>Oldest first</option></select></div>
+        <div class="archive-filter-actions"><button type="submit" class="btn btn-htc">Apply filters</button><a class="btn btn-light border" href="{{ route($archiveRoute) }}">Clear all filters</a></div>
+    </form>
+
+    <section class="archive-result-summary" aria-label="Filtered archive summary">
+        <div><span>Matching requests</span><strong>{{ $summary->total }}</strong></div>
+        <div><span>Fulfilled</span><strong>{{ $summary->fulfilled }}</strong></div>
+        <div><span>Rejected</span><strong>{{ $summary->rejected }}</strong></div>
+        <div><span>Withdrawn</span><strong>{{ $summary->withdrawn }}</strong></div>
+        <div><span>Requested value of matches</span><strong>&#8369;{{ number_format((float) $summary->requested_value, 2) }}</strong></div>
+    </section>
+    <div class="archive-report-context">
+        <p><strong>Date basis: {{ $dateBasisLabel }}.</strong> {{ $filters['date_from'] ?? 'Any start date' }} to {{ $filters['date_to'] ?? 'any end date' }}. Timezone: {{ config('app.timezone') }}. Category: {{ $categoryLabels[$filters['category'] ?? 'all'] }}.@if(filled($filters['status'] ?? null)) Final status: {{ $filters['status'] }}.@endif @if(filled($filters['search'] ?? null)) Search: “{{ $filters['search'] }}”.@endif @if($institutional && filled($filters['dept'] ?? null)) Department: {{ $filters['dept'] }}.@endif</p>
+        <p>Requested values include requests that may not have been supplied. They are not audited expenditure or quantities actually issued.</p>
+        <p>Completed means pickup was confirmed. Released is a legacy outcome; consult its history for recorded details. Unknown closure dates are shown as unavailable and excluded from closure-date ranges. Submission dates use the creation date only when a legacy submission date is missing.</p>
+        @if($summary->undated > 0)<p><strong>{{ $summary->undated }} matching {{ Str::plural('record', $summary->undated) }} {{ $summary->undated == 1 ? 'has' : 'have' }} no known closure date.</strong> No date has been estimated.</p>@endif
+    </div>
+
+    @include('requests.partials.history-table', ['requisitions' => $records, 'type' => 'archive'])
+    @if(method_exists($records, 'hasPages') && $records->hasPages())<nav class="archive-pagination archive-screen-only mt-3" aria-label="Archive pages">{{ $records->links() }}</nav>@endif
+</div>
+@if(request()->boolean('print'))<script>window.addEventListener('load', () => window.print());</script>@endif
+@pushOnce('styles', 'page-styles:requests/partials/archive-workspace.blade.php')
+<style>
+    .archive-heading { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem; margin-bottom:1.25rem; }
+    .archive-heading h1 { margin:.35rem 0; font-size:1.5rem; font-weight:750; color:#254734; }
+    .archive-heading p,.archive-help { margin:0; color:#607469; font-size:.85rem; }
+    .archive-eyebrow { color:#5b7b66; text-transform:uppercase; letter-spacing:.1em; font-size:.7rem; font-weight:700; }
+    .archive-heading-actions,.archive-filter-actions { display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; }
+    .archive-heading-actions svg { width:16px; height:16px; margin-right:.3rem; }
+    .archive-categories { display:flex; flex-wrap:wrap; gap:.5rem; margin-bottom:.6rem; }
+    .archive-categories a { display:inline-flex; align-items:center; gap:.6rem; min-height:40px; padding:.55rem .85rem; border:1px solid #dce7df; border-radius:8px; background:#fff; color:#365a43; font-size:.85rem; font-weight:650; text-decoration:none; }
+    .archive-categories a[aria-current] { border-color:#33744c; background:#eaf4ed; color:#1d5833; }
+    .archive-categories span { padding:.1rem .4rem; border-radius:5px; background:#f0f4f1; font-variant-numeric:tabular-nums; }
+    .archive-help { margin-bottom:1rem; font-size:.78rem; }
+    .archive-filters { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:.8rem; padding:1rem; border:1px solid #dfe8e2; border-radius:12px; background:#fff; margin-bottom:1rem; }
+    .archive-filters > * { min-width:0; }.archive-search { grid-column:span 2; }
+    .archive-filters label { display:block; margin-bottom:.4rem; color:#45614d; font-size:.78rem; font-weight:650; }
+    .archive-result-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)) minmax(190px,1.5fr); gap:.6rem; margin:1rem 0; }
+    .archive-result-summary > div { padding:.85rem; border:1px solid #e1e9e4; border-radius:9px; background:#f6faf7; }
+    .archive-result-summary span { display:block; font-size:.74rem; color:#5b7262; }.archive-result-summary strong { display:block; margin-top:.3rem; color:#254b33; font-size:1.2rem; font-variant-numeric:tabular-nums; }
+    .archive-report-context { margin:1rem 0; color:#5d7164; font-size:.78rem; line-height:1.6; }.archive-report-context p { margin:.35rem 0; }
+    .archive-workspace :is(a,button,input,select,summary):focus-visible { outline:3px solid #b38328; outline-offset:3px; }
+    .archive-workspace .archive-results-table thead th { font-size:.68rem !important; color:#526b5b !important; }
+    .archive-workspace .archive-results-table tbody td { padding:.7rem .8rem !important; font-size:.82rem; }
+    .archive-results-table :is(.history-request-code,.history-item b,.history-value) { font-size:.8rem; }
+    .archive-results-table :is(.history-tier,.history-status) { font-size:.65rem; }
+    .archive-results-table .history-status.withdrawn { color:#53677a; background:#eaf0f5; }
+    .archive-results-table small { display:block; margin-top:.3rem; color:#607469; font-size:.73rem; line-height:1.5; }
+    .archive-results-table .archive-remarks { min-width:150px; max-width:280px; margin-top:.4rem; font-size:.75rem; color:#586e60; }
+    .archive-remarks summary { min-height:24px; cursor:pointer; }.archive-remarks p { margin:.3rem 0; white-space:pre-wrap; overflow-wrap:anywhere; }
+    @media(max-width:991px) { .archive-filters { grid-template-columns:repeat(2,minmax(0,1fr)); }.archive-result-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }.archive-result-summary > :last-child { grid-column:1/-1; } }
+    @media(max-width:575px) { .archive-filters { grid-template-columns:minmax(0,1fr); }.archive-search { grid-column:auto; }.archive-heading-actions { width:100%; }.archive-heading-actions a { flex:1; }.archive-results-table .archive-remarks { min-width:0; }.archive-results-table .history-status { white-space:normal; } }
+    @media print {
+        .sidebar,.top-bar,.archive-screen-only,.archive-results-table .archive-action-column { display:none !important; }
+        .main-content { width:100% !important; margin:0 !important; }.main-content-inner { padding:0 !important; border:0 !important; box-shadow:none !important; }
+        .archive-results-table { min-width:0 !important; }.archive-results-table thead { display:table-header-group; }.archive-results-table tr { break-inside:avoid; }
+        .archive-workspace .table-responsive { overflow:visible !important; }
+        .archive-results-table tbody { display:table-row-group !important; padding:0 !important; }
+        .archive-results-table tbody tr { display:table-row !important; }
+        .archive-results-table tbody td { display:table-cell !important; text-align:left; }
+        .archive-results-table tbody td::before { display:none !important; }
+        .archive-results-table .archive-remarks > :not(summary) { display:block !important; }.archive-results-table summary { display:none; }
+        .archive-results-table .history-status { color:#000 !important; background:none !important; }
+        @page { size:landscape; margin:12mm; }
+    }
+</style>
+@endPushOnce

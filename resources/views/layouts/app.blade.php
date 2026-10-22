@@ -1902,6 +1902,7 @@
     @stack('styles')
 </head>
 <body data-runtime-scope="{{ $workspaceScope }}" data-runtime-version="{{ $workspaceVersion }}">
+    @include('layouts.partials.session-recovery')
     <div class="d-flex">
         <button type="button" class="sidebar-backdrop" id="sidebarBackdrop" aria-label="Close navigation"></button>
         <!-- SIDEBAR -->
@@ -2615,12 +2616,14 @@
                         if (!response.ok) throw new Error('Catalog request failed.');
 
                         const catalog = await response.json();
+                        if (window.htcSession?.expired) return;
                         if (!Array.isArray(catalog)) throw new Error('Invalid catalog response.');
 
                         this.catalog = catalog;
                         this.catalogLoaded = true;
                         this.restorePreviousRequest(previousRequest);
                     } catch (error) {
+                        if (error.name === 'SessionExpiredError') return;
                         this.catalogError = 'Could not load supplies. Please try again.';
                     } finally {
                         this.catalogLoading = false;
@@ -2862,7 +2865,7 @@
             const userIsWorking = () => {
                 const active = document.activeElement;
                 const editing = active && ['INPUT', 'TEXTAREA', 'SELECT'].includes(active.tagName);
-                return document.hidden || notificationBusy || editing
+                return window.htcSession?.expired || document.hidden || notificationBusy || editing
                     || document.documentElement?.getAttribute('aria-busy') === 'true'
                     || Boolean(document.querySelector('.modal.show, dialog[open], .main-content-inner [data-dirty], .main-content-inner form[aria-busy="true"], .main-content-inner input[type="checkbox"]:checked'));
             };
@@ -2875,7 +2878,7 @@
             };
 
             const refreshWorkspace = async () => {
-                if (refreshing || !refreshPending || userIsWorking()) return;
+                if (window.htcSession?.expired || refreshing || !refreshPending || userIsWorking()) return;
                 const regions = [...document.querySelectorAll('[data-live-region]')];
                 if (!regions.length) {
                     message.textContent = 'New activity is available. Refresh to update this page.';
@@ -2887,7 +2890,7 @@
                 const timeout = window.setTimeout(() => controller.abort(), 10000);
                 try {
                     const response = await fetch(window.location.href, {
-                        headers: {'Accept': 'text/html', 'X-Workspace-Refresh': 'true'},
+                        headers: {'Accept': 'text/html', 'X-Workspace-Refresh': 'true', 'X-Requested-With': 'XMLHttpRequest'},
                         credentials: 'same-origin', cache: 'no-store', signal: controller.signal,
                     });
                     if (!response.ok || response.redirected) throw new Error('Workspace refresh unavailable');
@@ -2924,6 +2927,7 @@
                     notice.hidden = !refreshPending;
                     document.dispatchEvent(new CustomEvent('htc:workspace-updated'));
                 } catch (error) {
+                    if (error.name === 'SessionExpiredError') return;
                     message.textContent = 'New activity is available. Refresh to update this page.';
                 } finally {
                     window.clearTimeout(timeout);
@@ -2932,7 +2936,7 @@
             };
 
             const refreshWhenSafe = () => {
-                if (!refreshPending || refreshing) return;
+                if (window.htcSession?.expired || !refreshPending || refreshing) return;
                 if (userIsWorking()) {
                     window.clearTimeout(refreshTimer);
                     refreshTimer = null;
@@ -2950,6 +2954,7 @@
 
             const scheduleCheck = delay => {
                 window.clearTimeout(timer);
+                if (window.htcSession?.expired) return;
                 timer = window.setTimeout(checkForUpdates, delay);
             };
 
@@ -3001,7 +3006,7 @@
             };
 
             const checkForUpdates = async () => {
-                if (checking) return;
+                if (window.htcSession?.expired || checking) return;
                 if (document.hidden) {
                     releaseLease();
                     scheduleCheck(60000);
@@ -3032,7 +3037,7 @@
 
                     const data = await response.json();
                     if (Number(data.account_id) !== expectedAccountId) {
-                        window.location.reload();
+                        window.htcSession?.show();
                         return;
                     }
                     acceptRuntimeState(data);
@@ -3057,6 +3062,12 @@
                 refreshWhenSafe();
             });
             document.addEventListener('focusout', () => window.setTimeout(refreshWhenSafe, 150));
+            document.addEventListener('htc:session-expired', () => {
+                window.clearTimeout(timer);
+                window.clearTimeout(refreshTimer);
+                releaseLease();
+                notice.hidden = true;
+            });
             document.addEventListener('hidden.bs.modal', refreshWhenSafe);
             document.addEventListener('input', event => {
                 const form = event.target.closest?.('.main-content-inner form');

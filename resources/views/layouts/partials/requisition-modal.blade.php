@@ -45,7 +45,7 @@
                 </div>
             </div>
 
-            <form x-ref="requisitionForm" x-cloak x-show="view !== 'selection'" class="requisition-form" action="{{ route('requisitions.store') }}" method="POST" data-no-loader @submit="handleRequisitionSubmit($event)">
+            <form x-ref="requisitionForm" x-cloak x-show="view !== 'selection'" class="requisition-form" action="{{ route('requisitions.store') }}" method="POST" data-no-loader @submit="handleRequisitionSubmit($event)" @htc:session-check-failed="submitting = false; submissionConfirmed = false">
                 @csrf
                 <input type="hidden" name="request_type" :value="tier">
                 @if($errors->any() && old('request_type'))

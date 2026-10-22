@@ -13,7 +13,7 @@ class RequisitionModificationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_requestor_can_edit_and_delete_a_pending_requisition(): void
+    public function test_requestor_can_edit_and_withdraw_a_pending_requisition(): void
     {
         $requestor = User::factory()->create();
         $requisitionToEdit = $this->createRequisition($requestor, 'pending');
@@ -29,9 +29,9 @@ class RequisitionModificationTest extends TestCase
         $this
             ->actingAs($requestor)
             ->delete(route('requisitions.destroy', $requisitionToDelete))
-            ->assertRedirect(route('requests.index'));
+            ->assertRedirect(route('requests.archive', ['category' => 'withdrawn']));
 
-        $this->assertDatabaseMissing('requisitions', ['id' => $requisitionToDelete->id]);
+        $this->assertDatabaseHas('requisitions', ['id' => $requisitionToDelete->id, 'status' => 'withdrawn']);
     }
 
     public function test_requestor_cannot_edit_update_or_delete_after_department_head_approval(): void

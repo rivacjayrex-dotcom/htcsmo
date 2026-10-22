@@ -336,5 +336,19 @@
             lockedForms.forEach(unlockForm);
             hideLoader();
         });
+        document.addEventListener('htc:session-expired', () => {
+            lockedForms.forEach(unlockForm);
+            hideLoader();
+        });
+        document.addEventListener('htc:session-submit', event => {
+            const form = event.detail.form;
+            clearRuntimeCache();
+            if (form.dataset.noLoader !== undefined) {
+                skipNextUnloadLoader = form.dataset.noUnloadLoader !== undefined;
+                return;
+            }
+            if (form.dataset.logoutForm !== undefined) showLogoutModal();
+            else showLoader(form.dataset.loadingMessage || 'Processing request…');
+        });
     })();
 </script>

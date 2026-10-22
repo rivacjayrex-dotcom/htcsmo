@@ -5,7 +5,7 @@
     <div class="request-workspace {{ $isEmployee ? 'personal-list' : '' }}">
         @if($isEmployee)
             <header class="personal-list-heading">
-                <div><span class="personal-eyebrow">Your requisition workspace</span><h2>My active requests</h2><p>A clear view of your progress and next steps.</p></div>
+                <div><h2>My active requests</h2><p>A clear view of your progress and next steps.</p></div>
                 <nav class="personal-navigation" aria-label="My requisitions">
                     <button type="button" class="btn btn-htc" data-bs-toggle="modal" data-bs-target="#globalRequestModal"><i data-lucide="plus" aria-hidden="true"></i>New requisition</button>
                     <a href="{{ route('dashboard') }}" class="btn btn-light border">My dashboard</a>
