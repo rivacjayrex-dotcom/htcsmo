@@ -138,7 +138,7 @@
                     if (submitter?.hasAttribute('form' + attribute)) form.setAttribute(attribute, submitter.getAttribute('form' + attribute));
                 }
                 status.textContent = 'Submitting…';
-                document.dispatchEvent(new CustomEvent('htc:session-submit', {detail: {form}}));
+                document.dispatchEvent(new CustomEvent('htc:session-submit', {detail: {form, submitter}}));
                 nativeSubmit.call(form);
                 // Keep the form locked until navigation completes; never retry a write.
             } catch (error) {

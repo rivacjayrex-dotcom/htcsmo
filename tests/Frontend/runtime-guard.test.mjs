@@ -11,6 +11,8 @@ function browser() {
         dataset = {};
         attributes = new Map();
         hidden = true;
+        open = false;
+        opens = 0;
         disabled = false;
         isConnected = true;
         innerHTML = 'Save';
@@ -18,6 +20,9 @@ function browser() {
         tagName = 'BUTTON';
         classList = { add() {}, remove() {} };
         setAttribute(key, value) { this.attributes.set(key, value); }
+        getAttribute(key) { return this.attributes.get(key) ?? null; }
+        showModal() { this.open = true; this.opens++; }
+        close() { this.open = false; }
         removeAttribute(key) {
             this.attributes.delete(key);
             if (key === 'data-runtime-disabled') delete this.dataset.runtimeDisabled;
@@ -35,7 +40,7 @@ function browser() {
         }
     }
     class Form extends Element { method = 'get'; }
-    const elements = new Map(['runtimeLoader', 'runtimeLoaderMessage', 'runtimeLogoutModal'].map(id => [id, new Element()]));
+    const elements = new Map(['runtimeLoader', 'runtimeLoaderMessage', 'runtimeLogoutModal', 'runtimeActionModal', 'runtimeActionTitle', 'runtimeActionMessage'].map(id => [id, new Element()]));
     const document = Object.assign(new EventTarget(), {
         body: new Element(), documentElement: new Element(), activeElement: new Element(),
         getElementById: id => elements.get(id), createElement: () => new Element(),
@@ -55,7 +60,9 @@ function browser() {
     const dispatch = (type, target, properties = {}) => {
         const event = new Event(type, { cancelable: true });
         Object.defineProperty(event, 'target', { value: target });
-        Object.assign(event, { button: 0, ...properties });
+        const {canceled, ...rest} = properties;
+        Object.assign(event, { button: 0, ...rest });
+        if (canceled) event.preventDefault();
         document.dispatchEvent(event);
         return event;
     };
@@ -70,7 +77,8 @@ function browser() {
     const form = new Form();
     const submitter = new Element();
     form.children = [submitter];
-    return { window, document, dispatch, runTimer, timers, link, form, submitter, loader: elements.get('runtimeLoader') };
+    return { window, document, dispatch, runTimer, timers, link, form, submitter, loader: elements.get('runtimeLoader'),
+        actionModal: elements.get('runtimeActionModal'), actionTitle: elements.get('runtimeActionTitle'), actionMessage: elements.get('runtimeActionMessage') };
 }
 
 const flush = () => new Promise(resolve => setImmediate(resolve));
@@ -204,4 +212,73 @@ test('an old navigation timeout cannot unlock a write that starts programmatical
     assert.equal(b.window.stops, 0);
     assert.equal(b.submitter.disabled, true);
     assert.equal(b.document.documentElement.hasAttribute('aria-busy'), true);
+});
+
+test('accepted workflow actions show an immediate top-layer dialog instead of the page skeleton', () => {
+    const b = browser();
+    b.form.method = 'post'; b.form.dataset.actionProgress = '';
+    b.submitter.dataset.loadingText = 'Recording your approval...';
+    b.dispatch('submit', b.form, {submitter: b.submitter});
+    assert.equal(b.actionModal.open, true); assert.equal(b.actionModal.hidden, false);
+    assert.equal(b.document.activeElement, b.actionModal);
+    assert.equal(b.actionTitle.textContent, 'Recording your approval...');
+    assert.equal(b.loader.hidden, true); assert.equal(b.timers.size, 0);
+    assert.equal(b.submitter.disabled, true);
+    assert.equal(b.dispatch('submit', b.form, {submitter: b.submitter}).defaultPrevented, true);
+    assert.equal(b.actionModal.opens, 1);
+    b.dispatch('keydown', b.actionModal, {key: 'Escape'});
+    assert.equal(b.actionModal.open, true); assert.equal(b.window.stops, 0);
+    const cancel = new Event('cancel', {cancelable: true});
+    b.actionModal.dispatchEvent(cancel); assert.equal(cancel.defaultPrevented, true);
+});
+
+test('workflow progress stays visible from session checking through native submission', () => {
+    const b = browser(); b.form.method = 'post';
+    b.form.dataset.actionProgress = ''; b.form.dataset.loadingMessage = 'Confirming pickup and completion...';
+    b.form.setAttribute('aria-busy', 'true');
+    b.dispatch('submit', b.form, {submitter: b.submitter, canceled: true});
+    assert.equal(b.actionModal.open, true); assert.equal(b.actionModal.opens, 1);
+    assert.match(b.actionMessage.textContent, /Checking your session/);
+    assert.equal(b.actionTitle.textContent, 'Confirming pickup and completion...');
+    b.dispatch('htc:session-submit', b.form, {detail: {form: b.form, submitter: b.submitter}});
+    assert.equal(b.actionModal.opens, 1); assert.equal(b.loader.hidden, true);
+    assert.equal(b.actionMessage.textContent, 'Please wait while we save this action.');
+});
+
+test('declined or intercepted workflow confirmations do not show a loading dialog', () => {
+    const b = browser(); b.form.dataset.actionProgress = '';
+    b.dispatch('submit', b.form, {submitter: b.submitter, canceled: true});
+    assert.equal(b.actionModal.open, false); assert.equal(b.loader.hidden, true);
+    assert.equal(b.document.documentElement.hasAttribute('aria-busy'), false);
+});
+
+test('failed workflow session checks close progress and return focus to the form', () => {
+    const b = browser(); b.form.dataset.actionProgress = ''; b.form.setAttribute('aria-busy', 'true');
+    b.submitter.focus();
+    b.dispatch('submit', b.form, {submitter: b.submitter, canceled: true});
+    assert.equal(b.actionModal.open, true);
+    b.dispatch('htc:session-check-failed', b.form);
+    assert.equal(b.actionModal.open, false); assert.equal(b.actionModal.hidden, true);
+    assert.equal(b.document.activeElement, b.submitter);
+    assert.equal(b.document.documentElement.hasAttribute('aria-busy'), false);
+});
+
+test('session expiry and browser Back clear workflow progress without leaving the page locked', () => {
+    for (const type of ['htc:session-expired', 'pageshow']) {
+        const b = browser(); b.form.method = 'post'; b.form.dataset.actionProgress = '';
+        b.dispatch('submit', b.form, {submitter: b.submitter});
+        if (type === 'pageshow') b.window.dispatchEvent(new Event(type));
+        else b.document.dispatchEvent(new Event(type));
+        assert.equal(b.actionModal.open, false); assert.equal(b.actionModal.hidden, true);
+        assert.equal(b.submitter.disabled, false);
+        assert.equal(b.document.documentElement.hasAttribute('aria-busy'), false);
+    }
+});
+
+test('workflow submission cancels a pending navigation skeleton before it can obscure progress', () => {
+    const b = browser();
+    b.dispatch('click', b.link);
+    b.form.method = 'post'; b.form.dataset.actionProgress = '';
+    b.dispatch('submit', b.form, {submitter: b.submitter});
+    assert.equal(b.timers.size, 0); assert.equal(b.actionModal.open, true); assert.equal(b.loader.hidden, true);
 });

@@ -214,7 +214,7 @@
                 </div>
                 <small class="text-muted">{{ number_format($pagination?->total() ?? $rows->count()) }} matching records</small>
                 @if($pagination)
-                    <small class="text-muted d-block">Table and summary show this page. CSV and PDF exports include all matches.</small>
+                    <small class="text-muted d-block">Table and summary show this page. CSV exports include all matches. PDFs support up to {{ number_format($pdfRowLimit) }} rows, including requisition line items.</small>
                 @endif
             </div>
 
@@ -464,11 +464,11 @@
         document.body.appendChild(pdfModalElement);
         const pdfModal = bootstrap.Modal.getOrCreateInstance(pdfModalElement);
 
-        const setPdfState = (state) => {
+        const setPdfState = (state, message = '') => {
             const failed = state === 'error';
             pdfTitle.textContent = failed ? 'PDF generation failed' : 'Generating PDF report…';
             pdfMessage.textContent = failed
-                ? 'The report could not be generated. Check your connection and try again.'
+                ? (message || 'The report could not be generated. Check your connection and try again.')
                 : 'Preparing the selected records and formatting your document.';
             pdfSpinner.hidden = failed;
             pdfErrorIcon.hidden = !failed;
@@ -525,7 +525,14 @@
                     headers: {Accept: 'application/pdf', 'X-Requested-With': 'XMLHttpRequest'},
                     signal: controller.signal,
                 });
-                if (!response.ok) throw new Error(`PDF request failed with status ${response.status}`);
+                if (!response.ok) {
+                    const error = new Error('The report could not be generated. Check your connection and try again.');
+                    if (response.status === 422 && (response.headers.get('Content-Type') || '').includes('application/json')) {
+                        const details = await response.json();
+                        error.message = details.message || error.message;
+                    }
+                    throw error;
+                }
                 if (!(response.headers.get('Content-Type') || '').toLowerCase().includes('application/pdf')) {
                     throw new Error('The server did not return a PDF document.');
                 }
@@ -556,7 +563,7 @@
                 if (error.name === 'AbortError') {
                     closePdfModal();
                 } else {
-                    setPdfState('error');
+                    setPdfState('error', error.message);
                 }
             } finally {
                 if (pdfRequest === controller) pdfRequest = null;

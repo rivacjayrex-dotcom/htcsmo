@@ -15,6 +15,25 @@ class RequisitionApprovalAuthorizationTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_signatory_and_smo_actions_are_wired_to_the_shared_progress_dialog(): void
+    {
+        foreach (['dept_head', 'vp_finance', 'vp_admin', 'provost', 'president', 'smo'] as $role) {
+            $this->actingAs(User::factory()->create(['role' => $role]))
+                ->get(route('admin.approvals'))->assertOk()
+                ->assertSee('id="runtimeActionModal"', false)
+                ->assertSee('data-action-progress', false)
+                ->assertSee('runtime-action-modal::backdrop', false);
+        }
+
+        $this->actingAs(User::factory()->create(['role' => 'smo']))->get(route('admin.approvals'))
+            ->assertOk()->assertSee('Starting SMO processing...')
+            ->assertSee('Marking supplies ready for pickup...')
+            ->assertSee('Confirming pickup and completion...');
+        $this->actingAs(User::factory()->create(['role' => 'dept_head']))->get(route('admin.approvals'))
+            ->assertOk()->assertSee('Recording your approval...')
+            ->assertSee('Recording your rejection...')->assertSee('Requesting office clarification...');
+    }
+
     public function test_department_head_cannot_approve_when_it_is_vp_finances_turn(): void
     {
         $requestor = User::factory()->create(['department' => 'CETE']);

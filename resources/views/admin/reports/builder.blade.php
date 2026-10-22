@@ -10,6 +10,7 @@
         @endphp
         <a href="{{ route('admin.reports.index', $overviewPeriod) }}" class="btn btn-light border rounded-pill mb-3">Back to Operational Analytics</a>
         <div data-filter-region="context">
+        @error('download_pdf')<div class="alert alert-warning" role="alert">{{ $message }}</div>@enderror
         @if($basisLabel)<p class="text-muted small" role="note">{{ $basisLabel }}</p>@endif
         @if($reportType === 'inventory_movements' && request('supply_id'))
             <div class="alert alert-light border d-flex flex-wrap justify-content-between gap-2">

@@ -14,17 +14,24 @@ use App\Models\UserActivityLog;
 use App\Services\OperationalAnalyticsService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
+use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Database\Query\Expression;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\LazyCollection;
 use Illuminate\Validation\ValidationException;
 
 class ReportController extends Controller
 {
+    private const EXPORT_CHUNK_SIZE = 200;
+
+    public const PDF_ROW_LIMIT = 500;
+
     private const REPORT_TYPES = [
         'requisitions',
         'inventory',
@@ -98,6 +105,11 @@ class ReportController extends Controller
         }
 
         if ($request->boolean('download_pdf')) {
+            // Check again after hydration in case records changed since preflight.
+            if ($report['rows']->count() > self::PDF_ROW_LIMIT) {
+                $this->rejectOversizedPdf($request);
+            }
+
             $pdf = Pdf::loadView('admin.reports.pdf_template', [
                 ...$report,
                 ...$this->pdfContext($report, $request),
@@ -146,6 +158,7 @@ class ReportController extends Controller
 
         return [
             'reportType' => $reportType,
+            'pdfRowLimit' => self::PDF_ROW_LIMIT,
             'periodLabel' => $periodLabel,
             'departmentOptions' => Department::orderBy('dept_code')->pluck('dept_code'),
             'basisLabel' => match ($reportType) {
@@ -165,10 +178,30 @@ class ReportController extends Controller
         ];
     }
 
-    private function records(Request $request, Builder|QueryBuilder $query): Collection
+    private function records(Request $request, Builder|QueryBuilder $query): Collection|LazyCollection
     {
-        if ($request->get('export') === 'csv' || $request->boolean('download_pdf')) {
-            return $query->get();
+        if ($request->get('export') === 'csv') {
+            // Unlike cursor(), lazy() also bounds PDO's buffered results and
+            // eager-loads relationships separately for each chunk.
+            return $query->lazy(self::EXPORT_CHUNK_SIZE);
+        }
+
+        if ($request->boolean('download_pdf')) {
+            // Dompdf builds the entire document in memory. Count up to the
+            // supported limit before loading models and their relationships.
+            $probe = $query instanceof Builder ? (clone $query)->toBase() : clone $query;
+            if (($request->input('report_type') ?: 'requisitions') === 'requisitions') {
+                // A request without items still prints one row; other requests
+                // print one row per item, rather than one row per parent.
+                $probe = DB::query()->fromSub($probe->reorder(), 'pdf_requests')
+                    ->leftJoin('requisition_items as pdf_items', 'pdf_items.requisition_id', '=', 'pdf_requests.id')
+                    ->select('pdf_requests.id');
+            }
+            if ($probe->limit(self::PDF_ROW_LIMIT + 1)->get()->count() > self::PDF_ROW_LIMIT) {
+                $this->rejectOversizedPdf($request);
+            }
+
+            return $query->limit(self::PDF_ROW_LIMIT + 1)->get();
         }
 
         $pagination = $query->paginate(50)->withQueryString();
@@ -177,9 +210,25 @@ class ReportController extends Controller
         return $pagination->getCollection();
     }
 
+    private function rejectOversizedPdf(Request $request): never
+    {
+        $message = 'PDF reports support up to '.self::PDF_ROW_LIMIT.' rows (including requisition line items). Narrow the filters or export CSV for all matching records.';
+
+        if ($request->ajax() || $request->expectsJson()) {
+            throw new HttpResponseException(response()->json(['message' => $message], 422));
+        }
+
+        // Keep the selected filters on the server-rendered fallback as well.
+        throw new HttpResponseException(redirect()->route('admin.reports.builder', $request->except('download_pdf', 'export'))
+            ->withErrors(['download_pdf' => $message]));
+    }
+
     private function requisitionReport(Request $request, ?Carbon $dateFrom, ?Carbon $dateTo): array
     {
-        $query = Requisition::with(['user.academicDepartment', 'items.supply.supplyCategory', 'items.supply.supplyUnit', 'items.supply.options.values', 'logs']);
+        $isCsv = $request->get('export') === 'csv';
+        $query = Requisition::with($isCsv
+            ? ['user.academicDepartment']
+            : ['user.academicDepartment', 'items.supply.supplyCategory', 'items.supply.supplyUnit', 'items.supply.options.values', 'logs']);
 
         if ($request->filled('dept')) {
             $request->dept === '__unassigned'
@@ -203,14 +252,26 @@ class ReportController extends Controller
         $records = $this->records($request, $query->latest('created_at')->orderByDesc('id'));
         // One row per line item prevents specifications, quantities, and prices
         // from being hidden inside a comma-separated requisition summary.
-        $rows = $records->flatMap(function (Requisition $requisition) {
-            $items = $requisition->items->isEmpty() ? collect([null]) : $requisition->items;
+        $rows = $records->flatMap(function (Requisition $requisition) use ($isCsv) {
+            $items = $isCsv
+                ? new LazyCollection(function () use ($requisition) {
+                    $hasItems = false;
+                    foreach ($requisition->items()->with('supply.supplyCategory')->orderBy('id')->lazy(self::EXPORT_CHUNK_SIZE) as $item) {
+                        $hasItems = true;
+                        yield $item;
+                    }
+                    if (! $hasItems) {
+                        yield null;
+                    }
+                })
+                : ($requisition->items->isEmpty() ? collect([null]) : $requisition->items);
 
             $formatTimestamp = static fn ($timestamp) => $timestamp
                 ? Carbon::parse($timestamp)->format('M d, Y h:i A')
                 : '-';
-            $processingLog = $requisition->logs->firstWhere('action', 'Processing Started by SMO In-Charge');
-            $readyLog = $requisition->logs->firstWhere('action', 'Marked Ready for Pickup by SMO In-Charge');
+            // Workflow timestamps are PDF-only; CSV must not load all logs.
+            $processingLog = $isCsv ? null : $requisition->logs->firstWhere('action', 'Processing Started by SMO In-Charge');
+            $readyLog = $isCsv ? null : $requisition->logs->firstWhere('action', 'Marked Ready for Pickup by SMO In-Charge');
 
             return $items->map(fn ($item) => [
                 'tracking' => $requisition->tracking_code,
@@ -261,7 +322,7 @@ class ReportController extends Controller
                 $this->column('status', 'Status'),
             ],
             $isFulfilled ? 'Recorded Fulfilled Value' : 'Total Requested Value',
-            $records->sum('grand_total'),
+            fn () => $records->sum('grand_total'),
             'money',
         );
     }
@@ -315,7 +376,7 @@ class ReportController extends Controller
                 $this->column('health', 'Stock Health'),
             ],
             'Estimated On-hand Value',
-            $rows->sum('asset_value'),
+            fn () => $rows->sum('asset_value'),
             'money',
         );
     }
@@ -341,7 +402,7 @@ class ReportController extends Controller
 
         $this->applyDateRange($query, 'requisitions.closed_at', $dateFrom, $dateTo);
 
-        $records = $this->records($request, $query->groupBy('departments.dept_code')->orderByDesc('total_spent'));
+        $records = $this->records($request, $query->groupBy('departments.dept_code')->orderByDesc('total_spent')->orderBy('departments.dept_code'));
         $rows = $records->map(fn ($department) => [
             'department' => $department->department ?: 'Unassigned',
             'requests' => (int) $department->total_requests,
@@ -361,7 +422,7 @@ class ReportController extends Controller
                 $this->column('total', 'Recorded Fulfilled Value', 'money'),
             ],
             'Recorded Fulfilled Value',
-            $rows->sum('total'),
+            fn () => $rows->sum('total'),
             'money',
         );
     }
@@ -408,7 +469,7 @@ class ReportController extends Controller
                 $this->column('registered', 'Registered'),
             ],
             'Matching User Accounts',
-            $rows->count(),
+            fn () => $rows->count(),
             'number',
         );
     }
@@ -442,6 +503,7 @@ class ReportController extends Controller
         $records = $this->records($request, $query
             ->groupBy('requisition_items.item_name', 'requisition_items.unit', 'supply_categories.category_name')
             ->orderByDesc('total_quantity')
+            ->orderBy('requisition_items.item_name')->orderBy('requisition_items.unit')->orderBy('supply_categories.category_name')
         );
 
         $rows = $records->map(fn ($item) => [
@@ -467,7 +529,7 @@ class ReportController extends Controller
                 $this->column('cost', 'Recorded Line Value', 'money'),
             ],
             'Recorded Fulfilled Line Value',
-            $rows->sum('cost'),
+            fn () => $rows->sum('cost'),
             'money',
         );
     }
@@ -519,7 +581,7 @@ class ReportController extends Controller
                 $this->column('verification', 'Verification Ref.'),
             ],
             'Recorded Approval Actions',
-            $rows->count(),
+            fn () => $rows->count(),
             'number',
         );
     }
@@ -567,7 +629,7 @@ class ReportController extends Controller
                 $this->column('remarks', 'Remarks'),
             ],
             'Inventory Transactions',
-            $rows->count(),
+            fn () => $rows->count(),
             'number',
         );
     }
@@ -611,24 +673,28 @@ class ReportController extends Controller
                 $this->column('device', 'Browser / Device'),
             ],
             'Recorded User Activities',
-            $rows->count(),
+            fn () => $rows->count(),
             'number',
         );
     }
 
     /**
-     * @param  Collection<int, array<string, mixed>>  $rows
+     * @param  Collection<int, array<string, mixed>>|LazyCollection<int, array<string, mixed>>  $rows
      * @param  array<int, array{key: string, label: string, type: string}>  $columns
      * @return array<string, mixed>
      */
     private function reportResult(
         string $title,
-        Collection $rows,
+        Collection|LazyCollection $rows,
         array $columns,
         string $summaryLabel,
-        float|int $summaryValue,
+        Closure $summary,
         string $summaryType,
     ): array {
+        // CSV only contains headers and data, so do not traverse the lazy
+        // export to calculate a summary that will never be written.
+        $summaryValue = $rows instanceof LazyCollection ? null : $summary();
+
         return compact('title', 'rows', 'columns', 'summaryLabel', 'summaryValue', 'summaryType');
     }
 

@@ -84,12 +84,16 @@ for (const status of [401, 419]) {
 
 test('a valid form check submits exactly once with the confirmed action value', async () => {
     const b = browser();
+    let submitted;
+    b.document.addEventListener('htc:session-submit', event => submitted = event.detail);
     b.submit(); b.submit();
     await flush();
     assert.equal(b.calls.length, 1);
     assert.equal(b.calls[0][1].body.get('account'), '7');
     assert.equal(b.form.writes, 1);
     assert.equal(b.form.children.find(child => child.type === 'hidden').value, 'approved');
+    assert.equal(submitted.form, b.form);
+    assert.equal(submitted.submitter, b.button);
     assert.equal(b.window.htcSession.expired, false);
 });
 

@@ -36,6 +36,11 @@
     .runtime-logout-modal__spinner { width: 1.5rem; height: 1.5rem; flex: 0 0 1.5rem; border: 3px solid #dbe9df; border-top-color: #198754; border-radius: 50%; animation: runtime-spin .75s linear infinite; }
     .runtime-logout-modal__title { display: block; font-size: .95rem; font-weight: 700; line-height: 1.25; }
     .runtime-logout-modal__copy { display: block; margin-top: .15rem; color: #66756c; font-size: .78rem; line-height: 1.35; }
+    .runtime-action-modal { width: min(360px, calc(100vw - 2rem)); margin: auto; padding: 1.6rem; border: 1px solid #dce4de; border-radius: 18px; color: #173b27; background: #fff; text-align: center; box-shadow: 0 22px 60px rgba(8,34,19,.24); }
+    .runtime-action-modal::backdrop { background: rgba(10,29,18,.5); backdrop-filter: blur(2px); }
+    .runtime-action-modal__spinner { display: block; width: 42px; height: 42px; margin: 0 auto 1rem; border: 4px solid #dbe9df; border-top-color: #198754; border-radius: 50%; animation: runtime-spin .75s linear infinite; }
+    .runtime-action-modal h2 { margin: 0; font-size: 1.05rem; font-weight: 800; line-height: 1.4; }
+    .runtime-action-modal p { margin: .5rem 0 0; color: #66756c; font-size: .85rem; line-height: 1.5; }
 
     @keyframes runtime-spin { to { transform: rotate(360deg); } }
     @keyframes runtime-shimmer { 100% { transform: translateX(100%); } }
@@ -54,6 +59,7 @@
     }
     @media (prefers-reduced-motion: reduce) {
         .runtime-spinner { animation-duration: 2s; }
+        .runtime-action-modal__spinner { animation: none; }
         .runtime-content-skeleton__block::after { animation: none; }
     }
 </style>
@@ -99,6 +105,14 @@
     </div>
 </div>
 
+<dialog id="runtimeActionModal" class="runtime-action-modal" aria-labelledby="runtimeActionTitle" aria-describedby="runtimeActionMessage" tabindex="-1" hidden>
+    <span class="runtime-action-modal__spinner" aria-hidden="true"></span>
+    <div role="status" aria-live="polite" aria-atomic="true">
+        <h2 id="runtimeActionTitle">Saving requisition...</h2>
+        <p id="runtimeActionMessage">Please wait while we save this action.</p>
+    </div>
+</dialog>
+
 <script>
     (() => {
         if (window.__htcRuntimeGuardLoaded) return;
@@ -107,6 +121,10 @@
         const loader = document.getElementById('runtimeLoader');
         const loaderMessage = document.getElementById('runtimeLoaderMessage');
         const logoutModal = document.getElementById('runtimeLogoutModal');
+        const actionModal = document.getElementById('runtimeActionModal');
+        const actionTitle = document.getElementById('runtimeActionTitle');
+        const actionMessage = document.getElementById('runtimeActionMessage');
+        let activeActionForm = null;
         const lockedForms = new Set();
         const nativeSubmit = HTMLFormElement.prototype.submit;
         let runtimeLocked = false;
@@ -157,6 +175,32 @@
             logoutModal.focus({preventScroll: true});
         };
 
+        const showActionProgress = (form, submitter, checking = false) => {
+            if (!actionModal || window.htcSession?.expired) return;
+            if (typeof actionModal.showModal !== 'function') {
+                showLoader(form.dataset.loadingMessage || 'Saving requisition...');
+                return;
+            }
+            if (!runtimeLocked && document.activeElement instanceof HTMLElement) previousFocus = document.activeElement;
+            window.clearTimeout(loaderTimer);
+            window.clearTimeout(navigationTimer);
+            loaderTimer = null;
+            navigationTimer = null;
+            recoverableNavigation = false;
+            if (loader) loader.hidden = true;
+            activeActionForm = form;
+            actionTitle.textContent = submitter?.dataset.loadingText || form.dataset.loadingMessage || 'Saving requisition...';
+            actionMessage.textContent = checking
+                ? 'Checking your session before saving this action.'
+                : 'Please wait while we save this action.';
+            runtimeLocked = true;
+            document.body.classList.add('runtime-locked');
+            document.documentElement.setAttribute('aria-busy', 'true');
+            actionModal.hidden = false;
+            if (!actionModal.open) actionModal.showModal();
+            actionModal.focus({preventScroll: true});
+        };
+
         const hideLoader = () => {
             window.clearTimeout(loaderTimer);
             window.clearTimeout(navigationTimer);
@@ -169,6 +213,9 @@
             document.documentElement.removeAttribute('aria-busy');
             if (loader) loader.hidden = true;
             if (logoutModal) logoutModal.hidden = true;
+            if (actionModal?.open) actionModal.close();
+            if (actionModal) actionModal.hidden = true;
+            activeActionForm = null;
             if (previousFocus?.isConnected) previousFocus.focus({preventScroll: true});
             previousFocus = null;
         };
@@ -215,8 +262,15 @@
 
         document.addEventListener('submit', event => {
             const form = event.target;
-            if (!(form instanceof HTMLFormElement) || event.defaultPrevented) return;
+            if (!(form instanceof HTMLFormElement)) return;
             const submitter = event.submitter;
+            const actionProgress = form.dataset.actionProgress !== undefined;
+            // A canceled event is an in-flight session check only when the form
+            // is busy. Declined confirmations must not open a progress dialog.
+            if (actionProgress && event.defaultPrevented && form.getAttribute('aria-busy') === 'true') {
+                showActionProgress(form, submitter, true);
+            }
+            if (event.defaultPrevented) return;
             if (form.dataset.download !== undefined || submitter?.dataset.download !== undefined) {
                 skipNextUnloadLoader = true;
                 return;
@@ -265,6 +319,8 @@
             if ((form.method || 'get').toLowerCase() !== 'get') clearRuntimeCache();
             if (form.dataset.logoutForm !== undefined) {
                 showLogoutModal();
+            } else if (actionProgress) {
+                showActionProgress(form, submitter);
             } else {
                 showLoader(form.dataset.loadingMessage || 'Processing request…');
                 if ((form.method || 'get').toLowerCase() === 'get') watchNavigation();
@@ -336,18 +392,25 @@
             lockedForms.forEach(unlockForm);
             hideLoader();
         });
+        actionModal?.addEventListener('cancel', event => event.preventDefault());
+        // Bootstrap's underlying review modal must not reclaim dialog focus.
+        actionModal?.addEventListener('focusin', event => event.stopPropagation());
+        document.addEventListener('htc:session-check-failed', event => {
+            if (event.target === activeActionForm) hideLoader();
+        });
         document.addEventListener('htc:session-expired', () => {
             lockedForms.forEach(unlockForm);
             hideLoader();
         });
         document.addEventListener('htc:session-submit', event => {
-            const form = event.detail.form;
+            const {form, submitter} = event.detail;
             clearRuntimeCache();
             if (form.dataset.noLoader !== undefined) {
                 skipNextUnloadLoader = form.dataset.noUnloadLoader !== undefined;
                 return;
             }
             if (form.dataset.logoutForm !== undefined) showLogoutModal();
+            else if (form.dataset.actionProgress !== undefined) showActionProgress(form, submitter);
             else showLoader(form.dataset.loadingMessage || 'Processing request…');
         });
     })();
