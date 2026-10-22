@@ -16,7 +16,7 @@ The route/controller/view inventory covered every search field, GET filter form,
 | Notifications | `notifications` | Category links and pagination now use shared history, error handling, and orientation | `#notification-results` |
 | Operational analytics | `admin.reports.index` | Period, valid custom dates, reset; totals and chart/table sections update together | `#analytics-results` |
 | Report Center | `admin.reports.builder` | Period, valid dates, department, role, status, tier, stock/category/transaction filters, clear, item-filter removal, pagination | `#report-preview` |
-| Approval/fulfillment queue | `admin.approvals` | No GET search form exists. Existing paginated queue links retain their tab and now return directly to the queue. Review and approval forms remain deliberate. | `#approval-results` |
+| Approval/fulfillment queue | `admin.approvals` | Search, department, tier, status, valid paired submission dates, sort, group links, clear, and pagination use the shared helper. Actions preserve validated queue filters/group/page and remain deliberate POST forms. | `#approval-results` |
 
 ## Shared implementation
 
@@ -62,4 +62,4 @@ npm run build
 
 The Node isolation flag avoids a child-process restriction in the managed Windows workspace. Vite's esbuild subprocess may need permission to run outside that sandbox. No packages need installation.
 
-Limitations: partial updates currently fetch full server-rendered HTML rather than introducing fragment endpoints. Native browser layout and assistive-technology behavior should also be checked in a manual browser pass; the automated frontend suite uses the project's Node DOM/event test pattern. JavaScript-disabled pages require the fallback submit button. Report-type changes and approval-queue pagination use a full load with a result anchor.
+Limitations: partial updates currently fetch full server-rendered HTML rather than introducing fragment endpoints. Native browser layout and assistive-technology behavior should also be checked in a manual browser pass; the automated frontend suite uses the project's Node DOM/event test pattern. JavaScript-disabled pages require the fallback submit button. Report-type changes use a full load with a result anchor.

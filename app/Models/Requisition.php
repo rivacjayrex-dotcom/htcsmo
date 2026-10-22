@@ -299,6 +299,24 @@ class Requisition extends Model
         };
     }
 
+    /** Includes the established executive requestor route for both tiers. */
+    public function scopeAwaitingFulfillment(Builder $query): Builder
+    {
+        return $query->where(function (Builder $approved) {
+            $approved->where(function (Builder $minor) {
+                $minor->where('request_type', 'minor')->whereIn('status', ['approved_vp', 'approved_president']);
+            })->orWhere(function (Builder $major) {
+                $major->where('request_type', 'major')->where('status', 'approved_president');
+            });
+        });
+    }
+
+    public function canStartProcessing(): bool
+    {
+        return ($this->request_type === 'minor' && in_array($this->status, ['approved_vp', 'approved_president'], true))
+            || ($this->request_type === 'major' && $this->status === 'approved_president');
+    }
+
     public static function initialStatusFor(User $requestor): string
     {
         return match ($requestor->role) {
@@ -391,7 +409,8 @@ class Requisition extends Model
         if ($this->status === 'for_clarification') {
             $questioningRole = $this->currentReviewerRole();
 
-            return $questioningRole !== null && $user->role === $questioningRole;
+            return $questioningRole !== null && $user->role === $questioningRole
+                && ($user->role !== 'dept_head' || $this->user?->department_id === $user->department_id);
         }
 
         return match ($user->role) {
@@ -401,8 +420,7 @@ class Requisition extends Model
             'vp_admin' => $this->status === 'approved_dept' && $this->request_type === 'major',
             'provost' => $this->status === 'approved_vp' && $this->request_type === 'major',
             'president' => $this->status === 'approved_provost' && $this->request_type === 'major',
-            'smo' => ($this->request_type === 'minor' && $this->status === 'approved_vp')
-                || ($this->request_type === 'major' && $this->status === 'approved_president')
+            'smo' => $this->canStartProcessing()
                 || in_array($this->status, ['processing', 'ready_for_pickup'], true),
             default => false,
         };

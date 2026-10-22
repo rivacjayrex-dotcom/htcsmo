@@ -43,12 +43,6 @@
         <div><span>Withdrawn</span><strong>{{ $summary->withdrawn }}</strong></div>
         <div><span>Requested value of matches</span><strong>&#8369;{{ number_format((float) $summary->requested_value, 2) }}</strong></div>
     </section>
-    <div class="archive-report-context">
-        <p><strong>Date basis: {{ $dateBasisLabel }}.</strong> {{ $filters['date_from'] ?? 'Any start date' }} to {{ $filters['date_to'] ?? 'any end date' }}. Timezone: {{ config('app.timezone') }}. Category: {{ $categoryLabels[$filters['category'] ?? 'all'] }}.@if(filled($filters['status'] ?? null)) Final status: {{ $filters['status'] }}.@endif @if(filled($filters['search'] ?? null)) Search: “{{ $filters['search'] }}”.@endif @if($institutional && filled($filters['dept'] ?? null)) Department: {{ $filters['dept'] }}.@endif</p>
-        <p>Requested values include requests that may not have been supplied. They are not audited expenditure or quantities actually issued.</p>
-        <p>Completed means pickup was confirmed. Released is a legacy outcome; consult its history for recorded details. Unknown closure dates are shown as unavailable and excluded from closure-date ranges. Submission dates use the creation date only when a legacy submission date is missing.</p>
-        @if($summary->undated > 0)<p><strong>{{ $summary->undated }} matching {{ Str::plural('record', $summary->undated) }} {{ $summary->undated == 1 ? 'has' : 'have' }} no known closure date.</strong> No date has been estimated.</p>@endif
-    </div>
 
     @include('requests.partials.history-table', ['requisitions' => $records, 'type' => 'archive'])
     @if(method_exists($records, 'hasPages') && $records->hasPages())<nav class="archive-pagination archive-screen-only mt-3" aria-label="Archive pages" data-filter-pagination>{{ $records->fragment('archive-results')->links() }}</nav>@endif

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ActiveRequestIndexRequest;
+use App\Http\Requests\ApprovalQueueRequest;
 use App\Http\Requests\ArchiveIndexRequest;
 use App\Jobs\SendRequisitionEmail;
 use App\Models\ApprovalLog;
@@ -10,17 +11,19 @@ use App\Models\Department;
 use App\Models\DigitalSignature;
 use App\Models\Notification;
 use App\Models\Requisition;
-use App\Models\Supply;
 use App\Models\SupplyInventoryLog;
 use App\Models\User;
 use App\Services\ArchiveService;
 use App\Services\DeadlineNotificationService;
+use App\Services\FulfillmentInventoryService;
 use App\Services\InventoryAlertService;
 use App\Services\NotificationActionResolver;
 use App\Services\NotificationService;
 use App\Services\WorkspaceVersionService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
+use Closure;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -207,85 +210,129 @@ class RequestController extends Controller
     /**
      * Admin/Signatory Approval Queue
      */
-    public function adminIndex()
+    public function adminIndex(ApprovalQueueRequest $request, FulfillmentInventoryService $inventory)
     {
         $user = Auth::user();
-
-        // Standard pending query
-        $query = Requisition::with(['items', 'user.academicDepartment']);
-
-        switch ($user->role) {
-            case 'dept_head':
-                $query->where('status', 'pending')
-                    ->whereHas('user', fn ($u) => $u->where('department_id', $user->department_id));
-                break;
-            case 'vp_finance':
-                $query->where('status', 'approved_dept')->where('request_type', 'minor');
-                break;
-            case 'vp_admin':
-                $query->where('status', 'approved_dept')->where('request_type', 'major');
-                break;
-            case 'provost':
-                $query->where('status', 'approved_vp')->where('request_type', 'major');
-                break;
-            case 'president':
-                $query->where('status', 'approved_provost')->where('request_type', 'major');
-                break;
-            case 'smo':
-                $query->where(function ($q) {
-                    $q->where(function ($sub) {
-                        $sub->where('request_type', 'minor')->where('status', 'approved_vp');
-                    })->orWhere(function ($sub) {
-                        $sub->where('status', 'approved_president');
-                    })->orWhereIn('status', ['processing', 'ready_for_pickup']);
-                });
-                break;
-            default:
-                $query->whereRaw('1 = 0');
-                break;
-        }
-
+        $relations = ['items', 'user.academicDepartment', 'logs.actor'];
         if ($user->role === 'smo') {
-            $query->prioritizeExecutiveRequestors();
+            $relations[] = 'items.supply';
         }
+        $query = Requisition::with($relations);
+        $user->role === 'smo'
+            ? $query->where(fn ($q) => $q->awaitingFulfillment()->orWhereIn('status', ['processing', 'ready_for_pickup']))
+            : $query->assignedToReviewer($user);
 
-        // Dedicated list for requests placed on hold / for clarification
-        $clarificationRequests = Requisition::with([
-            'items',
-            'user.academicDepartment',
-            'logs' => fn ($query) => $query->orderBy('id'),
-        ])
-            ->where('status', 'for_clarification')
-            ->latest();
-
-        // SMO coordinates every inquiry; signatories only handle inquiries they initiated.
+        $clarifications = Requisition::with($relations)->where('status', 'for_clarification');
         if ($user->role !== 'smo') {
-            $clarificationRequests->whereRaw(
+            $clarifications->whereRaw(
                 '(SELECT role FROM approval_logs WHERE requisition_id = requisitions.id AND action LIKE ? ORDER BY id DESC LIMIT 1) = ?',
                 ['%Clarification%', $user->role],
             );
+            if ($user->role === 'dept_head') {
+                $clarifications->whereHas('user', fn ($u) => $u->where('department_id', $user->department_id));
+            }
         }
 
-        $focusedRequestId = request()->integer('request');
+        // Notification links remain role-scoped even when current filters hide the row.
+        $focusedRequestId = $request->integer('request');
         $focusedRequest = $focusedRequestId > 0
-            ? ((clone $query)->find($focusedRequestId) ?? (clone $clarificationRequests)->find($focusedRequestId))
+            ? ((clone $query)->find($focusedRequestId) ?? (clone $clarifications)->find($focusedRequestId))
             : null;
-        $clarificationRequests = $clarificationRequests->orderByDesc('id')->paginate(15, ['*'], 'inquiry_page')
-            ->withQueryString()->appends(['tab' => 'clarification', 'request' => null]);
+
+        foreach ([$query, $clarifications] as $filtered) {
+            $filtered->search($request->input('search'));
+            if ($request->filled('dept')) {
+                $filtered->whereHas('user', fn ($u) => $u->inDepartment($request->dept));
+            }
+            if ($request->filled('tier')) {
+                $filtered->where('request_type', $request->tier);
+            }
+            if ($request->filled('status')) {
+                $filtered->where('status', $request->status);
+            }
+            if ($request->filled('date_from')) {
+                $filtered->whereRaw('COALESCE(submitted_at, created_at) >= ?', [Carbon::parse($request->date_from)->startOfDay()]);
+                $filtered->whereRaw('COALESCE(submitted_at, created_at) < ?', [Carbon::parse($request->date_to)->startOfDay()->addDay()]);
+            }
+            if ($request->input('sort', 'priority') === 'priority' && $user->role === 'smo') {
+                $filtered->prioritizeExecutiveRequestors();
+            } elseif ($request->input('sort') === 'deadline') {
+                $filtered->orderByRaw('CASE WHEN due_at <= ? THEN 0 WHEN sla_warning_at <= ? THEN 1 WHEN due_at IS NULL THEN 3 ELSE 2 END', [now(), now()])
+                    ->orderBy('due_at');
+            }
+            $direction = $request->input('sort') === 'oldest' ? 'asc' : 'desc';
+            $filtered->orderByRaw('COALESCE(submitted_at, created_at) '.$direction)->orderBy('id', $direction);
+        }
+
+        $paginate = function ($q, $page, $tab) {
+            $results = $q->paginate(15, ['*'], $page);
+            if ($results->total() > 0 && $results->currentPage() > $results->lastPage()) {
+                $results = $q->paginate(15, ['*'], $page, $results->lastPage());
+            }
+
+            return $results->withQueryString()->appends(['tab' => $tab, 'request' => null]);
+        };
+        $clarificationRequests = $paginate($clarifications, 'inquiry_page', 'clarification');
+        $data = compact('clarificationRequests', 'focusedRequest');
 
         if ($user->role === 'smo') {
-            $pendingMinor = (clone $query)->where('request_type', 'minor')->latest()->orderByDesc('id')->paginate(15, ['*'], 'minor_page')
-                ->withQueryString()->appends(['tab' => 'minor', 'request' => null]);
-            $pendingMajor = (clone $query)->where('request_type', 'major')->latest()->orderByDesc('id')->paginate(15, ['*'], 'major_page')
-                ->withQueryString()->appends(['tab' => 'major', 'request' => null]);
-
-            return view('admin.approvals', compact('pendingMinor', 'pendingMajor', 'clarificationRequests', 'focusedRequest'));
+            $data['pendingMinor'] = $paginate((clone $query)->awaitingFulfillment()->where('request_type', 'minor'), 'minor_page', 'minor');
+            $data['pendingMajor'] = $paginate((clone $query)->awaitingFulfillment()->where('request_type', 'major'), 'major_page', 'major');
+            $data['activeWork'] = $paginate((clone $query)->whereIn('status', ['processing', 'ready_for_pickup']), 'work_page', 'work');
+        } else {
+            $data['pendingRequests'] = $paginate($query, 'page', 'pending');
         }
 
-        $pendingRequests = $query->latest()->orderByDesc('id')->paginate(15)
-            ->withQueryString()->appends(['tab' => 'pending', 'request' => null]);
+        foreach ($data as $value) {
+            foreach ($value instanceof Requisition ? [$value] : ($value ?? []) as $requisition) {
+                $requisition->setAttribute('tracking_code', $requisition->tracking_code);
+                $requisition->setAttribute('can_start_processing', $requisition->canStartProcessing());
+                $requisition->setAttribute('queue_requestor', ['name' => $requisition->user?->name ?? 'Unknown requestor', 'department' => $requisition->user?->department ?? 'Unassigned']);
+                $requisition->setAttribute('queue_status', $requisition->requestorStatus()['label']);
+                if ($user->role === 'smo') {
+                    $plan = $inventory->plan($requisition);
+                    $requisition->setAttribute('stock_errors', $plan['errors']);
+                    foreach ($requisition->items as $item) {
+                        $item->setAttribute('stock_readiness', $plan['lines'][$item->id]);
+                    }
+                }
+            }
+        }
+        $data['departments'] = Department::orderBy('dept_code')->pluck('dept_code');
+        $allowedTabs = $user->role === 'smo' ? ['minor', 'major', 'work', 'clarification'] : ['pending', 'clarification'];
+        $defaultTab = $focusedRequest?->status === 'for_clarification' || $request->has('inquiry_page') ? 'clarification'
+            : ($request->has('work_page') || in_array($focusedRequest?->status, ['processing', 'ready_for_pickup'], true) ? 'work'
+                : ($request->has('major_page') || $focusedRequest?->request_type === 'major' ? 'major' : $allowedTabs[0]));
+        $data['selectedTab'] = in_array($request->input('tab', $defaultTab), $allowedTabs, true) ? $request->input('tab', $defaultTab) : $allowedTabs[0];
 
-        return view('admin.approvals', compact('pendingRequests', 'clarificationRequests', 'focusedRequest'));
+        return view('admin.approvals', $data);
+    }
+
+    private function approvalQueueRedirect(Request $request)
+    {
+        $filters = [];
+        $query = $request->input('queue_query');
+        if (is_string($query) && strlen($query) <= 4000) {
+            parse_str($query, $filters);
+            $validator = Validator::make($filters, ApprovalQueueRequest::filterRules());
+            $filters = $validator->passes() ? $validator->validated() : [];
+        }
+        unset($filters['request']);
+
+        return redirect()->to(route('admin.approvals', $filters).($filters ? '#approval-results' : ''));
+    }
+
+    private function fulfillmentTransaction(Closure $operation): array
+    {
+        try {
+            return DB::transaction($operation);
+        } catch (ModelNotFoundException $exception) {
+            throw $exception;
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            return ['error' => 'The fulfillment action could not be confirmed. Reload the requisition and check its status before retrying.'];
+        }
     }
 
     /**
@@ -480,7 +527,7 @@ class RequestController extends Controller
             $accent
         );
 
-        return redirect()->route('admin.approvals')->with('success', "Requisition #{$sr->id} status updated.");
+        return $this->approvalQueueRedirect($request)->with('success', "Requisition #{$sr->id} status updated.");
     }
 
     /**
@@ -494,18 +541,15 @@ class RequestController extends Controller
     /**
      * Move a fully approved requisition into active SMO processing.
      */
-    public function startProcessing(int $id, NotificationService $notifications)
+    public function startProcessing(Request $request, int $id, NotificationService $notifications)
     {
         if (Auth::user()->role !== 'smo') {
             return back()->with('error', 'Unauthorized. Only the SMO In-Charge can process supplies.');
         }
 
-        $outcome = DB::transaction(function () use ($id, $notifications) {
+        $outcome = $this->fulfillmentTransaction(function () use ($id, $notifications) {
             $requisition = Requisition::with(['items', 'user.academicDepartment'])->lockForUpdate()->findOrFail($id);
-            $isFullyApproved = ($requisition->request_type === 'minor' && $requisition->status === 'approved_vp')
-                || ($requisition->request_type === 'major' && $requisition->status === 'approved_president');
-
-            if (! $isFullyApproved) {
+            if (! $requisition->canStartProcessing()) {
                 return ['error' => 'This requisition has not completed its required approval route.'];
             }
 
@@ -532,20 +576,20 @@ class RequestController extends Controller
             return back()->with('error', $outcome['error']);
         }
 
-        return redirect()->route('admin.approvals')->with('success', "Requisition #{$outcome['requisition']->id} is now being processed.");
+        return $this->approvalQueueRedirect($request)->with('success', "Requisition #{$outcome['requisition']->id} is now being processed.");
     }
 
     /**
      * Deduct prepared stock and notify the requestor that pickup is available.
      */
-    public function markReadyForPickup(int $id, InventoryAlertService $alertService)
+    public function markReadyForPickup(Request $request, int $id, InventoryAlertService $alertService, FulfillmentInventoryService $inventory)
     {
         // Only SMO can release supplies.
         if (Auth::user()->role !== 'smo') {
             return back()->with('error', 'Unauthorized. Only the SMO In-Charge can release supplies.');
         }
 
-        $outcome = DB::transaction(function () use ($id, $alertService) {
+        $outcome = $this->fulfillmentTransaction(function () use ($id, $alertService, $inventory) {
             $sr = Requisition::with(['items', 'user.academicDepartment'])->lockForUpdate()->findOrFail($id);
 
             if (in_array($sr->status, ['ready_for_pickup', 'completed', 'released'], true)) {
@@ -561,48 +605,12 @@ class RequestController extends Controller
             // Lock and aggregate every catalog item before changing stock. This
             // prevents concurrent releases and avoids partial deductions when
             // a later line is unavailable or duplicate cart lines share stock.
-            $linkedSupplies = Supply::query()
-                ->whereIn('id', $sr->items->pluck('supply_id')->filter()->unique())
-                ->lockForUpdate()
-                ->get()
-                ->keyBy('id');
-            $legacySupplies = [];
-            $inventoryPlans = [];
-
-            foreach ($sr->items as $item) {
-                if ($item->supply_id) {
-                    $inventoryItem = $linkedSupplies->get($item->supply_id);
-                } else {
-                    $legacyKey = mb_strtolower(trim($item->item_name));
-                    if (! array_key_exists($legacyKey, $legacySupplies)) {
-                        $legacySupplies[$legacyKey] = Supply::query()
-                            ->where('item_name', 'LIKE', trim($item->item_name))
-                            ->lockForUpdate()
-                            ->first();
-                    }
-                    $inventoryItem = $legacySupplies[$legacyKey];
-                }
-
-                if (! $inventoryItem) {
-                    continue;
-                }
-
-                $inventoryPlans[$inventoryItem->id] ??= [
-                    'supply' => $inventoryItem,
-                    'quantity' => 0,
-                ];
-                $inventoryPlans[$inventoryItem->id]['quantity'] += (int) $item->quantity;
+            $inventoryPlan = $inventory->plan($sr, lock: true);
+            if ($inventoryPlan['errors']) {
+                return ['error' => implode(' ', $inventoryPlan['errors'])];
             }
 
-            foreach ($inventoryPlans as $plan) {
-                $inventoryItem = $plan['supply'];
-                $requestedQuantity = $plan['quantity'];
-                if ($inventoryItem->quantity < $requestedQuantity) {
-                    return ['error' => "Insufficient stock for '{$inventoryItem->item_name}'. Available: {$inventoryItem->quantity}, Requested: {$requestedQuantity}."];
-                }
-            }
-
-            foreach ($inventoryPlans as $plan) {
+            foreach ($inventoryPlan['plans'] as $plan) {
                 $inventoryItem = $plan['supply'];
                 $requestedQuantity = $plan['quantity'];
                 $wasOut = $inventoryItem->quantity <= 0;
@@ -686,19 +694,19 @@ class RequestController extends Controller
             '#185b3b'
         );
 
-        return redirect()->route('admin.approvals')->with('success', "Requisition #{$sr->id} is ready for pickup.");
+        return $this->approvalQueueRedirect($request)->with('success', "Requisition #{$sr->id} is ready for pickup.");
     }
 
     /**
      * Close the requisition after the requestor receives the prepared items.
      */
-    public function completeRequest(int $id, NotificationService $notifications)
+    public function completeRequest(Request $request, int $id, NotificationService $notifications)
     {
         if (Auth::user()->role !== 'smo') {
             return back()->with('error', 'Unauthorized. Only the SMO In-Charge can complete requests.');
         }
 
-        $outcome = DB::transaction(function () use ($id, $notifications) {
+        $outcome = $this->fulfillmentTransaction(function () use ($id, $notifications) {
             $requisition = Requisition::with('user')->lockForUpdate()->findOrFail($id);
 
             if ($requisition->status !== 'ready_for_pickup') {
@@ -728,7 +736,7 @@ class RequestController extends Controller
             return back()->with('error', $outcome['error']);
         }
 
-        return redirect()->route('admin.approvals')->with('success', "Requisition #{$outcome['requisition']->id} has been completed.");
+        return $this->approvalQueueRedirect($request)->with('success', "Requisition #{$outcome['requisition']->id} has been completed.");
     }
 
     public function show(Request $httpRequest, int $id)

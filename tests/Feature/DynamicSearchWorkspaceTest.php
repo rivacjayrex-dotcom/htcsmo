@@ -28,6 +28,7 @@ class DynamicSearchWorkspaceTest extends TestCase
             'inventory.index',
             'admin.reports.index',
             'admin.reports.builder',
+            'admin.approvals',
         ] as $routeName) {
             $this
                 ->actingAs($smo)
@@ -41,7 +42,7 @@ class DynamicSearchWorkspaceTest extends TestCase
     {
         $this->actingAs(User::factory()->create(['role' => 'smo']));
         foreach (['requests.index', 'requests.archive', 'admin.archive', 'inventory.index', 'admin.users.pending',
-            'admin.users.manage', 'admin.reports.index', 'admin.reports.builder', 'notifications'] as $route) {
+            'admin.users.manage', 'admin.reports.index', 'admin.reports.builder', 'admin.approvals', 'notifications'] as $route) {
             $html = $this->get(route($route))->assertOk()->getContent();
             $document = new DOMDocument;
             @$document->loadHTML($html);
