@@ -6,7 +6,7 @@
         request()->routeIs('inventory.index') => 'Manage Stock',
         request()->routeIs('requisitions.edit') => 'Edit Requisition',
         request()->routeIs('requests.show') => 'Requisition Details',
-        request()->routeIs('requests.archive') => 'Requisition History',
+        request()->routeIs('requests.archive') => 'Archive',
         request()->routeIs('requests.index') => 'Active Requisitions',
         request()->routeIs('notifications') => 'Notification Center',
         request()->routeIs('admin.approvals') => Auth::check() && Auth::user()->role === 'smo'

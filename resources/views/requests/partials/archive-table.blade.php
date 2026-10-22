@@ -1,4 +1,4 @@
-<div class="card request-history-card">
+<div class="card request-history-card" data-filter-links>
     <div class="table-responsive">
         <table class="table workflow-responsive-table request-history-table archive-results-table">
             <caption class="visually-hidden">{{ $institutional ? 'Institutional' : 'My' }} archived requests matching the selected filters.</caption>

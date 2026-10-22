@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import {initializeDynamicSearch} from '../../resources/js/dynamic-search.js';
 
 const read = path => readFileSync(new URL('../../' + path, import.meta.url), 'utf8');
 const template = read('resources/views/layouts/partials/session-recovery.blade.php');
@@ -145,19 +146,16 @@ test('an unexpected successful response from the check endpoint cannot submit a 
 });
 
 test('expiry cancels dynamic search without its navigation fallback', async () => {
-    const template = read('resources/views/layouts/partials/dynamic-search.blade.php');
-    const script = template.slice(template.indexOf('<script>') + 8, template.lastIndexOf('</script>'));
-    const listeners = new Map(); const navigations = [];
-    const form = {action: 'https://app.test/requests', setAttribute() {}, removeAttribute() {}, querySelector: () => ({}), appendChild() {}};
-    const input = {form, name: 'search', value: 'paper', closest: () => input};
-    const window = {location: {href: form.action, assign: url => navigations.push(url)}, clearTimeout() {}, setTimeout: callback => callback()};
-    const document = {querySelector: () => form, addEventListener: (name, callback) => listeners.set(name, callback)};
-    vm.runInNewContext(script, {window, document, URL, AbortController,
-        FormData: class {forEach(callback) {callback('paper', 'search');}},
+    const navigations = [];
+    const result = {id: 'results', setAttribute() {}, removeAttribute() {}};
+    const status = {};
+    const root = {dataset: {}, querySelector: selector => selector === '[data-filter-status]' ? status : result, querySelectorAll: () => []};
+    const document = {querySelectorAll: () => [], addEventListener() {}};
+    const window = {location: {href: 'https://app.test/requests', origin: 'https://app.test', assign: url => navigations.push(url)},
+        addEventListener() {}, clearTimeout, setTimeout,
         fetch: async () => {throw Object.assign(new Error('Expired'), {name: 'SessionExpiredError'});},
-    });
-    listeners.get('input')({target: input});
-    await flush();
+    };
+    await initializeDynamicSearch(window, document).refresh(root, window.location.href);
     assert.deepEqual(navigations, []);
 });
 
@@ -165,7 +163,7 @@ for (const name of ['SessionExpiredError', 'TypeError']) {
     test(`notification write failure (${name}) never falls back to submitting the same form`, async () => {
         const template = read('resources/views/notifications.blade.php');
         const start = template.indexOf("center.addEventListener('submit', ") + "center.addEventListener('submit', ".length;
-        const callback = template.slice(start, template.indexOf("window.addEventListener('popstate'", start)).replace(/\);\s*$/, '');
+        const callback = template.slice(start, template.indexOf("window.addEventListener('storage'", start)).replace(/\);\s*$/, '');
         let writes = 0; let alerts = 0;
         const button = {disabled: false, isConnected: true};
         const form = {dataset: {}, action: '/notifications/1/read', submit: () => writes++, querySelector: selector => selector.startsWith('button') ? button : {value: 'old-token'}};

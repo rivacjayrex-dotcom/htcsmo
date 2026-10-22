@@ -17,7 +17,7 @@ class ProfileUpdateRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['bail', 'required', 'string', 'max:255'],
+            'name' => ['exclude'],
             'username' => [
                 'bail',
                 'required',
@@ -28,15 +28,7 @@ class ProfileUpdateRequest extends FormRequest
                 ]),
                 Rule::unique(User::class)->ignore($this->user()->id),
             ],
-            'email' => [
-                'bail',
-                'required',
-                'string',
-                'lowercase',
-                'email',
-                'max:255',
-                Rule::unique(User::class)->ignore($this->user()->id),
-            ],
+            'email' => ['exclude'],
             'profile_photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
         ];
     }
@@ -47,15 +39,10 @@ class ProfileUpdateRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $normalized = [];
-        foreach (['name', 'username', 'email'] as $field) {
-            $value = $this->input($field);
-            if (! is_string($value)) {
-                continue;
-            }
+        $value = $this->input('username');
+        if (is_string($value)) {
             $value = trim($value);
-            $normalized[$field] = $field === 'name'
-                ? preg_replace('/\s+/u', ' ', $value)
-                : ($field === 'username' && $value === $this->user()->username ? $value : strtolower($value));
+            $normalized['username'] = $value === $this->user()->username ? $value : strtolower($value);
         }
         $this->merge($normalized);
     }

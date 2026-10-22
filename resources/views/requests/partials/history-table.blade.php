@@ -1,5 +1,8 @@
 @php
     $isPersonalEmployee = Auth::user()->role === 'employee';
+    $listContext = request()->routeIs('requests.index')
+        ? ['from_list' => 1, 'list_filters' => request()->only('search', 'status', 'dept', 'date_from', 'date_to', 'order', 'page')]
+        : [];
 @endphp
 @if($type === 'archive')
     @include('requests.partials.archive-table')
@@ -98,7 +101,7 @@
                         </td>
                         <td class="text-end" data-label="Actions">
                             <div class="request-actions">
-                                <a href="{{ route('requests.show', $req->id) }}" class="history-action details" aria-label="View details for {{ $req->tracking_code }}" title="View request details"><i data-lucide="arrow-up-right"></i><span>{{ $isPersonalEmployee && $req->status === 'ready_for_pickup' ? 'View pickup status' : 'Details' }}</span></a>
+                                <a href="{{ route('requests.show', [$req->id, ...$listContext]) }}" class="history-action details" aria-label="View details for {{ $req->tracking_code }}" title="View request details"><i data-lucide="arrow-up-right"></i><span>{{ $isPersonalEmployee && $req->status === 'ready_for_pickup' ? 'View pickup status' : 'Details' }}</span></a>
                                 @if($type === 'archive')
                                     <a href="{{ route('requests.download', $req->id) }}" class="history-action" title="Download requisition PDF" download><i data-lucide="file-down"></i><span>PDF</span></a>
                                 @endif

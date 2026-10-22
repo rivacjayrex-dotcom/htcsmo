@@ -50,4 +50,4 @@
         </tbody>
     </table>
 </div>
-<div class="p-3">{{ $requests->links() }}</div>
+<div class="p-3">{{ $requests->fragment('approval-results')->links() }}</div>

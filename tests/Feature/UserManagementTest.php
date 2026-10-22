@@ -272,7 +272,9 @@ class UserManagementTest extends TestCase
             ->assertOk()
             ->assertSee('Matching Active User')
             ->assertSee('value="Matching"', false)
-            ->assertSee('type="submit" class="input-group-text', false);
+            ->assertSee('aria-label="Search personnel"', false)
+            ->assertSee('data-dynamic-search', false)
+            ->assertSee('<noscript><button type="submit"', false);
     }
 
     public function test_personnel_registry_can_be_browsed_by_role_category_with_search_state_preserved(): void

@@ -22,7 +22,7 @@
     ];
 @endphp
 
-    <form action="{{ route('admin.reports.builder') }}" method="GET" id="reportForm" class="report-control-panel no-print">
+    <form action="{{ route('admin.reports.builder') }}#report-preview" method="GET" id="reportForm" class="report-control-panel no-print" data-dynamic-search>
         @if(request('supply_id'))<input type="hidden" name="supply_id" value="{{ request('supply_id') }}">@endif
         <div class="report-section-heading">
             <span>1</span>
@@ -32,7 +32,7 @@
             @foreach($reportOptions as $value => [$label, $description, $icon])
                 <div class="report-type-option col-xl-3 col-md-6">
                     <label class="report-type-card {{ $reportType === $value ? 'is-selected' : '' }}">
-                        <input type="radio" name="report_type" value="{{ $value }}" class="visually-hidden" @checked($reportType === $value) onchange="this.form.submit()">
+                        <input type="radio" name="report_type" value="{{ $value }}" class="visually-hidden" @checked($reportType === $value) data-filter-navigate>
                         <span class="report-type-card__icon"><i data-lucide="{{ $icon }}"></i></span>
                         <span class="report-type-card__copy">
                             <strong>{{ $label }}</strong>
@@ -66,17 +66,18 @@
                         </select>
                     </div>
 
-                    <div class="col-lg-4 custom-date-field" @if(request('period') !== 'custom') hidden @endif>
+                    <div class="col-lg-4 custom-date-field" data-custom-date-field @if(request('period') !== 'custom') hidden @endif>
                         <label for="date_from" class="form-label mini-label">From</label>
                         <input id="date_from" type="date" name="date_from" value="{{ request('date_from') }}" class="form-control border-0 bg-light rounded-3 shadow-none" @disabled(request('period') !== 'custom')>
                     </div>
 
-                    <div class="col-lg-4 custom-date-field" @if(request('period') !== 'custom') hidden @endif>
+                    <div class="col-lg-4 custom-date-field" data-custom-date-field @if(request('period') !== 'custom') hidden @endif>
                         <label for="date_to" class="form-label mini-label">To</label>
                         <input id="date_to" type="date" name="date_to" value="{{ request('date_to') }}" class="form-control border-0 bg-light rounded-3 shadow-none" @disabled(request('period') !== 'custom')>
                     </div>
                 </div>
 
+                <x-filter-date-fallback :from="request('date_from')" :to="request('date_to')" />
                 @if(in_array($reportType, ['requisitions', 'dept_spending', 'users', 'item_consumption', 'approval_audit', 'user_activity']))
                     <div class="row g-3">
                         <div class="col-md-4">
@@ -186,24 +187,24 @@
             <div class="report-actions">
                 <div class="report-section-heading mb-0">
                     <span>3</span>
-                    <div><h5>Preview or export</h5><p>Apply filters before downloading the final document.</p></div>
+                    <div><h5>Preview or export</h5><p>The preview updates as you change filters. Downloads start only when selected.</p></div>
                 </div>
                 <div class="report-export-actions">
-                    <button type="submit" class="btn btn-outline-dark rounded-pill fw-bold px-4">
-                        <i data-lucide="scan-search" class="me-1" style="width: 15px;"></i> Refresh Preview
-                    </button>
+                    <x-filter-submit />
+                    <a href="{{ route('admin.reports.builder', ['report_type' => $reportType]) }}#report-preview" data-filter-link class="btn btn-outline-dark rounded-pill">Clear filters</a>
                     <button type="submit" name="export" value="csv" class="btn btn-outline-success rounded-pill fw-bold px-4" data-download>
                         <i data-lucide="sheet" class="me-1" style="width: 16px;"></i> Export Excel CSV
                     </button>
                     <button type="button" id="downloadPdfButton" class="btn btn-htc rounded-pill fw-bold px-4">
                         <i data-lucide="file-down" class="me-1" style="width: 16px;"></i> Generate PDF
                     </button>
+                    <noscript><style>#downloadPdfButton { display:none; }</style><button type="submit" name="download_pdf" value="1" class="btn btn-htc">Generate PDF</button></noscript>
                 </div>
             </div>
         </div>
     </form>
 
-    <div id="report-preview" class="report-preview-card">
+    <div id="report-preview" class="report-preview-card" data-filter-results data-filter-region="preview" data-result-count="{{ $pagination?->total() ?? $rows->count() }}" tabindex="-1" aria-label="Matching report records">
         <div class="report-preview-header">
             <div>
                 <span class="report-preview-kicker"><i data-lucide="eye"></i> Live preview</span>
@@ -235,7 +236,7 @@
         </div>
 
         @if($pagination)
-            <div class="px-3 py-2">{{ $pagination->links() }}</div>
+            <div class="px-3 py-2" data-filter-pagination>{{ $pagination->fragment('report-preview')->links() }}</div>
         @endif
         <div class="table-responsive report-table-wrap">
             <table class="table table-hover align-middle mb-0 report-table report-responsive-table" style="font-size: 0.82rem;">
@@ -445,8 +446,6 @@
 
 <script>
     const initializeReportBuilder = () => {
-        const period = document.getElementById('period');
-        const customDateFields = document.querySelectorAll('.custom-date-field');
         const reportForm = document.getElementById('reportForm');
         const pdfButton = document.getElementById('downloadPdfButton');
         const pdfModalElement = document.getElementById('pdfGenerationModal');
@@ -459,17 +458,6 @@
         const pdfProgress = document.getElementById('pdfGenerationProgress');
         let pdfRequest = null;
         let cancelPending = false;
-
-        const toggleCustomDates = () => {
-            const isCustom = period?.value === 'custom';
-            customDateFields.forEach((field) => {
-                field.hidden = !isCustom;
-                field.querySelector('input').disabled = !isCustom;
-            });
-        };
-
-        period?.addEventListener('change', toggleCustomDates);
-        toggleCustomDates();
 
         if (!reportForm || !pdfButton || !pdfModalElement || !window.bootstrap?.Modal) return;
 
@@ -515,6 +503,7 @@
 
         const generatePdf = async () => {
             if (pdfRequest) return;
+            if (!window.htcFilters?.validate(reportForm, reportForm.closest('[data-filter-workspace]'))) return;
 
             cancelPending = false;
             setPdfState('loading');

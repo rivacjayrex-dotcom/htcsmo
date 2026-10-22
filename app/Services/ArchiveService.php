@@ -65,7 +65,7 @@ class ArchiveService
             return null;
         }
 
-        return route($source === 'institutional' ? 'admin.archive' : 'requests.archive', Arr::except($validation->validated(), ['print', 'export']));
+        return route($source === 'institutional' ? 'admin.archive' : 'requests.archive', Arr::except($validation->validated(), ['print', 'export'])).'#archive-results';
     }
 
     private function csv($query, bool $institutional)

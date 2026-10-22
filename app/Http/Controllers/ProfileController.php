@@ -51,10 +51,7 @@ class ProfileController extends Controller
 
             DB::transaction(function () use ($request, $newPhoto, &$oldPhoto) {
                 $user = User::query()->lockForUpdate()->findOrFail($request->user()->id);
-                $user->fill($request->safe()->only(['name', 'username', 'email']));
-                if ($user->isDirty('email')) {
-                    $user->email_verified_at = null;
-                }
+                $user->fill($request->safe()->only(['username']));
                 if ($newPhoto) {
                     $oldPhoto = $user->profile_photo;
                     $user->profile_photo = $newPhoto;

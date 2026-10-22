@@ -78,7 +78,7 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="6" class="inventory-empty"><i data-lucide="package-open"></i><strong>No {{ $tier }} items yet</strong><span>Register an item and assign it to this tier.</span></td></tr>
+                <tr><td colspan="6" class="inventory-empty"><i data-lucide="package-open"></i><strong>{{ request()->filled('search') || request('stock', 'all') !== 'all' ? 'No matching '.$tier.' items' : 'No '.$tier.' items yet' }}</strong><span>Try another search or stock filter, or register an item in this tier.</span></td></tr>
             @endforelse
             @if($items->isNotEmpty())
                 <tr x-cloak x-show="matchingIds('{{ $tier }}').length === 0">

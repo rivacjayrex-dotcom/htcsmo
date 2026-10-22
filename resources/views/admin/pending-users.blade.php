@@ -3,16 +3,14 @@
         <span style="color: white; font-weight: 800;">USER ACCESS VERIFICATION</span>
     </x-slot>
 
-    <div class="container-fluid py-2 pending-users-page">
+    <div class="container-fluid py-2 pending-users-page" data-filter-workspace="registrations">
         <div class="mb-4">
             <h4 class="fw-black text-dark mb-1">Pending Registrations</h4>
             <p class="text-muted small mb-3">Verify institutional identity before activating a new Faculty / Staff account.</p>
-            <form action="{{ route('admin.users.pending') }}" method="GET" class="d-flex flex-wrap gap-2" role="search" data-dynamic-search>
+            <form id="registrationFilters" action="{{ route('admin.users.pending') }}#registration-results" method="GET" class="d-flex flex-wrap gap-2" role="search" data-dynamic-search>
                 <input type="search" name="search" value="{{ request('search') }}" class="form-control" maxlength="100" placeholder="Search name, school ID, or email" aria-label="Search access requests">
-                <button class="btn btn-htc" type="submit">Search</button>
-                @if(request()->filled('search'))
-                    <a class="btn btn-outline-secondary" href="{{ route('admin.users.pending') }}">Clear</a>
-                @endif
+                <x-filter-submit />
+                <a class="btn btn-outline-secondary" data-filter-link href="{{ route('admin.users.pending') }}#registration-results">Clear</a>
             </form>
         </div>
 
@@ -27,7 +25,7 @@
         @endif
 
         <div class="row g-4">
-            <div class="col-xl-9">
+            <div class="col-xl-9" id="registration-results" data-filter-results data-filter-region="results" data-result-count="{{ $users->total() }}" tabindex="-1" aria-label="Matching registrations">
                 @forelse($users as $u)
                     <div class="card border-0 shadow-sm rounded-4 mb-3 overflow-hidden">
                         <div class="row g-0">
@@ -74,12 +72,12 @@
                         <div class="p-4 rounded-circle bg-light d-inline-block mb-3">
                             <i data-lucide="user-check" class="text-muted" style="width: 48px; height: 48px;"></i>
                         </div>
-                        <h5 class="fw-bold text-dark">Registry is Clean</h5>
-                        <p class="text-muted small mx-auto" style="max-width: 300px;">All registration attempts have been processed. No users are currently awaiting verification.</p>
+                        <h5 class="fw-bold text-dark">{{ request()->filled('search') ? 'No matching registrations' : 'Registry is Clean' }}</h5>
+                        <p class="text-muted small mx-auto" style="max-width: 300px;">{{ request()->filled('search') ? 'Try another search or clear the filter.' : 'All registration attempts have been processed. No users are currently awaiting verification.' }}</p>
                     </div>
                 @endforelse
                 @if($users->hasPages())
-                    <div class="mt-3">{{ $users->links() }}</div>
+                    <div class="mt-3" data-filter-pagination>{{ $users->fragment('registration-results')->links() }}</div>
                 @endif
             </div>
 

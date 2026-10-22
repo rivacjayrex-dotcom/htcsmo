@@ -20,7 +20,7 @@
 <x-app-layout>
     <x-slot name="header">Personnel Management</x-slot>
 
-    <div class="container-fluid py-2 personnel-page" x-data="{
+    <div class="container-fluid py-2 personnel-page" data-filter-workspace="personnel" x-data="{
         editModal: null,
         selectedUser: { id: '', name: '', role: '', department: '', account_status: 'active', version: 0 },
         openEdit(user) {
@@ -46,21 +46,20 @@
                 </p>
             </div>
 
-            <form action="{{ route('admin.users.manage') }}" method="GET" class="personnel-search d-flex align-items-center gap-2" data-dynamic-search>
+            <form id="personnelFilters" action="{{ route('admin.users.manage') }}#personnel-results" method="GET" class="personnel-search d-flex align-items-center gap-2" data-dynamic-search>
                 @if($category)
                     <input type="hidden" name="category" value="{{ $category }}">
                 @endif
                 <div class="input-group input-group-sm">
-                    <button type="submit" class="input-group-text bg-white border-end-0 rounded-start-pill text-muted" aria-label="Search personnel">
+                    <span class="input-group-text bg-white border-end-0 rounded-start-pill text-muted" aria-hidden="true">
                         <i data-lucide="search" style="width: 14px;"></i>
-                    </button>
+                    </span>
                     <input type="search" name="search" value="{{ request('search') }}"
                         class="form-control border-start-0 rounded-end-pill bg-white shadow-none"
-                        maxlength="100" placeholder="Search name, ID, or email" style="min-width: 230px;">
+                        maxlength="100" placeholder="Search name, ID, or email" aria-label="Search personnel" style="min-width: 230px;">
                 </div>
-                @if(request('search'))
-                    <a href="{{ route('admin.users.manage', array_filter(['category' => $category])) }}" class="btn btn-sm btn-link text-danger text-decoration-none">Clear</a>
-                @endif
+                <a href="{{ route('admin.users.manage') }}#personnel-results" data-filter-link class="btn btn-sm btn-link text-danger text-decoration-none">Clear filters</a>
+                <x-filter-submit />
             </form>
         </div>
 
@@ -103,7 +102,8 @@
             </div>
         </div>
 
-        <nav class="personnel-categories mb-4" aria-label="Personnel categories">
+        <section id="personnel-results" data-filter-results data-filter-region="results" data-result-count="{{ $users->total() }}" tabindex="-1" aria-label="Matching personnel">
+        <nav class="personnel-categories mb-4" aria-label="Personnel categories" data-filter-links>
             @foreach($personnelCategories as $categoryKey => $categoryDetails)
                 @if($categoryKey === 'all' || ($categoryCounts[$categoryKey] ?? 0) > 0 || $activeCategory === $categoryKey)
                     @php
@@ -112,7 +112,7 @@
                             'search' => request('search'),
                         ]));
                     @endphp
-                    <a href="{{ $categoryUrl }}"
+                    <a href="{{ $categoryUrl }}#personnel-results"
                         class="personnel-category {{ $activeCategory === $categoryKey ? 'active' : '' }}"
                         @if($activeCategory === $categoryKey) aria-current="page" @endif>
                         <span class="personnel-category__icon"><i data-lucide="{{ $categoryDetails['icon'] }}"></i></span>
@@ -134,7 +134,7 @@
                         <small class="text-muted">{{ $personnelCategories[$activeCategory]['description'] }}. Actions remain limited by your role and department.</small>
                     </div>
                     @if($activeCategory !== 'all')
-                        <a href="{{ route('admin.users.manage', array_filter(['search' => request('search')])) }}" class="btn btn-sm btn-light border rounded-pill px-3">
+                        <a href="{{ route('admin.users.manage', array_filter(['search' => request('search')])) }}#personnel-results" data-filter-link class="btn btn-sm btn-light border rounded-pill px-3">
                             View all
                         </a>
                     @endif
@@ -205,10 +205,11 @@
                 </table>
             </div>
             @if($users->hasPages())
-                <div class="card-footer bg-white border-0 p-3">{{ $users->links() }}</div>
+                <div class="card-footer bg-white border-0 p-3" data-filter-pagination>{{ $users->fragment('personnel-results')->links() }}</div>
             @endif
         </div>
 
+        </section>
         <div class="modal fade" id="editPersonnelModal" tabindex="-1" aria-hidden="true" aria-labelledby="editPersonnelModalTitle">
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content border-0 shadow-lg rounded-4">

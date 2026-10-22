@@ -43,6 +43,12 @@ class SupplyController extends Controller
     // List all inventory items
     public function index(Request $request, InventoryForecastService $forecastService)
     {
+        $filters = $request->validate([
+            'search' => ['nullable', 'string', 'max:100'],
+            'stock' => ['nullable', 'in:all,attention,out,low,healthy'],
+            'tier' => ['nullable', 'in:minor,major'],
+            'forecast_period' => ['nullable', 'in:monthly,quarterly'],
+        ]);
         $period = in_array($request->query('forecast_period'), ['monthly', 'quarterly'], true)
             ? $request->query('forecast_period')
             : 'monthly';
@@ -51,8 +57,17 @@ class SupplyController extends Controller
         $supplies = $this->orderedSupplies();
 
         $forecast = $forecastService->build($supplies, period: $period);
+        $search = mb_strtolower(trim($filters['search'] ?? ''));
+        $stock = $filters['stock'] ?? 'all';
+        $catalogSupplies = $supplies->filter(function (Supply $supply) use ($search, $stock) {
+            $text = mb_strtolower(implode(' ', [$supply->item_name, $supply->brand, $supply->model_number, $supply->category, $supply->specifications]));
+            $state = $supply->quantity <= 0 ? 'out' : ($supply->quantity <= $supply->min_stock_level ? 'low' : 'healthy');
 
-        return view('inventory.index', compact('supplies', 'forecast'));
+            return ($search === '' || str_contains($text, $search))
+                && ($stock === 'all' || $stock === $state || ($stock === 'attention' && in_array($state, ['out', 'low'], true)));
+        })->values();
+
+        return view('inventory.index', compact('supplies', 'forecast', 'catalogSupplies'));
     }
 
     /**

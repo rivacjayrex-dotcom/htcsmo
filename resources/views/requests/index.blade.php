@@ -2,7 +2,7 @@
     <x-slot name="header">{{ __('Active Requisitions') }}</x-slot>
 
     @php($isEmployee = Auth::user()->role === 'employee')
-    <div class="request-workspace {{ $isEmployee ? 'personal-list' : '' }}">
+    <div class="request-workspace {{ $isEmployee ? 'personal-list' : '' }}" data-filter-workspace="requests">
         @if($isEmployee)
             <header class="personal-list-heading">
                 <div><h2>My active requests</h2><p>A clear view of your progress and next steps.</p></div>
@@ -14,7 +14,7 @@
             </header>
             @if($errors->any())<div class="alert alert-warning" role="alert"><strong>Request filters were not applied.</strong> {{ $errors->first() }} <a href="{{ route('requests.index') }}">Clear filters</a></div>@endif
         @endif
-        <section class="request-metrics">
+        <section class="request-metrics" data-filter-region="metrics">
             <article class="request-metric total"><span><i data-lucide="layers-3"></i></span><div><strong>{{ $requestStats['total'] }}</strong><h3>All active</h3><p>Currently in the pipeline</p></div></article>
             <article class="request-metric pending"><span><i data-lucide="clock-3"></i></span><div><strong>{{ $requestStats['pending'] }}</strong><h3>New submissions</h3><p>Awaiting first review</p></div></article>
             <article class="request-metric clarification"><span><i data-lucide="message-circle-warning"></i></span><div><strong>{{ $requestStats['clarification'] }}</strong><h3>Needs clarification</h3><p>Requires requestor action</p></div></article>
@@ -23,11 +23,12 @@
         </section>
         @if($isEmployee)
             <p class="small text-muted">The three-working-day target runs from submission and excludes weekends and institutional holidays. It is not a guaranteed pickup date.</p>
-            <nav class="personal-filter-tabs" aria-label="Personal request filters">
-                <a href="{{ route('requests.index') }}" @if(!request('status')) aria-current="page" @endif>All requests <span>{{ $requestStats['total'] }}</span></a>
-                <a href="{{ route('requests.index', ['status' => 'action_required']) }}" @if(request('status') === 'action_required') aria-current="page" @endif>Action required <span>{{ $requestStats['clarification'] + $requestStats['pickup'] }}</span></a>
-                <a href="{{ route('requests.index', ['status' => 'ready_for_pickup']) }}" @if(request('status') === 'ready_for_pickup') aria-current="page" @endif>Ready for pickup <span>{{ $requestStats['pickup'] }}</span></a>
-                <a href="{{ route('requests.index', ['status' => 'for_clarification']) }}" @if(request('status') === 'for_clarification') aria-current="page" @endif>Clarification required <span>{{ $requestStats['clarification'] }}</span></a>
+            @php($requestTabFilters = request()->only('search', 'date_from', 'date_to', 'order'))
+            <nav class="personal-filter-tabs" aria-label="Personal request filters" data-filter-region="tabs" data-filter-links>
+                <a href="{{ route('requests.index', $requestTabFilters) }}#request-results" @if(!request('status')) aria-current="page" @endif>All requests <span>{{ $requestStats['total'] }}</span></a>
+                <a href="{{ route('requests.index', [...$requestTabFilters, 'status' => 'action_required']) }}#request-results" @if(request('status') === 'action_required') aria-current="page" @endif>Action required <span>{{ $requestStats['clarification'] + $requestStats['pickup'] }}</span></a>
+                <a href="{{ route('requests.index', [...$requestTabFilters, 'status' => 'ready_for_pickup']) }}#request-results" @if(request('status') === 'ready_for_pickup') aria-current="page" @endif>Ready for pickup <span>{{ $requestStats['pickup'] }}</span></a>
+                <a href="{{ route('requests.index', [...$requestTabFilters, 'status' => 'for_clarification']) }}#request-results" @if(request('status') === 'for_clarification') aria-current="page" @endif>Clarification required <span>{{ $requestStats['clarification'] }}</span></a>
             </nav>
         @endif
 
@@ -36,18 +37,18 @@
         @endif
 
         <section class="request-panel">
-            <div class="request-panel-heading">
+            <div class="request-panel-heading" data-filter-region="heading">
                 <div>
                     <span class="request-eyebrow">Current workflow</span>
                     <h3>In-progress requests <em>{{ $activeRequests->total() }}</em></h3>
                     <p>Search, filter, and open any active requisition.</p>
                 </div>
                 @if(request()->anyFilled(['search', 'status', 'dept', 'date_from', 'date_to', 'order']))
-                    <a href="{{ route('requests.index') }}" class="clear-request-filters"><i data-lucide="rotate-ccw"></i> Clear filters</a>
+                    <a href="{{ route('requests.index') }}#request-results" class="clear-request-filters" data-filter-link><i data-lucide="rotate-ccw"></i> Clear filters</a>
                 @endif
             </div>
 
-            <form method="GET" action="{{ route('requests.index') }}" class="request-filters" data-dynamic-search>
+            <form id="requestFilters" method="GET" action="{{ route('requests.index') }}#request-results" class="request-filters" data-dynamic-search>
                 <label class="request-search">
                     <span>Search requests</span>
                     <div><i data-lucide="search"></i><input type="search" name="search" value="{{ request('search') }}" maxlength="100" placeholder="Code, item, purpose, requestor, or department"></div>
@@ -84,14 +85,16 @@
                 <label><span>{{ $isEmployee ? 'Submitted from' : 'From' }}</span><input type="date" name="date_from" value="{{ request('date_from') }}"></label>
                 <label><span>{{ $isEmployee ? 'Submitted through' : 'To' }}</span><input type="date" name="date_to" value="{{ request('date_to') }}"></label>
                 <label><span>Sort</span><select name="order"><option value="desc" @selected(request('order', 'desc') === 'desc')>Newest first</option><option value="asc" @selected(request('order') === 'asc')>Oldest first</option></select></label>
-                <button type="submit"><i data-lucide="list-filter"></i> Apply</button>
+                <x-filter-submit />
             </form>
 
+            <div id="request-results" data-filter-results data-filter-region="results" data-result-count="{{ $activeRequests->total() }}" tabindex="-1" aria-label="Matching active requests">
             @include('requests.partials.history-table', ['requisitions' => $activeRequests, 'type' => 'active'])
 
             @if($activeRequests->hasPages())
-                <div class="request-pagination">{{ $activeRequests->links() }}</div>
+                <div class="request-pagination" data-filter-pagination>{{ $activeRequests->fragment('request-results')->links() }}</div>
             @endif
+            </div>
         </section>
     </div>
     @if($isEmployee) @include('requests.partials.personal-styles') @endif

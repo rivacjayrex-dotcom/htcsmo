@@ -18,8 +18,8 @@
         };
     @endphp
 
-    <div class="analytics-page">
-        <header class="analytics-header">
+    <div class="analytics-page" data-filter-workspace="analytics">
+        <header class="analytics-header" data-filter-region="heading">
             <div><span class="analytics-eyebrow">SMO / Insights</span><h2>Operational Analytics</h2><p>See what needs attention and where supplies are going.</p></div>
             <a class="btn btn-htc rounded-pill" href="{{ $reportLink() }}"><i data-lucide="file-chart-column" aria-hidden="true"></i> Open Report Center</a>
         </header>
@@ -37,27 +37,29 @@
         <section class="analytics-period-panel" aria-labelledby="periodHeading">
             <div><h3 id="periodHeading">Explore a reporting period</h3><p>Applies to fulfilled requests, department value, and stock release history below.</p></div>
             @if($errors->any())<div class="alert alert-danger" role="alert"><ul class="mb-0">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
-            <form method="GET" action="{{ route('admin.reports.index') }}" class="analytics-period-form" x-data="{ period: @js(old('period', $periodQuery['period'])) }">
-                <div><label for="analyticsPeriod">Reporting period</label><select id="analyticsPeriod" name="period" class="form-select" x-model="period">
+            <form id="analyticsFilters" method="GET" action="{{ route('admin.reports.index') }}#analytics-results" class="analytics-period-form" data-dynamic-search>
+                <div><label for="analyticsPeriod">Reporting period</label><select id="analyticsPeriod" name="period" class="form-select">
                     @foreach(['current_semester' => 'Current semester', 'this_month' => 'This month', 'this_year' => 'This calendar year', 'custom' => 'Custom date range'] as $key => $label)
                         <option value="{{ $key }}" @selected(old('period', $periodQuery['period']) === $key)>{{ $label }}</option>
                     @endforeach
                 </select></div>
-                <div x-bind:hidden="period !== 'custom'" @if(old('period', $periodQuery['period']) !== 'custom') hidden @endif><label for="analyticsFrom">From</label><input class="form-control" id="analyticsFrom" type="date" name="date_from" value="{{ old('date_from', request('date_from', $dateFrom->toDateString())) }}" :disabled="period !== 'custom'" :required="period === 'custom'" @disabled(old('period', $periodQuery['period']) !== 'custom')></div>
-                <div x-bind:hidden="period !== 'custom'" @if(old('period', $periodQuery['period']) !== 'custom') hidden @endif><label for="analyticsTo">Through</label><input class="form-control" id="analyticsTo" type="date" name="date_to" value="{{ old('date_to', request('date_to', $dateTo->toDateString())) }}" :disabled="period !== 'custom'" :required="period === 'custom'" @disabled(old('period', $periodQuery['period']) !== 'custom')></div>
-                <button class="btn btn-htc" type="submit">Apply period <i data-lucide="arrow-right" aria-hidden="true"></i></button>
+                <div data-custom-date-field @if(old('period', $periodQuery['period']) !== 'custom') hidden @endif><label for="analyticsFrom">From</label><input class="form-control" id="analyticsFrom" type="date" name="date_from" value="{{ old('date_from', request('date_from', $dateFrom->toDateString())) }}" @disabled(old('period', $periodQuery['period']) !== 'custom')></div>
+                <div data-custom-date-field @if(old('period', $periodQuery['period']) !== 'custom') hidden @endif><label for="analyticsTo">Through</label><input class="form-control" id="analyticsTo" type="date" name="date_to" value="{{ old('date_to', request('date_to', $dateTo->toDateString())) }}" @disabled(old('period', $periodQuery['period']) !== 'custom')></div>
+                <x-filter-date-fallback :from="request('date_from', $dateFrom->toDateString())" :to="request('date_to', $dateTo->toDateString())" />
+                <x-filter-submit />
+                <a href="{{ route('admin.reports.index') }}#analytics-results" data-filter-link class="btn btn-light border">Reset period</a>
             </form>
             <p class="analytics-period-help">Custom ranges include both dates and can span up to ten years. Times use {{ config('app.timezone') }}.</p>
         </section>
 
-        <div class="analytics-section-title"><div><span class="analytics-eyebrow">Selected period</span><h3>{{ $periodLabel }}</h3><p>{{ $dateFrom->format('M d, Y') }} – {{ $dateTo->format('M d, Y') }}</p></div><a href="{{ $reportLink(['report_type' => 'requisitions', 'date_basis' => 'fulfilled']) }}">View fulfilled requests <i data-lucide="arrow-up-right" aria-hidden="true"></i></a></div>
-        <section class="analytics-metrics" aria-label="Fulfillment results for the selected period">
+        <div class="analytics-section-title" data-filter-region="period"><div><span class="analytics-eyebrow">Selected period</span><h3>{{ $periodLabel }}</h3><p>{{ $dateFrom->format('M d, Y') }} – {{ $dateTo->format('M d, Y') }}</p></div><a href="{{ $reportLink(['report_type' => 'requisitions', 'date_basis' => 'fulfilled']) }}">View fulfilled requests <i data-lucide="arrow-up-right" aria-hidden="true"></i></a></div>
+        <section id="analytics-results" class="analytics-metrics" aria-label="Fulfillment results for the selected period" data-filter-results data-filter-region="totals" data-result-count="{{ $periodTotals->requests }}" data-result-label="fulfilled requests" tabindex="-1">
             <article><span class="analytics-eyebrow">Fulfilled requests</span><strong>{{ number_format($periodTotals->requests) }}</strong><p>Completed or legacy released, by completion date.</p></article>
             <article class="analytics-metric-featured"><span class="analytics-eyebrow">Recorded released value</span><strong>₱{{ number_format($periodTotals->value, 2) }}</strong><p>Grand totals of fulfilled requests in this period.</p></article>
             <article><span class="analytics-eyebrow">Average fulfilled value</span><strong>₱{{ number_format($periodTotals->average, 2) }}</strong><p>Recorded released value ÷ fulfilled requests.</p></article>
         </section>
 
-        <div class="analytics-grid">
+        <div class="analytics-grid" data-filter-region="charts">
             <section class="analytics-panel" aria-labelledby="trendHeading">
                 <div class="analytics-panel-heading"><div><h3 id="trendHeading">Fulfillment over time</h3><p>{{ $periodLabel }} · Completion date</p></div><span class="analytics-tag">Monthly</span></div>
                 @if((int) $periodTotals->requests === 0)<p class="analytics-empty">No fulfilled requests in this period. Every month is shown below.</p>@endif
@@ -93,7 +95,7 @@
             </section>
         </div>
 
-        <section class="analytics-inventory" aria-labelledby="inventoryValueHeading"><div class="analytics-icon"><i data-lucide="boxes" aria-hidden="true"></i></div><div><h3 id="inventoryValueHeading">Estimated on-hand inventory value</h3><p>Current snapshot · {{ number_format($inventory->items) }} catalog items · Current quantity × current catalog price</p></div><strong>₱{{ number_format($inventory->estimated_value, 2) }}</strong><a href="{{ $reportLink(['report_type' => 'inventory']) }}">Review inventory <i data-lucide="arrow-up-right" aria-hidden="true"></i></a></section>
+        <section data-filter-region="inventory" class="analytics-inventory" aria-labelledby="inventoryValueHeading"><div class="analytics-icon"><i data-lucide="boxes" aria-hidden="true"></i></div><div><h3 id="inventoryValueHeading">Estimated on-hand inventory value</h3><p>Current snapshot · {{ number_format($inventory->items) }} catalog items · Current quantity × current catalog price</p></div><strong>₱{{ number_format($inventory->estimated_value, 2) }}</strong><a href="{{ $reportLink(['report_type' => 'inventory']) }}">Review inventory <i data-lucide="arrow-up-right" aria-hidden="true"></i></a></section>
         <details class="analytics-definitions"><summary>How to read these figures</summary><ul><li><b>Fulfilled:</b> completed and legacy released requests with a completion date (closed_at). Ready-for-pickup requests remain active.</li><li><b>Recorded value:</b> the fulfilled requests' saved grand totals. These operational totals are not audited accounting expenditure.</li><li><b>Stock releases:</b> ledger deductions on the transaction date, which may occur before pickup and completion. The ledger does not store historical item prices.</li><li><b>Deadline risk:</b> active requests reach their warning after two working days and deadline after three, measured from submission, excluding weekends and configured holidays.</li><li><b>Stock health:</b> out means quantity ≤ 0; low means positive quantity at or below the minimum. Deleted catalog entries do not count toward current stock.</li><li><b>History limits:</b> requests missing a completion date cannot be assigned to a period. Department and catalog labels use their current records; historical names and costs are not reconstructed.</li></ul></details>
     </div>
 

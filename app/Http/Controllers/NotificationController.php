@@ -19,6 +19,11 @@ class NotificationController extends Controller
     public function index(Request $request, NotificationActionResolver $actionResolver): View|JsonResponse
     {
         $user = $request->user();
+        $request->validate([
+            'category' => ['nullable', 'in:'.implode(',', self::CATEGORIES)],
+            'page' => ['nullable', 'integer', 'min:1'],
+        ]);
+        abort_if($request->query('category') === 'inventory' && $user->role !== 'smo', 403);
         $category = in_array($request->query('category'), self::CATEGORIES, true)
             ? $request->query('category')
             : 'all';

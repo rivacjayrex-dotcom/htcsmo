@@ -74,11 +74,21 @@ class ReportController extends Controller
         $request->validate([
             'report_type' => ['nullable', 'in:'.implode(',', self::REPORT_TYPES)],
             'period' => ['nullable', 'in:current_semester,this_month,this_year,all,custom'],
-            'date_from' => ['nullable', 'date'],
-            'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
+            'date_from' => ['nullable', 'required_if:period,custom', 'date_format:Y-m-d'],
+            'date_to' => ['nullable', 'required_if:period,custom', 'date_format:Y-m-d', 'after_or_equal:date_from'],
             'account_status' => ['nullable', 'in:pending,active,suspended'],
             'date_basis' => ['nullable', 'in:submitted,fulfilled'],
             'supply_id' => ['nullable', 'integer', 'min:1'],
+            'dept' => ['nullable', 'string', 'max:100'],
+            'tier' => ['nullable', 'in:minor,major'],
+            'status' => ['nullable', 'in:pending,pending_dept,approved_dept,approved_vp,approved_provost,approved_president,for_clarification,processing,ready_for_pickup,completed,released,rejected,withdrawn'],
+            'role' => ['nullable', 'in:'.implode(',', User::ROLES)],
+            'category' => ['nullable', 'string', 'max:100'],
+            'stock_filter' => ['nullable', 'in:low,out'],
+            'transaction_type' => ['nullable', 'in:release_deduction,restock_delivery,manual_adjustment'],
+            'page' => ['nullable', 'integer', 'min:1'],
+            'export' => ['nullable', 'in:csv'],
+            'download_pdf' => ['nullable', 'boolean'],
         ]);
 
         $report = $this->buildReport($request);

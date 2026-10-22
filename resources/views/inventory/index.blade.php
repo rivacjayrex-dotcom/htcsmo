@@ -22,7 +22,7 @@
         })->values();
     @endphp
 
-    <div class="inventory-workspace" x-data="inventoryWorkspace({{ Illuminate\Support\Js::from($catalogSelectionData) }})">
+    <div class="inventory-workspace" data-filter-workspace="inventory" x-data="inventoryWorkspace({{ Illuminate\Support\Js::from($catalogSelectionData) }})" @htc:filters-applied="syncFilters($event.detail.url)">
         @if(session('success'))
             <div class="alert alert-success border-0 shadow-sm mb-4 rounded-4 d-flex align-items-center gap-2"><i data-lucide="check-circle" style="width:18px"></i>{{ session('success') }}</div>
         @endif
@@ -59,7 +59,7 @@
             </div>
         </section>
 
-        <section class="forecast-section" id="demand-forecast">
+        <section class="forecast-section" id="demand-forecast" data-filter-region="forecast" data-result-count="{{ $forecast['recommendations']->count() }}" data-result-label="forecast recommendations" tabindex="-1" aria-label="Inventory forecast">
             <div class="forecast-header">
                 <div class="forecast-heading">
                     <span class="section-number">{{ $attentionItems->isNotEmpty() ? '04' : '03' }}</span>
@@ -71,13 +71,15 @@
                     </div>
                 </div>
                 <div class="forecast-readiness">
-                    <form method="GET" action="{{ route('inventory.index') }}" class="forecast-period-form">
+                    <form id="forecastFilters" method="GET" action="{{ route('inventory.index') }}#demand-forecast" class="forecast-period-form" data-dynamic-search data-filter-target="#demand-forecast">
+                        @foreach(request()->only('search', 'stock', 'tier') as $key => $value)<input type="hidden" name="{{ $key }}" value="{{ $value }}">@endforeach
                         <label for="forecastPeriod">Report period</label>
                         <select id="forecastPeriod" name="forecast_period">
                             <option value="monthly" @selected($forecast['period'] === 'monthly')>Monthly</option>
                             <option value="quarterly" @selected($forecast['period'] === 'quarterly')>Quarterly</option>
                         </select>
-                        <button type="submit"><i data-lucide="sparkles"></i> Generate</button>
+                        <x-filter-submit />
+                        <a href="{{ route('inventory.index', request()->except('forecast_period')) }}#demand-forecast" data-filter-link data-filter-target="#demand-forecast">Reset period</a>
                     </form>
                     <a class="forecast-download" href="{{ route('inventory.forecast.report', ['period' => $forecast['period']]) }}" download>
                         <i data-lucide="file-down"></i> PDF report
@@ -163,15 +165,21 @@
                     <h5>Tier catalogs</h5>
                     <p>Out-of-stock and low-stock items always appear at the top of each list.</p>
                 </div>
-                <div class="inventory-filters">
-                    <div class="inventory-search"><i data-lucide="search"></i><input type="search" x-model.debounce.150ms="query" placeholder="Search item, brand, model, category, or specifications…" aria-label="Search inventory"></div>
-                    <select x-model="stockFilter" aria-label="Filter by stock status"><option value="all">All stock</option><option value="attention">Needs attention</option><option value="out">Out of stock</option><option value="low">Low stock</option><option value="healthy">Healthy stock</option></select>
-                </div>
+                <form id="inventoryFilters" class="inventory-filters" method="GET" action="{{ route('inventory.index') }}#inventory-results" data-dynamic-search data-filter-target="#inventory-results">
+                    <input type="hidden" name="forecast_period" value="{{ $forecast['period'] }}">
+                    <input type="hidden" name="tier" value="{{ request('tier', 'minor') }}">
+                    <div class="inventory-search"><i data-lucide="search"></i><input type="search" name="search" maxlength="100" value="{{ request('search') }}" placeholder="Search item, brand, model, category, or specifications…" aria-label="Search inventory"></div>
+                    <select name="stock" aria-label="Filter by stock status">@foreach(['all' => 'All stock', 'attention' => 'Needs attention', 'out' => 'Out of stock', 'low' => 'Low stock', 'healthy' => 'Healthy stock'] as $key => $label)<option value="{{ $key }}" @selected(request('stock', 'all') === $key)>{{ $label }}</option>@endforeach</select>
+                    <a href="{{ route('inventory.index', ['forecast_period' => $forecast['period']]) }}#inventory-results" data-filter-link data-filter-region="reset" data-filter-target="#inventory-results" class="btn btn-light border">Clear</a>
+                    <x-filter-submit />
+                </form>
             </div>
 
-            <div class="tier-tabs" role="tablist">
-                <button class="active" data-bs-toggle="pill" data-bs-target="#minorInventory" type="button" role="tab"><span class="tab-icon minor"><i data-lucide="shopping-basket"></i></span><span><small>Everyday supplies</small><strong>Minor catalog</strong></span><em>{{ $minorItems->count() }}</em></button>
-                <button data-bs-toggle="pill" data-bs-target="#majorInventory" type="button" role="tab"><span class="tab-icon major"><i data-lucide="monitor-up"></i></span><span><small>Equipment & assets</small><strong>Major catalog</strong></span><em>{{ $majorItems->count() }}</em></button>
+            <div id="inventory-results" data-filter-results data-filter-region="catalog" data-filter-catalog="{{ $catalogSelectionData->whereIn('id', $catalogSupplies->pluck('id'))->values()->toJson() }}" data-result-count="{{ $catalogSupplies->count() }}" tabindex="-1" aria-label="Matching catalog items">
+            <div class="tier-tabs" data-filter-links>
+                @foreach(['minor' => ['shopping-basket', 'Everyday supplies', 'Minor catalog'], 'major' => ['monitor-up', 'Equipment & assets', 'Major catalog']] as $tier => [$icon, $description, $label])
+                    <a class="{{ request('tier', 'minor') === $tier ? 'active' : '' }}" href="{{ route('inventory.index', [...request()->only('search', 'stock', 'forecast_period'), 'tier' => $tier]) }}#inventory-results" data-filter-target="#inventory-results" @if(request('tier', 'minor') === $tier) aria-current="page" @endif><span class="tab-icon {{ $tier }}"><i data-lucide="{{ $icon }}"></i></span><span><small>{{ $description }}</small><strong>{{ $label }}</strong></span><em>{{ $catalogSupplies->where('requisition_tier', $tier)->count() }}</em></a>
+                @endforeach
             </div>
 
             <div class="inventory-bulk-bar" x-cloak x-show="selected.length > 0" x-transition>
@@ -187,12 +195,13 @@
             </div>
 
             <div class="tab-content inventory-tab-content">
-                <div class="tab-pane fade show active" id="minorInventory" role="tabpanel">
-                    @include('inventory.partials.tier-table', ['items' => $minorItems, 'tier' => 'minor'])
+                <div class="tab-pane fade {{ request('tier', 'minor') === 'minor' ? 'show active' : '' }}" id="minorInventory">
+                    @include('inventory.partials.tier-table', ['items' => $catalogSupplies->where('requisition_tier', 'minor'), 'tier' => 'minor'])
                 </div>
-                <div class="tab-pane fade" id="majorInventory" role="tabpanel">
-                    @include('inventory.partials.tier-table', ['items' => $majorItems, 'tier' => 'major'])
+                <div class="tab-pane fade {{ request('tier', 'minor') === 'major' ? 'show active' : '' }}" id="majorInventory">
+                    @include('inventory.partials.tier-table', ['items' => $catalogSupplies->where('requisition_tier', 'major'), 'tier' => 'major'])
                 </div>
+            </div>
             </div>
         </section>
 
@@ -288,8 +297,8 @@
         .restock-more-bar svg { width: 14px; height: 14px; transition: transform .2s ease; }
         .restock-more-bar svg.is-open { transform: rotate(180deg); }
         .catalog-controls { border-bottom: 1px solid #edf1ef; }
-        .inventory-filters { display: flex; gap: .6rem; }.inventory-search { width: 280px; display: flex; align-items: center; gap: .5rem; padding: 0 .75rem; border: 1px solid #dce4df; border-radius: 10px; background: #f9fbfa; }.inventory-search svg { width: 15px; color: #8b9991; }.inventory-search input { width: 100%; padding: .65rem 0; border: 0; outline: 0; background: transparent; font-size: .75rem; }.inventory-filters select { padding: .6rem 2rem .6rem .75rem; border: 1px solid #dce4df; border-radius: 10px; color: #58675f; background-color: #fff; font-size: .72rem; }
-        .tier-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; padding: 1rem 1.4rem; background: #f8faf9; }.tier-tabs button { display: flex; align-items: center; gap: .75rem; padding: .8rem 1rem; border: 1px solid #dfe7e2; border-radius: 12px; background: #fff; text-align: left; color: #65736b; }.tier-tabs button.active { border-color: var(--htc-green); box-shadow: inset 0 0 0 1px var(--htc-green); }.tab-icon { width: 38px; height: 38px; }.tab-icon svg { width: 18px; }.tab-icon.minor { color: #17643d; background: #e6f5ec; }.tab-icon.major { color: #95610a; background: #fff3d9; }.tier-tabs button > span:nth-child(2) { display: flex; flex-direction: column; }.tier-tabs small { font-size: .6rem; text-transform: uppercase; }.tier-tabs strong { color: #26372e; }.tier-tabs em { margin-left: auto; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; background: #eef2ef; font-size: .7rem; font-style: normal; font-weight: 800; }
+        .inventory-filters { display: flex; flex-wrap: wrap; gap: .6rem; }.inventory-search { width: 280px; max-width: 100%; display: flex; align-items: center; gap: .5rem; padding: 0 .75rem; border: 1px solid #dce4df; border-radius: 10px; background: #f9fbfa; }.inventory-search svg { width: 15px; color: #8b9991; }.inventory-search input { width: 100%; padding: .65rem 0; border: 0; outline: 0; background: transparent; font-size: .75rem; }.inventory-filters select { padding: .6rem 2rem .6rem .75rem; border: 1px solid #dce4df; border-radius: 10px; color: #58675f; background-color: #fff; font-size: .72rem; }
+        .tier-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; padding: 1rem 1.4rem; background: #f8faf9; }.tier-tabs :is(button,a) { display: flex; align-items: center; gap: .75rem; padding: .8rem 1rem; border: 1px solid #dfe7e2; border-radius: 12px; background: #fff; text-align: left; text-decoration: none; color: #65736b; }.tier-tabs :is(button,a).active { border-color: var(--htc-green); box-shadow: inset 0 0 0 1px var(--htc-green); }.tab-icon { width: 38px; height: 38px; }.tab-icon svg { width: 18px; }.tab-icon.minor { color: #17643d; background: #e6f5ec; }.tab-icon.major { color: #95610a; background: #fff3d9; }.tier-tabs :is(button,a) > span:nth-child(2) { display: flex; flex-direction: column; }.tier-tabs small { font-size: .6rem; text-transform: uppercase; }.tier-tabs strong { color: #26372e; }.tier-tabs em { margin-left: auto; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; background: #eef2ef; font-size: .7rem; font-style: normal; font-weight: 800; }
         .inventory-table thead th { padding-top: .85rem; padding-bottom: .85rem; border-bottom: 1px solid #e8eeea; background: #fff; color: #8a978f; font-size: .62rem; letter-spacing: .06em; text-transform: uppercase; }.inventory-table td { padding-top: .9rem; padding-bottom: .9rem; border-color: #edf1ef; }.inventory-row:hover { background: #fafcfb; }.stock-out-row { background: #fffafa; }.stock-low-row { background: #fffdf8; }
         .inventory-item-icon { width: 40px; height: 40px; flex: 0 0 40px; display: grid; place-items: center; border-radius: 11px; }.inventory-item-icon svg { width: 19px; }.inventory-item-icon.minor { color: #17643d; background: #e8f5ed; }.inventory-item-icon.major { color: #95610a; background: #fff3da; }.item-specification { max-width: 280px; margin-top: .25rem; color: #8a958f; font-size: .66rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .inventory-category { display: inline-block; padding: .28rem .55rem; border-radius: 999px; background: #f0f3f1; color: #536159; font-size: .64rem; font-weight: 700; }.option-preview { display: flex; flex-direction: column; gap: .15rem; margin-top: .45rem; color: #859189; font-size: .62rem; }
@@ -345,8 +354,8 @@
             .inventory-filters select { min-height: 44px; }
             .inventory-bulk-bar { align-items: stretch; flex-direction: column; padding: .75rem 1rem; }.inventory-bulk-bar > div:first-child { flex-wrap: wrap; }.inventory-bulk-bar small { flex-basis: 100%; margin-left: 0; }.inventory-bulk-actions { display: grid; grid-template-columns: 1fr 1fr; }.inventory-bulk-actions .btn { min-height: 42px; justify-content: center; }
             .tier-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; padding: .8rem; }
-            .tier-tabs button { min-width: 0; padding: .7rem; }
-            .tier-tabs button > span:nth-child(2) { min-width: 0; }
+            .tier-tabs :is(button,a) { min-width: 0; padding: .7rem; }
+            .tier-tabs :is(button,a) > span:nth-child(2) { min-width: 0; }
             .tier-tabs small { display: none; }
             .tier-tabs strong { font-size: .75rem; }
             .tier-tabs em { width: 24px; height: 24px; flex: 0 0 24px; }
@@ -388,7 +397,7 @@
             .inventory-section-nav > a > svg { display: none; }
             .inventory-metrics p { margin-top: .55rem; }
             .inventory-metrics strong { font-size: 1.15rem; }
-            .tier-tabs button { gap: .45rem; }
+            .tier-tabs :is(button,a) { gap: .45rem; }
             .tab-icon { display: none; }
         }
     </style>
@@ -397,11 +406,17 @@
     <script>
         function inventoryWorkspace(catalog) {
             return {
-                query: '',
-                stockFilter: 'all',
+                query: new URL(window.location.href).searchParams.get('search') || '',
+                stockFilter: new URL(window.location.href).searchParams.get('stock') || 'all',
                 catalog,
                 selected: [],
                 showAllRestock: false,
+                syncFilters(url) {
+                    const query = new URL(url).searchParams;
+                    this.query = query.get('search') || '';
+                    this.stockFilter = query.get('stock') || 'all';
+                    this.catalog = JSON.parse(this.$el.querySelector('[data-filter-catalog]').dataset.filterCatalog);
+                },
                 matches(text, status) {
                     const matchesSearch = !this.query.trim() || text.includes(this.query.trim().toLowerCase());
                     const matchesStatus = this.stockFilter === 'all'

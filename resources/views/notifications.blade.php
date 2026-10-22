@@ -11,51 +11,47 @@
         ];
     @endphp
 
-    <div class="container-fluid notification-center-page" data-notification-center data-notification-endpoint="{{ route('notifications') }}" data-notification-account="{{ Auth::id() }}">
-        <header class="notification-center-hero">
-            <div class="notification-hero-copy">
-                <span class="notification-hero-icon"><i data-lucide="bell-ring"></i></span>
-                <div>
-                    <span class="notification-eyebrow">Updates and action items</span>
-                    <h1>Notification center</h1>
-                    <p>Track approvals, deadlines, inventory alerts, and account activity in one place.</p>
+    <div class="container-fluid notification-center-page" data-filter-workspace="notifications" data-notification-center data-notification-endpoint="{{ route('notifications') }}" data-notification-account="{{ Auth::id() }}">
+        <div class="notification-toolbar" data-filter-region="toolbar">
+            <nav class="notification-category-nav" aria-label="Notification categories" data-filter-links>
+                @foreach(['all', 'approvals', 'deadlines', 'accounts'] as $key)
+                    <a href="{{ route('notifications', ['category' => $key]) }}#notification-results"
+                       class="notification-category-link {{ $category === $key ? 'is-active' : '' }}"
+                       data-notification-category="{{ $key }}" data-category-label="{{ $categoryLabels[$key] }}"
+                       aria-label="{{ $categoryLabels[$key] }}" title="{{ $categoryLabels[$key] }}"
+                       @if($category === $key) aria-current="page" @endif>
+                        <i aria-hidden="true" data-lucide="{{ match($key) { 'all' => 'layout-list', 'approvals' => 'clipboard-check', 'deadlines' => 'alarm-clock', 'accounts' => 'users', default => 'bell' } }}"></i>
+                        <b data-category-count>{{ $categoryCounts[$key] }}</b>
+                    </a>
+                @endforeach
+                @if(Auth::user()->role === 'smo')
+                    <a href="{{ route('notifications', ['category' => 'inventory']) }}#notification-results"
+                       class="notification-category-link {{ $category === 'inventory' ? 'is-active' : '' }}"
+                       data-notification-category="inventory" data-category-label="Inventory"
+                       aria-label="Inventory" title="Inventory"
+                       @if($category === 'inventory') aria-current="page" @endif>
+                        <i data-lucide="package-search" aria-hidden="true"></i><b data-category-count>{{ $categoryCounts['inventory'] }}</b>
+                    </a>
+                @endif
+            </nav>
+            <div class="notification-toolbar-actions">
+                <div class="notification-unread-count" title="Unread notifications">
+                    <i data-lucide="mail" aria-hidden="true"></i>
+                    <span class="visually-hidden">Unread notifications:</span>
+                    <strong data-unread-count aria-live="polite" aria-atomic="true">{{ $unreadCount }}</strong>
                 </div>
-            </div>
-            <div class="notification-hero-summary">
-                <div><span>Unread</span><strong data-unread-count>{{ $unreadCount }}</strong></div>
-                <div><span>Total activity</span><strong data-total-count>{{ $categoryCounts['all'] }}</strong></div>
                 <form method="POST" action="{{ route('notifications.read-all') }}" data-mark-all-read-form @if($unreadCount < 1) hidden @endif>
                     @csrf
-                    <button type="submit"><i data-lucide="check-check"></i> Mark all read</button>
+                    <button type="submit" class="notification-icon-control" aria-label="Mark all read" title="Mark all read"><i data-lucide="check-check" aria-hidden="true"></i></button>
                 </form>
             </div>
-        </header>
-
-        <nav class="notification-category-nav" aria-label="Notification categories">
-            @foreach(['all', 'approvals', 'deadlines', 'accounts'] as $key)
-                <a href="{{ route('notifications', ['category' => $key]) }}"
-                   class="notification-category-link {{ $category === $key ? 'is-active' : '' }}"
-                   data-notification-category="{{ $key }}" data-category-label="{{ $categoryLabels[$key] }}"
-                   @if($category === $key) aria-current="page" @endif>
-                    <i data-lucide="{{ match($key) { 'all' => 'layout-list', 'approvals' => 'clipboard-check', 'deadlines' => 'alarm-clock', 'accounts' => 'users', default => 'bell' } }}"></i>
-                    <span>{{ $categoryLabels[$key] }}</span><b data-category-count>{{ $categoryCounts[$key] }}</b>
-                </a>
-            @endforeach
-            @if(Auth::user()->role === 'smo')
-                <a href="{{ route('notifications', ['category' => 'inventory']) }}"
-                   class="notification-category-link {{ $category === 'inventory' ? 'is-active' : '' }}"
-                   data-notification-category="inventory" data-category-label="Inventory"
-                   @if($category === 'inventory') aria-current="page" @endif>
-                    <i data-lucide="package-search"></i><span>Inventory</span><b data-category-count>{{ $categoryCounts['inventory'] }}</b>
-                </a>
-            @endif
-        </nav>
+        </div>
 
         <div class="notification-center-grid">
-            <main class="notification-activity-panel">
+            <main class="notification-activity-panel" id="notification-results" data-filter-results data-filter-region="results" data-result-count="{{ $notes->total() }}" tabindex="-1" aria-label="Matching notifications">
                 <div class="notification-panel-heading">
                     <div><span>Activity feed</span><h2 data-current-category>{{ $categoryLabels[$category] }}</h2></div>
-                    <span class="notification-live-label"><i data-lucide="radio"></i> Live updates</span>
+                    <span class="notification-live-label" role="img" aria-label="Live updates" title="Live updates"><i data-lucide="radio" aria-hidden="true"></i></span>
                 </div>
                 <div class="notification-feed-container" data-notification-feed aria-live="polite">
                     @include('notifications.feed', ['notes' => $notes, 'resolvedActions' => $resolvedActions])
@@ -80,7 +76,7 @@
                                 <div class="notification-insight-empty"><i data-lucide="circle-check"></i><span>Inventory levels are healthy.</span></div>
                             @endforelse
                         </div>
-                        <a href="{{ route('inventory.index') }}" class="notification-insight-link">Open inventory forecast <i data-lucide="arrow-right"></i></a>
+                        <a href="{{ route('inventory.index') }}" class="notification-insight-link" aria-label="Open inventory forecast" title="Open inventory forecast"><i data-lucide="arrow-right" aria-hidden="true"></i></a>
                     </section>
 
                     <section class="notification-insight-card deadline-watch">
@@ -94,7 +90,7 @@
                                     <div><span>Action required</span><small>#{{ $req->id }}</small></div>
                                     <h3>{{ $req->items->first()->item_name ?? 'Multiple requested items' }}</h3>
                                     <p>This requisition has reached its end-to-end processing deadline.</p>
-                                    <a href="{{ route('requests.show', $req) }}">View request <i data-lucide="arrow-up-right"></i></a>
+                                    <a href="{{ route('requests.show', $req) }}" class="notification-icon-control" aria-label="View request #{{ $req->id }}" title="View request"><i data-lucide="arrow-up-right" aria-hidden="true"></i></a>
                                 </article>
                             @empty
                                 <div class="notification-insight-empty"><i data-lucide="shield-check"></i><span>No critical request deadlines.</span></div>
@@ -128,27 +124,23 @@
     @pushOnce('styles', 'page-styles:notifications.blade.php')
     <style>
         .notification-center-page { --note-ink:#173226; --note-muted:#708178; --note-line:#dfe8e2; padding:.75rem 0 1.25rem; }
-        .notification-center-hero { position:relative; display:flex; align-items:center; justify-content:space-between; gap:2rem; overflow:hidden; padding:1.25rem 1.4rem; border-radius:18px; background:radial-gradient(circle at 80% -80%,rgba(134,239,172,.28),transparent 24rem),linear-gradient(125deg,#0b3d25,#17633e 62%,#1d754a); color:#fff; box-shadow:0 14px 30px rgba(14,67,39,.15); }
-        .notification-center-hero::after { content:''; position:absolute; right:-5rem; bottom:-9rem; width:20rem; height:20rem; border:1px solid rgba(255,255,255,.12); border-radius:50%; }
-        .notification-hero-copy,.notification-hero-summary { position:relative; z-index:1; display:flex; align-items:center; }
-        .notification-hero-copy { gap:1rem; }
-        .notification-hero-icon { width:52px; height:52px; flex:0 0 52px; display:grid; place-items:center; border:1px solid rgba(255,255,255,.18); border-radius:15px; background:rgba(255,255,255,.12); }
-        .notification-hero-icon svg { width:25px; height:25px; }
+        .notification-toolbar { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.6rem; margin-bottom:1rem; padding:.4rem; border:1px solid var(--note-line); border-radius:14px; background:#fff; box-shadow:0 5px 16px rgba(24,70,43,.04); }
+        .notification-toolbar-actions { display:flex; align-items:center; gap:.4rem; margin-left:auto; }
+        .notification-toolbar-actions form { margin:0; }
+        .notification-unread-count { min-height:44px; display:inline-flex; align-items:center; gap:.5rem; padding:.55rem .8rem; border-radius:10px; background:#edf7f1; color:#155936; }
+        .notification-unread-count svg { width:18px; height:18px; }
+        .notification-unread-count strong { font-size:.85rem; font-variant-numeric:tabular-nums; }
+        .notification-icon-control { width:44px; min-height:44px; display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--note-line); border-radius:10px; background:#fff; color:#155936; text-decoration:none; cursor:pointer; }
+        .notification-icon-control:hover { background:#edf7f1; border-color:#b8d6c3; }
+        .notification-icon-control:disabled { opacity:.5; cursor:wait; }
+        .notification-icon-control svg { width:18px; height:18px; }
+        .notification-icon-control:focus-visible,.notification-category-link:focus-visible,.notification-insight-link:focus-visible { outline:2px solid var(--htc-green); outline-offset:2px; }
         .notification-eyebrow { color:#a9e8bf; font-size:.59rem; font-weight:800; letter-spacing:.11em; text-transform:uppercase; }
-        .notification-hero-copy h1 { margin:.12rem 0 .2rem; color:#fff; font-size:1.35rem; font-weight:800; }
-        .notification-hero-copy p { margin:0; color:#c8e9d3; font-size:.7rem; }
-        .notification-hero-summary { gap:.5rem; }
-        .notification-hero-summary > div { min-width:92px; padding:.65rem .8rem; border:1px solid rgba(255,255,255,.14); border-radius:11px; background:rgba(4,39,20,.2); }
-        .notification-hero-summary span { display:block; color:#bfe5cc; font-size:.55rem; font-weight:800; text-transform:uppercase; }
-        .notification-hero-summary strong { color:#fff; font-size:1rem; }
-        .notification-hero-summary form button { min-height:42px; display:inline-flex; align-items:center; gap:.4rem; padding:.55rem .8rem; border:1px solid rgba(255,255,255,.35); border-radius:10px; background:#fff; color:#155936; font-size:.65rem; font-weight:800; }
-        .notification-hero-summary form button svg { width:15px; height:15px; }
-        .notification-category-nav { display:flex; gap:.45rem; margin:.85rem 0; padding:.35rem; overflow-x:auto; border:1px solid var(--note-line); border-radius:14px; background:#fff; scrollbar-width:none; box-shadow:0 5px 16px rgba(24,70,43,.04); }
-        .notification-category-nav::-webkit-scrollbar { display:none; }
-        .notification-category-link { min-height:40px; display:inline-flex; align-items:center; gap:.45rem; padding:.55rem .75rem; border-radius:10px; color:#677970; font-size:.65rem; font-weight:800; text-decoration:none; white-space:nowrap; transition:.18s ease; }
+        .notification-category-nav { display:flex; flex-wrap:wrap; gap:.35rem; }
+        .notification-category-link { min-height:44px; display:inline-flex; align-items:center; gap:.45rem; padding:.55rem .65rem; border-radius:10px; color:#677970; font-size:.65rem; font-weight:800; text-decoration:none; white-space:nowrap; transition:.18s ease; }
         .notification-category-link:hover { background:#f0f6f2; color:var(--htc-green); }
         .notification-category-link.is-active { background:var(--htc-green); color:#fff; box-shadow:0 5px 13px rgba(24,91,59,.2); }
-        .notification-category-link svg { width:15px; height:15px; }
+        .notification-category-link svg { width:18px; height:18px; }
         .notification-category-link b { min-width:21px; padding:.15rem .35rem; border-radius:999px; background:#eef3f0; color:#5e7166; font-size:.56rem; text-align:center; }
         .notification-category-link.is-active b { background:rgba(255,255,255,.18); color:#fff; }
         .notification-center-grid { display:grid; grid-template-columns:minmax(0,1.8fr) minmax(280px,.72fr); gap:1rem; align-items:start; }
@@ -184,9 +176,10 @@
         .notification-feed-content > p { margin:.3rem 0 0; color:var(--note-muted); font-size:.68rem; line-height:1.5; }
         .notification-feed-actions { flex-wrap:wrap; gap:.85rem; margin-top:.7rem; }
         .notification-primary-action,.notification-read-action,.notification-action-unavailable { display:inline-flex; align-items:center; gap:.3rem; font-size:.62rem; font-weight:800; }
-        .notification-primary-action { padding:0; border:0; background:transparent; color:var(--htc-green); text-decoration:none; cursor:pointer; }
-        .notification-primary-action svg,.notification-read-action svg,.notification-action-unavailable svg { width:13px; height:13px; }
-        .notification-read-action { padding:0; border:0; background:transparent; color:#718078; }
+        .notification-primary-action { color:var(--htc-green); }
+        .notification-primary-action svg,.notification-read-action svg { width:18px; height:18px; }
+        .notification-action-unavailable svg { width:18px; height:18px; }
+        .notification-read-action { color:#718078; }
         .notification-action-unavailable { color:#8d9a93; }
         .notification-empty-state { min-height:300px; display:flex; align-items:center; justify-content:center; flex-direction:column; padding:2rem; text-align:center; }
         .notification-empty-state > span { width:54px; height:54px; display:grid; place-items:center; margin-bottom:.8rem; border-radius:16px; background:#eaf3ed; color:#6d8978; }
@@ -232,8 +225,8 @@
         .notification-guide-card ul { display:grid; gap:.65rem; margin:0; padding:0; list-style:none; }
         .notification-guide-card li { display:grid; grid-template-columns:15px minmax(0,1fr); gap:.5rem; color:#d4ebdc; font-size:.62rem; line-height:1.45; }
         .notification-guide-card li svg { width:14px; height:14px; color:#8fe0ab; }
-        @media(max-width:991.98px){.notification-center-hero{align-items:flex-start;flex-direction:column}.notification-hero-summary{width:100%}.notification-center-grid{grid-template-columns:1fr}.notification-insights-column{grid-template-columns:repeat(2,minmax(0,1fr))}}
-        @media(max-width:575.98px){.notification-center-page{padding-top:.25rem}.notification-center-hero{padding:1rem}.notification-hero-copy{align-items:flex-start}.notification-hero-icon{width:44px;height:44px;flex-basis:44px}.notification-hero-copy p{display:none}.notification-hero-summary{display:grid;grid-template-columns:1fr 1fr}.notification-hero-summary form{grid-column:1/-1}.notification-hero-summary form button{width:100%;justify-content:center}.notification-category-nav{margin-right:-.35rem;margin-left:-.35rem;border-radius:0}.notification-center-grid{gap:.75rem}.notification-insights-column{grid-template-columns:1fr}.notification-feed-item{grid-template-columns:36px minmax(0,1fr);padding:.8rem}.notification-feed-icon{width:36px;height:36px}.notification-feed-meta{align-items:flex-start;flex-direction:column;gap:.1rem}.notification-panel-heading{padding:.85rem}.notification-live-label{display:none}}
+        @media(max-width:991.98px){.notification-center-grid{grid-template-columns:1fr}.notification-insights-column{grid-template-columns:repeat(2,minmax(0,1fr))}}
+        @media(max-width:575.98px){.notification-center-page{padding-top:.25rem}.notification-toolbar{gap:.35rem}.notification-category-nav{gap:.2rem}.notification-category-link{padding:.5rem}.notification-center-grid{gap:.75rem}.notification-insights-column{grid-template-columns:1fr}.notification-feed-item{grid-template-columns:36px minmax(0,1fr);padding:.8rem}.notification-feed-icon{width:36px;height:36px}.notification-feed-meta{align-items:flex-start;flex-direction:column;gap:.1rem}.notification-panel-heading{padding:.85rem}.notification-live-label{display:none}}
         @media(prefers-reduced-motion:reduce){.notification-feed-item,.notification-feed-container{transition:none}}
     </style>
     @endPushOnce
@@ -243,22 +236,12 @@
             const center = document.querySelector('[data-notification-center]');
             if (!center) return;
 
-            const feed = center.querySelector('[data-notification-feed]');
-            const heading = center.querySelector('[data-current-category]');
+
+
             const unreadSyncKey = `htc-notification-unread-sync-${center.dataset.notificationAccount}`;
-            let feedController = null;
+
 
             const refreshIcons = () => window.lucide?.createIcons();
-            const updateCategoryCounts = counts => {
-                if (!counts) return;
-                center.querySelectorAll('[data-notification-category]').forEach(link => {
-                    const count = Math.max(0, Number(counts[link.dataset.notificationCategory]) || 0);
-                    const badge = link.querySelector('[data-category-count]');
-                    if (badge) badge.textContent = count;
-                });
-                const total = center.querySelector('[data-total-count]');
-                if (total) total.textContent = Math.max(0, Number(counts.all) || 0);
-            };
             const updateUnreadCount = (count, broadcast = false) => {
                 const normalized = Math.max(0, Number(count) || 0);
                 center.querySelectorAll('[data-unread-count]').forEach(element => element.textContent = normalized);
@@ -278,62 +261,9 @@
                 }
             };
 
-            const loadFeed = async (url, pushState = true) => {
-                feedController?.abort();
-                const controller = new AbortController();
-                feedController = controller;
-                center.classList.add('is-loading');
-                feed.setAttribute('aria-busy', 'true');
-
-                try {
-                    const response = await fetch(url, {
-                        headers: {'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-Background-Request': pushState ? 'false' : 'true'},
-                        credentials: 'same-origin',
-                        signal: controller.signal,
-                    });
-                    if (!response.ok) throw new Error(`Notification feed failed with HTTP ${response.status}`);
-                    const data = await response.json();
-                    if (window.htcSession?.expired) return;
-                    feed.innerHTML = data.html;
-
-                    center.querySelectorAll('[data-notification-category]').forEach(link => {
-                        const active = link.dataset.notificationCategory === data.category;
-                        link.classList.toggle('is-active', active);
-                        active ? link.setAttribute('aria-current', 'page') : link.removeAttribute('aria-current');
-                        if (active && heading) heading.textContent = link.dataset.categoryLabel;
-                    });
-                    updateCategoryCounts(data.category_counts);
-                    updateUnreadCount(data.unread_count);
-                    if (pushState) window.history.pushState({notificationCategory: data.category}, '', url);
-                    refreshIcons();
-                } catch (error) {
-                    if (error.name === 'AbortError' || error.name === 'SessionExpiredError') return;
-                    window.location.assign(url);
-                } finally {
-                    if (feedController === controller) {
-                        feedController = null;
-                        center.classList.remove('is-loading');
-                        feed.removeAttribute('aria-busy');
-                    }
-                }
-            };
-
-            center.addEventListener('click', event => {
-                const categoryLink = event.target.closest('[data-notification-category]');
-                if (categoryLink) {
-                    event.preventDefault();
-                    loadFeed(categoryLink.href);
-                    return;
-                }
-
-                const paginationLink = event.target.closest('[data-notification-pagination] a');
-                if (paginationLink) {
-                    event.preventDefault();
-                    loadFeed(paginationLink.href);
-                    center.querySelector('.notification-activity-panel')?.scrollIntoView({behavior: 'smooth', block: 'start'});
-                }
+            const loadFeed = (url, pushState = true) => window.htcFilters?.refresh(center, url, {
+                history: pushState ? 'push' : 'none', orient: pushState, background: !pushState,
             });
-
             center.addEventListener('submit', async event => {
                 const readForm = event.target.closest('[data-notification-read-form]');
                 const readAllForm = event.target.closest('[data-mark-all-read-form]');
@@ -387,10 +317,6 @@
                     delete form.dataset.submitting;
                     if (submitButton?.isConnected) submitButton.disabled = false;
                 }
-            });
-
-            window.addEventListener('popstate', () => {
-                if (window.location.pathname === new URL(center.dataset.notificationEndpoint).pathname) loadFeed(window.location.href, false);
             });
 
             window.addEventListener('storage', event => {

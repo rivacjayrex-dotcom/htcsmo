@@ -1,5 +1,5 @@
 <section>
-    <form method="post" action="{{ route('profile.update') }}" class="mt-2" enctype="multipart/form-data" x-data="{ edited: false }" @input="edited = true" data-confirm="Save the account information and profile photo you entered?" data-confirm-title="Update account information?" data-confirm-accept="Save changes">
+    <form method="post" action="{{ route('profile.update') }}" class="mt-2" enctype="multipart/form-data" x-data="{ edited: false }" @input="edited = true" data-confirm="Save your username and profile photo changes?" data-confirm-title="Update account information?" data-confirm-accept="Save changes">
         @csrf
         @method('patch')
 
@@ -37,11 +37,8 @@
 
         <div class="row g-3">
             <div class="col-md-6">
-                <label for="name" class="form-label small fw-bold text-muted text-uppercase">Full Name</label>
-                <input id="name" name="name" type="text" class="form-control border-0 bg-light py-2 px-3 rounded-3 shadow-none @error('name') is-invalid @enderror" value="{{ old('name', $user->name) }}" maxlength="255" autocomplete="name" required>
-                @error('name')
-                    <div class="invalid-feedback">{{ $message }}</div>
-                @enderror
+                <label for="name" class="form-label small fw-bold text-muted text-uppercase">Full Name (Read-only)</label>
+                <input id="name" type="text" class="form-control border-0 bg-light py-2 px-3 rounded-3 shadow-none" value="{{ $user->name }}" autocomplete="name" readonly>
             </div>
 
             <div class="col-md-6">
@@ -54,11 +51,8 @@
             </div>
 
             <div class="col-md-6">
-                <label for="email" class="form-label small fw-bold text-muted text-uppercase">Email Address</label>
-                <input id="email" name="email" type="email" class="form-control border-0 bg-light py-2 px-3 rounded-3 shadow-none @error('email') is-invalid @enderror" value="{{ old('email', $user->email) }}" maxlength="255" autocomplete="email" required>
-                @error('email')
-                    <div class="invalid-feedback">{{ $message }}</div>
-                @enderror
+                <label for="email" class="form-label small fw-bold text-muted text-uppercase">Email Address (Read-only)</label>
+                <input id="email" type="email" class="form-control border-0 bg-light py-2 px-3 rounded-3 shadow-none" value="{{ $user->email }}" autocomplete="email" readonly>
             </div>
 
             <div class="col-md-6">

@@ -4,16 +4,8 @@
     $dateBasisLabel = ($filters['date_basis'] ?? 'closed') === 'submitted' ? 'Submission date' : 'Closure date';
     $categoryLabels = ['all' => 'All outcomes', 'fulfilled' => 'Fulfilled', 'rejected' => 'Rejected', 'withdrawn' => 'Withdrawn'];
 @endphp
-<div class="container-fluid py-2 archive-workspace {{ $institutional ? 'institutional-archive-page' : 'personal-list' }}">
-    @unless($institutional)
-        <nav class="personal-navigation archive-screen-only" aria-label="My requisitions">
-            <button type="button" class="btn btn-htc" data-bs-toggle="modal" data-bs-target="#globalRequestModal">New requisition</button>
-            <a href="{{ route('dashboard') }}" class="btn btn-light border">My dashboard</a>
-            <a href="{{ route('requests.index') }}" class="btn btn-light border">View my active requests</a>
-        </nav>
-        @include('requests.partials.personal-styles')
-    @endunless
-    <header class="archive-heading">
+<div class="container-fluid py-2 archive-workspace {{ $institutional ? 'institutional-archive-page' : 'personal-list' }}" data-filter-workspace="archive">
+    <header class="archive-heading" data-filter-region="heading">
         <div><span class="archive-eyebrow">{{ $institutional ? 'Institutional records' : 'My request history' }}</span><h1>{{ $institutional ? 'Institutional Archive' : 'My requisition archive' }}</h1><p>Find fulfilled, rejected, and withdrawn requests. Submitted records and their history are retained.</p></div>
         <div class="archive-heading-actions archive-screen-only">
             <a class="btn btn-light border" href="{{ route($archiveRoute, [...$archiveFilters, 'export' => 'csv']) }}" download data-download><i data-lucide="file-down" aria-hidden="true"></i>Export filtered CSV</a>
@@ -23,15 +15,15 @@
     @if(session('success'))<p class="alert alert-success" role="status">{{ session('success') }}</p>@endif
     @if($errors->any())<p class="alert alert-warning" role="alert"><strong>Archive filters were not applied.</strong> {{ $errors->first() }}</p>@endif
 
-    <nav class="archive-categories archive-screen-only" aria-label="Archive outcomes">
+    <nav class="archive-categories archive-screen-only" aria-label="Archive outcomes" data-filter-region="categories" data-filter-links>
         @foreach($categoryLabels as $key => $label)
             @php($categoryQuery = Illuminate\Support\Arr::except($archiveFilters, ['category', 'status']))
-            <a href="{{ route($archiveRoute, $key === 'all' ? $categoryQuery : [...$categoryQuery, 'category' => $key]) }}" @if(($filters['category'] ?? 'all') === $key) aria-current="page" @endif>{{ $label }} <span>{{ $categoryCounts[$key] }}</span></a>
+            <a href="{{ route($archiveRoute, $key === 'all' ? $categoryQuery : [...$categoryQuery, 'category' => $key]) }}#archive-results" @if(($filters['category'] ?? 'all') === $key) aria-current="page" @endif>{{ $label }} <span>{{ $categoryCounts[$key] }}</span></a>
         @endforeach
     </nav>
     <p class="archive-help archive-screen-only">Category counts follow search, date, and department filters. Changing category clears the final-status filter.</p>
 
-    <form action="{{ route($archiveRoute) }}" method="GET" class="archive-filters archive-filter-card archive-screen-only" data-dynamic-search>
+    <form id="archiveFilters" action="{{ route($archiveRoute) }}#archive-results" method="GET" class="archive-filters archive-filter-card archive-screen-only" data-dynamic-search>
         @if(filled($filters['category'] ?? null))<input type="hidden" name="category" value="{{ $filters['category'] }}">@endif
         <div class="archive-search"><label for="archiveSearch">Search</label><input id="archiveSearch" type="search" name="search" value="{{ $filters['search'] ?? '' }}" maxlength="100" class="form-control" placeholder="{{ $institutional ? 'Tracking number, item, requestor, or remarks' : 'Tracking number, item, or remarks' }}"></div>
         <div><label for="archiveStatus">Final status</label><select id="archiveStatus" name="status" class="form-select"><option value="">All final statuses</option>@foreach(['completed' => 'Completed (pickup confirmed)', 'released' => 'Released (legacy)', 'rejected' => 'Rejected / disapproved', 'withdrawn' => 'Withdrawn by requestor'] as $value => $label)<option value="{{ $value }}" @selected(($filters['status'] ?? '') === $value)>{{ $label }}</option>@endforeach</select></div>
@@ -40,9 +32,10 @@
         <div><label for="archiveFrom">From (inclusive)</label><input id="archiveFrom" type="date" name="date_from" value="{{ $filters['date_from'] ?? '' }}" class="form-control"></div>
         <div><label for="archiveTo">To (inclusive)</label><input id="archiveTo" type="date" name="date_to" value="{{ $filters['date_to'] ?? '' }}" class="form-control"></div>
         <div><label for="archiveOrder">Sort selected date</label><select id="archiveOrder" name="order" class="form-select"><option value="desc" @selected(($filters['order'] ?? 'desc') === 'desc')>Newest first</option><option value="asc" @selected(($filters['order'] ?? '') === 'asc')>Oldest first</option></select></div>
-        <div class="archive-filter-actions"><button type="submit" class="btn btn-htc">Apply filters</button><a class="btn btn-light border" href="{{ route($archiveRoute) }}">Clear all filters</a></div>
+        <div class="archive-filter-actions"><x-filter-submit /><a class="btn btn-light border" data-filter-link href="{{ route($archiveRoute) }}#archive-results">Clear all filters</a></div>
     </form>
 
+    <div id="archive-results" data-filter-region="results" data-filter-results data-result-count="{{ $summary->total }}" tabindex="-1" aria-label="Matching archived requests">
     <section class="archive-result-summary" aria-label="Filtered archive summary">
         <div><span>Matching requests</span><strong>{{ $summary->total }}</strong></div>
         <div><span>Fulfilled</span><strong>{{ $summary->fulfilled }}</strong></div>
@@ -58,7 +51,8 @@
     </div>
 
     @include('requests.partials.history-table', ['requisitions' => $records, 'type' => 'archive'])
-    @if(method_exists($records, 'hasPages') && $records->hasPages())<nav class="archive-pagination archive-screen-only mt-3" aria-label="Archive pages">{{ $records->links() }}</nav>@endif
+    @if(method_exists($records, 'hasPages') && $records->hasPages())<nav class="archive-pagination archive-screen-only mt-3" aria-label="Archive pages" data-filter-pagination>{{ $records->fragment('archive-results')->links() }}</nav>@endif
+    </div>
 </div>
 @if(request()->boolean('print'))<script>window.addEventListener('load', () => window.print());</script>@endif
 @pushOnce('styles', 'page-styles:requests/partials/archive-workspace.blade.php')

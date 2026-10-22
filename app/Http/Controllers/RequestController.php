@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\ActiveRequestIndexRequest;
 use App\Http\Requests\ArchiveIndexRequest;
 use App\Jobs\SendRequisitionEmail;
 use App\Models\ApprovalLog;
@@ -24,6 +25,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 
 class RequestController extends Controller
 {
@@ -87,18 +89,10 @@ class RequestController extends Controller
     /**
      * Active Requisitions (Pending, In-Progress, Approved)
      */
-    public function index(Request $request)
+    public function index(ActiveRequestIndexRequest $request)
     {
         $user = Auth::user();
-        $validated = $request->validate([
-            'search' => ['nullable', 'string', 'max:100'],
-            ...($user->role === 'employee' ? [
-                'status' => ['nullable', 'in:pending,approved_dept,approved_vp,approved_provost,approved_president,processing,ready_for_pickup,for_clarification,deadline,action_required'],
-                'date_from' => ['nullable', 'date_format:Y-m-d'],
-                'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],
-                'order' => ['nullable', 'in:asc,desc'],
-            ] : []),
-        ]);
+        $validated = $request->validated();
 
         $scopeQuery = Requisition::query()
             ->whereNotIn('status', Requisition::ARCHIVED_STATUSES);
@@ -742,8 +736,15 @@ class RequestController extends Controller
         $request = Requisition::with(['user', 'items', 'logs.digitalSignature', 'logs.actor', 'latestClosureLog.actor'])->findOrFail($id);
         abort_unless($request->canBeViewedBy($httpRequest->user()), 403);
         $archiveReturnUrl = app(ArchiveService::class)->returnUrl($httpRequest);
+        $activeReturnUrl = null;
+        if ($httpRequest->boolean('from_list') && is_array($httpRequest->query('list_filters', []))) {
+            $filters = Validator::make($httpRequest->query('list_filters', []), ActiveRequestIndexRequest::filterRules($httpRequest->user()));
+            if ($filters->passes()) {
+                $activeReturnUrl = route('requests.index', $filters->validated()).'#request-results';
+            }
+        }
 
-        return view('requests.show', compact('request', 'archiveReturnUrl'));
+        return view('requests.show', compact('request', 'archiveReturnUrl', 'activeReturnUrl'));
     }
 
     public function downloadPDF(Request $httpRequest, int $id)

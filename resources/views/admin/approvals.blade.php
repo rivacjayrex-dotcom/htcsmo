@@ -21,7 +21,7 @@
             </div>
         @endif
 
-        <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white" data-live-region="approval-queue">
+        <div id="approval-results" class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white" data-live-region="approval-queue" data-filter-results tabindex="-1" aria-label="Approval queue results">
             <div class="card-header bg-white border-0 p-4 pb-2">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <div>

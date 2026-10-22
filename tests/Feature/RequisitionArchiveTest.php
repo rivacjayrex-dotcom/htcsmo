@@ -275,7 +275,7 @@ class RequisitionArchiveTest extends TestCase
             'search' => 'Duplicate seminar', 'category' => 'withdrawn', 'status' => 'withdrawn',
             'date_from' => '2026-09-10', 'date_to' => '2026-09-10', 'date_basis' => 'closed', 'order' => 'asc',
         ]))->assertOk()->assertSee($match->tracking_code)->assertDontSee($private->tracking_code)
-            ->assertSee('Duplicate seminar supplies')->assertSee('href="'.route('requests.archive').'">Clear all filters', false);
+            ->assertSee('Duplicate seminar supplies')->assertSee('href="'.route('requests.archive').'#archive-results">Clear all filters', false);
 
         $clear = $this->get(route('requests.archive'))->assertOk();
         $this->assertSame([], $clear->viewData('filters'));
@@ -284,7 +284,7 @@ class RequisitionArchiveTest extends TestCase
         $this->actingAs(User::factory()->create())->get(route('requests.archive'))->assertOk()->assertSee('No archived requisitions found');
         $smo = User::factory()->create(['role' => 'smo']);
         $this->actingAs($smo)->get(route('admin.archive', ['search' => 'Duplicate', 'dept' => $owner->department]))
-            ->assertOk()->assertSee('href="'.route('admin.archive').'">Clear all filters', false);
+            ->assertOk()->assertSee('href="'.route('admin.archive').'#archive-results">Clear all filters', false);
     }
 
     public function test_filtered_exports_and_print_include_all_pages_and_enforce_the_same_privacy_rules(): void

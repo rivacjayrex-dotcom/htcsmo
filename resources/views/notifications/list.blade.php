@@ -28,16 +28,16 @@
                     @if($action)
                         <form method="POST" action="{{ route('notifications.open', $note) }}">
                             @csrf
-                            <button type="submit" class="notification-primary-action">{{ $action['label'] }} <i data-lucide="arrow-up-right"></i></button>
+                            <button type="submit" class="notification-primary-action notification-icon-control" aria-label="{{ $action['label'] }}" title="{{ $action['label'] }}"><i data-lucide="arrow-up-right" aria-hidden="true"></i></button>
                         </form>
                     @elseif($note->action_type)
-                        <span class="notification-action-unavailable"><i data-lucide="link-2-off"></i> Related record unavailable</span>
+                        <span class="notification-action-unavailable" role="img" aria-label="Related record unavailable" title="Related record unavailable"><i data-lucide="link-2-off" aria-hidden="true"></i></span>
                     @endif
                     @unless($note->is_read)
                         <form method="POST" action="{{ route('notifications.read', $note) }}" data-notification-read-form>
                             @csrf
                             @method('PATCH')
-                            <button type="submit" class="notification-read-action"><i data-lucide="check"></i> Mark as read</button>
+                            <button type="submit" class="notification-read-action notification-icon-control" aria-label="Mark as read" title="Mark as read"><i data-lucide="check" aria-hidden="true"></i></button>
                         </form>
                     @endunless
                 </div>
