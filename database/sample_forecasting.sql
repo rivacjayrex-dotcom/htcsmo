@@ -4,6 +4,7 @@
 -- No USE statement is included, so this uses your selected database.
 -- Requires an approved, active SMO or admin account; creates no accounts.
 -- Run the ENTIRE file with stop-on-error enabled. On error, run ROLLBACK.
+-- If an error stops the demo reset, also run SET SESSION SQL_SAFE_UPDATES = 1.
 -- Rerunning resets ONLY the six reserved demo supplies and their tagged logs.
 -- These are simulated quantities/prices, not actual institutional usage.
 USE `defaultdb`;
@@ -98,6 +99,11 @@ INNER JOIN supply_units u ON u.unit_name = d.unit_name
 CROSS JOIN forecast_demo_context ctx
 WHERE NOT EXISTS (SELECT 1 FROM supplies s WHERE s.item_name = d.item_name);
 
+-- Workbench safe updates rejects these tag-based resets (the tag is not a key).
+-- Change only this connection's setting, restoring it immediately after reset.
+SET @forecast_demo_safe_updates = @@SESSION.SQL_SAFE_UPDATES;
+SET SESSION SQL_SAFE_UPDATES = 0;
+
 UPDATE supplies s
 INNER JOIN forecast_demo_items d ON d.item_name = s.item_name
 CROSS JOIN forecast_demo_context ctx
@@ -110,6 +116,8 @@ INNER JOIN supplies s ON s.id = l.supply_id
 INNER JOIN forecast_demo_items d ON d.item_name = s.item_name
 CROSS JOIN forecast_demo_context ctx
 WHERE s.specifications = @demo_tag AND l.remarks = @demo_tag;
+
+SET SESSION SQL_SAFE_UPDATES = @forecast_demo_safe_updates;
 
 DROP TEMPORARY TABLE IF EXISTS forecast_demo_usage;
 CREATE TEMPORARY TABLE forecast_demo_usage (

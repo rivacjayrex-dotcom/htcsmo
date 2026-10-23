@@ -2,7 +2,7 @@ This script supplies synthetic data for demonstrating the inventory forecast to 
 
 1. Run the current Laravel migrations on your presentation database. This script uses the normalized category and unit tables introduced on October 19, 2026.
 2. In MySQL Workbench or phpMyAdmin, select the database used by your presentation app. Have an approved, active SMO or admin account. The script attributes the simulated logs to that account and labels their remarks as synthetic.
-3. Open `database/sample_forecasting.sql` and execute the entire script. In Workbench, enable stopping on errors; if an error occurs, run `ROLLBACK;` before retrying. No catalog import is required.
+3. Open `database/sample_forecasting.sql` and execute the entire script. The script temporarily disables `SQL_SAFE_UPDATES` for the two demo reset statements and immediately restores the connection's previous setting. No Workbench preference change or reconnect is needed. In Workbench, enable stopping on errors; if an error occurs, run `ROLLBACK;` and `SET SESSION SQL_SAFE_UPDATES = 1;` before retrying, since rollback does not restore session settings. No catalog import is required.
 4. Verify the final result: six supplies, each with **24 months of history and 24 release records**. If the preflight says no active account exists, it skips all persistent changes.
 5. From the project folder, run `php artisan cache:clear`, refresh Inventory, and open Forecast. Direct SQL imports bypass the application's cache invalidation, so an old forecast may otherwise remain for five minutes.
 6. Select Monthly or Quarterly and use the forecast download button for the PDF presentation.

@@ -25,14 +25,6 @@
                 {{ $isSmoDeadlineView ? 'Approvals needing follow-up' : 'Requests requiring your attention' }}
                 <em>{{ $approvalDeadlineCount ?? $approvalDeadlineRequests->count() }}</em>
             </h3>
-            <p>
-                {{ $isSmoDeadlineView
-                    ? 'Send a deadline reminder to the current owner, requestor, and SMO for requests at risk under the three-working-day target.'
-                    : 'These requisitions are nearing or have passed the three-working-day target measured from submission.' }}
-                @if(($approvalDeadlineCount ?? 0) > $approvalDeadlineRequests->count())
-                    Showing the earliest {{ $approvalDeadlineRequests->count() }} of {{ $approvalDeadlineCount }} approval follow-ups.
-                @endif
-            </p>
         </div>
         <div class="approval-deadline-heading__actions">
             <a href="{{ $isSmoDeadlineView ? route('requests.index', ['status' => 'deadline']) : route('admin.approvals') }}">
