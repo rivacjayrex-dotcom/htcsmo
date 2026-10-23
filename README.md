@@ -290,7 +290,7 @@ Inventory forecasts aggregate release history by month and cache results for fiv
 
 Approval queues show 15 records per page. Report previews show 50 source records per page and label summaries as page totals; CSV and PDF exports include all matching records.
 
-Approval and fulfillment emails run on the `mail` queue with three attempts and delivery/failure logging. Docker starts the worker automatically; `composer run dev` also processes this queue. On XAMPP without the Composer development runner, start a hidden worker from PowerShell:
+Submitting a requisition queues a confirmation email for the requestor and a new-request email for every active SMO user. An SMO user submitting their own request receives one confirmation. Submission, approval, and fulfillment emails run on the `mail` queue with three attempts and delivery/failure logging. Email delivery requires SMTP settings and a running worker; Mailtrap Sandbox captures these emails for testing instead of delivering them to users' inboxes. Docker starts the worker automatically; `composer run dev` also processes this queue. On XAMPP without the Composer development runner, start a hidden worker from PowerShell:
 
 ```powershell
 .\tools\start-mail-worker.ps1

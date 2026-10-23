@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\SendRequisitionEmail;
 use App\Models\ApprovalLog;
 use App\Models\Requisition;
 use App\Models\RequisitionItem;
@@ -13,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class RequisitionController extends Controller
@@ -76,6 +78,8 @@ class RequisitionController extends Controller
             return $requisition;
         });
 
+        $this->sendSubmissionEmails($requisition, $user);
+
         $notifications->send($user, 'requisition.submitted', 'Requisition Submitted',
             'Your request for '.count($validated['items']).' item(s) has been submitted.', [
                 'icon' => 'send', 'type' => 'info', 'action_type' => 'requisition',
@@ -113,6 +117,40 @@ class RequisitionController extends Controller
         }
 
         return redirect()->route('dashboard')->with('success', 'Requisition processed successfully.');
+    }
+
+    private function sendSubmissionEmails(Requisition $requisition, User $requestor): void
+    {
+        $recipients = User::query()
+            ->where('role', 'smo')
+            ->where('account_status', User::ACCOUNT_ACTIVE)
+            ->where('id', '!=', $requestor->id)
+            ->get()
+            ->prepend($requestor);
+
+        foreach ($recipients as $recipient) {
+            $isRequestor = $recipient->is($requestor);
+
+            try {
+                SendRequisitionEmail::dispatch(
+                    $recipient->email,
+                    $recipient->id,
+                    $requisition->id,
+                    $isRequestor ? 'Requisition Submitted' : 'New Requisition Submitted',
+                    $isRequestor ? 'Your Requisition Has Been Submitted' : 'New Requisition Received',
+                    $isRequestor
+                        ? "Your requisition {$requisition->tracking_code} has been submitted successfully. You can view its current status in the system."
+                        : "{$requestor->name} has submitted requisition {$requisition->tracking_code}. You can view its details and current approval status in the system.",
+                    '#185b3b',
+                );
+            } catch (\Throwable $exception) {
+                Log::error('Could not queue requisition submission email.', [
+                    'requisition_id' => $requisition->id,
+                    'user_id' => $recipient->id,
+                    'exception' => $exception->getMessage(),
+                ]);
+            }
+        }
     }
 
     private function validateSelectedOptions(Supply $supply, array $selected): array
