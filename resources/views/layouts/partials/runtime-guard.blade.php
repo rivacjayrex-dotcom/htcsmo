@@ -16,7 +16,9 @@
     }
 
     .runtime-loader[hidden] { display: none !important; }
-    body.runtime-locked { overflow: hidden; cursor: wait; }
+    /* Keep the sticky header attached to the viewport while navigation is locked. */
+    html:has(body.runtime-locked) { overflow: hidden; }
+    body.runtime-locked { overflow: clip; cursor: wait; }
     .runtime-content-skeleton { min-height: calc(100vh - 120px); padding: var(--space-24); border: 1px solid #e0e9e3; border-radius: 18px; background: #fff; box-shadow: 0 12px 34px rgba(17,62,38,.06); }
     .runtime-content-skeleton__heading { display: flex; justify-content: space-between; gap: var(--space-16); margin-bottom: var(--space-24); }
     .runtime-content-skeleton__cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-16); }

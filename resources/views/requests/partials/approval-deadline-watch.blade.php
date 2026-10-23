@@ -64,7 +64,7 @@
                         <span x-text="expanded ? 'Hide details' : 'Details'">Details</span>
                     </button>
                     @if($isSmoDeadlineView)
-                        <form method="POST" action="{{ route('admin.requests.deadline-reminder', $deadlineRequest) }}" data-confirm="Send a deadline reminder to the current owner, requestor, and SMO for {{ $deadlineRequest->tracking_code }}?" data-confirm-title="Send a deadline reminder?" data-confirm-accept="Send reminder">
+                        <form method="POST" action="{{ route('admin.requests.deadline-reminder', $deadlineRequest) }}" data-confirm="Send an in-app deadline reminder to active recipients: the current owner, requestor, and SMO for {{ $deadlineRequest->tracking_code }}? Each recipient is notified once per stage and deadline status per day." data-confirm-title="Send a deadline reminder?" data-confirm-accept="Send reminder">
                             @csrf
                             <button type="submit" data-loading-text="Notifying…">
                                 <i data-lucide="send"></i> Notify

@@ -180,22 +180,25 @@ class RequestController extends Controller
     {
         abort_unless($request->user()->role === 'smo', 403);
 
-        $requisition->loadMissing(['user', 'items']);
-        if (! $requisition->isDeadlineNearing() && ! $requisition->isDeadlineOverdue()) {
+        $result = $deadlineNotifications->notify($requisition);
+
+        if (! $result['eligible']) {
             return back()->with('error', 'This requisition is no longer at a deadline risk.');
         }
 
-        $result = $deadlineNotifications->notify($requisition);
+        if ($result['delivered'] < $result['expected']) {
+            return back()->with('error', 'Some deadline reminders could not be delivered. Please try again; recipients already notified will not receive duplicates.');
+        }
 
-        if ($result['delivered'] === 0) {
-            return back()->with('error', 'The reminder could not be delivered. Please try again.');
+        if ($result['reviewer_missing']) {
+            return back()->with('error', 'No active current owner is assigned to this requisition. Check the signatory account and department assignment. Other active recipients have been notified.');
         }
 
         return back()->with(
             'success',
             $result['created'] > 0
-                ? 'The requestor, SMO, and current approver have been notified about the deadline.'
-                : 'All deadline recipients were already notified about this requisition today.'
+                ? 'Deadline reminders have been delivered in-app to all active recipients, including the current owner.'
+                : 'All active deadline recipients were already notified in-app about this requisition at its current stage today.'
         );
     }
 

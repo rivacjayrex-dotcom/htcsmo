@@ -34,13 +34,20 @@ class CheckDeadlineSla extends Command
             ->get();
 
         $alertsCount = 0;
+        $problemCount = 0;
 
         foreach ($atRiskRequisitions as $requisition) {
-            $alertsCount += $deadlineNotifications->notify($requisition)['created'];
+            $result = $deadlineNotifications->notify($requisition);
+            $alertsCount += $result['created'];
+
+            if ($result['reviewer_missing'] || $result['delivered'] < $result['expected']) {
+                $problemCount++;
+                $this->warn("{$requisition->tracking_code}: reminder delivery is incomplete or no active current owner is assigned.");
+            }
         }
 
-        $this->info("Completed. Sent {$alertsCount} alert notification(s).");
+        $this->info("Completed. Created {$alertsCount} in-app alert notification(s).");
 
-        return 0;
+        return $problemCount > 0 ? self::FAILURE : self::SUCCESS;
     }
 }
