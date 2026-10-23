@@ -120,7 +120,7 @@
 
 @pushOnce('styles', 'page-styles:requests/partials/approval-deadline-watch.blade.php')
 <style>
-    .approval-deadline-watch { margin-bottom: var(--space-16); overflow: hidden; border: 1px solid #e7d8b4; border-radius: 18px; background: #fff; box-shadow: 0 8px 26px rgba(70,52,20,.06); }
+    .approval-deadline-watch { container: approval-deadline / inline-size; margin-bottom: var(--space-16); overflow: hidden; border: 1px solid #e7d8b4; border-radius: 18px; background: #fff; box-shadow: 0 8px 26px rgba(70,52,20,.06); }
     .approval-deadline-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-16); padding: var(--space-16) var(--space-24); border-bottom: 1px solid #eee4cc; background: linear-gradient(135deg,#fffdf7,#fff8e8); }
     .approval-deadline-eyebrow { display: block; margin-bottom: var(--space-4); color: #9a6811; font-size: var(--text-caption); font-weight: 900; letter-spacing: var(--tracking-label); text-transform: uppercase; }
     .approval-deadline-heading h3 { margin: 0; color: #493b24; font-size: var(--text-heading-sm); font-weight: 850; }
@@ -134,11 +134,17 @@
     .approval-deadline-heading__icon { width: 40px; height: 40px; flex: 0 0 40px; display: grid; place-items: center; border-radius: 12px; color: #9a6811; background: #f8e7bd; }
     .approval-deadline-heading__icon svg { width: 19px; }
     .approval-deadline-list { padding: var(--space-4) var(--space-16); }
-    .approval-deadline-item { display: grid; grid-template-columns: 130px minmax(190px,1.3fr) minmax(145px,.8fr) 80px auto; align-items: center; gap: var(--space-12); padding: var(--space-12) var(--space-4); border-bottom: 1px solid #edf0ed; }
+    .approval-deadline-item { display: grid; grid-template-columns: max-content minmax(0,1.3fr) minmax(0,1fr) minmax(80px,.6fr) max-content; grid-template-areas: "state request owner age action"; align-items: center; gap: var(--space-16); padding: var(--space-12) var(--space-4); border-bottom: 1px solid #edf0ed; }
+    .approval-deadline-item > * { min-width: 0; }
+    .approval-deadline-state { grid-area: state; }
+    .approval-deadline-request { grid-area: request; overflow-wrap: anywhere; }
+    .approval-deadline-owner { grid-area: owner; overflow-wrap: anywhere; }
+    .approval-deadline-age { grid-area: age; }
+    .approval-deadline-action { grid-area: action; }
     .approval-deadline-item:last-child { border-bottom: 0; }
     .approval-deadline-state { display: inline-flex; width: fit-content; align-items: center; gap: var(--space-8); padding: var(--space-4) var(--space-12); border-radius: 999px; font-size: var(--text-caption); font-weight: 900; line-height: var(--line-heading); text-transform: uppercase; }
     .approval-deadline-state svg { width: 12px; height: 12px; flex: 0 0 12px; }
-    .approval-deadline-item.overdue .approval-deadline-state-label { white-space: nowrap; }
+    .approval-deadline-state-label { white-space: nowrap; }
     .approval-deadline-item.near .approval-deadline-state { color: #8b5a08; background: #fff0c9; }
     .approval-deadline-item.overdue .approval-deadline-state { color: #b32c36; background: #fde3e5; }
     .approval-deadline-request strong, .approval-deadline-request span, .approval-deadline-owner small, .approval-deadline-owner strong, .approval-deadline-age strong, .approval-deadline-age span { display: block; }
@@ -166,10 +172,9 @@
     .approval-deadline-empty svg { width: 18px; }
     .approval-deadline-empty strong { color: #46594d; font-size: var(--text-caption); }
     .approval-deadline-empty p { margin: .15rem 0 0; color: #8b978f; font-size: var(--text-secondary); }
-    @media(max-width: 1199.98px) { .approval-deadline-details { grid-template-columns: repeat(2,minmax(0,1fr)); }.deadline-full-details { align-self: stretch; }.deadline-detail-block:nth-child(2) { border-right: 0; } }
-    @media(max-width: 991.98px) { .approval-deadline-item { grid-template-columns: 120px minmax(180px,1fr) minmax(140px,.8fr) auto; }.approval-deadline-age { display: none; } }
-    @media(max-width: 767.98px) { .approval-deadline-list { display: grid; gap: var(--space-12); padding: var(--space-12); }.approval-deadline-item { display: grid; grid-template-columns: 1fr auto; gap: var(--space-12); padding: var(--space-12); border: 1px solid #e8e2d3!important; border-radius: 13px; }.approval-deadline-state { grid-column: 1/-1; }.approval-deadline-owner { grid-column: 1/2; }.approval-deadline-action { grid-column: 1/-1; grid-row: auto; align-self: end; justify-content: flex-start; }.approval-deadline-action :is(button,a) { white-space: normal; }.approval-deadline-details { grid-template-columns: 1fr; }.deadline-detail-block { padding: 0 0 var(--space-8); border-right: 0; border-bottom: 1px solid #ebe5d8; }.approval-deadline-heading { padding: var(--space-16); }.approval-deadline-heading__actions { align-items: flex-end; flex-direction: column-reverse; } }
-    @media(max-width: 479.98px) { .approval-deadline-heading { align-items: stretch; }.approval-deadline-heading__actions { align-items: stretch; }.approval-deadline-heading__actions > a { justify-content: center; }.approval-deadline-item { grid-template-columns: 1fr; }.approval-deadline-action { grid-column: auto; grid-row: auto; display: grid; grid-template-columns: 1fr 1fr; text-align: left; }.approval-deadline-action :is(button,a) { width: 100%; }.approval-deadline-heading__icon { display: none; } }
-    @media(max-width:479.98px) { .approval-deadline-heading { flex-direction:column; } }
+    @container approval-deadline (max-width: 68rem) { .approval-deadline-details { grid-template-columns: repeat(2,minmax(0,1fr)); }.deadline-full-details { align-self: stretch; }.deadline-detail-block:nth-child(2) { border-right: 0; } }
+    @container approval-deadline (max-width: 55rem) { .approval-deadline-item { grid-template-columns: max-content minmax(0,1fr) minmax(0,1fr); grid-template-areas: "state request owner" ". age action"; align-items: start; }.approval-deadline-action { justify-content: flex-start; } }
+    @container approval-deadline (max-width: 38rem) { .approval-deadline-list { display: grid; gap: var(--space-12); padding: var(--space-12); }.approval-deadline-item { grid-template-columns: repeat(2,minmax(0,1fr)); grid-template-areas: "state state" "request owner" "age age" "action action"; gap: var(--space-12); padding: var(--space-12); border: 1px solid #e8e2d3!important; border-radius: 13px; }.approval-deadline-action { flex-wrap: wrap; text-align: left; }.approval-deadline-details { grid-template-columns: 1fr; }.deadline-detail-block { padding: 0 0 var(--space-8); border-right: 0; border-bottom: 1px solid #ebe5d8; }.approval-deadline-heading { flex-direction: column; padding: var(--space-16); }.approval-deadline-heading__actions { align-items: flex-start; } }
+    @container approval-deadline (max-width: 24rem) { .approval-deadline-item { grid-template-columns: minmax(0,1fr); grid-template-areas: "state" "request" "owner" "age" "action"; }.approval-deadline-heading { align-items: stretch; }.approval-deadline-heading__actions > a { justify-content: center; }.approval-deadline-heading__icon { display: none; } }
 </style>
 @endPushOnce
