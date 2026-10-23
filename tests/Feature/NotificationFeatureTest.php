@@ -203,6 +203,71 @@ class NotificationFeatureTest extends TestCase
         $this->assertCount(1, $requisitionQueries);
     }
 
+    public function test_deadline_sidebar_limits_the_preview_and_keeps_the_total_count(): void
+    {
+        $this->travelTo(now()->setDate(2026, 10, 23)->setTime(10, 0));
+        $smo = User::factory()->create(['role' => 'smo']);
+        $owner = User::factory()->create();
+        $risks = collect();
+        foreach (range(1, 7) as $number) {
+            $risks->push($this->deadlineRequisition($owner, ['due_at' => now()->subDays($number)]));
+        }
+        foreach (Requisition::ARCHIVED_STATUSES as $status) {
+            $this->deadlineRequisition($owner, ['status' => $status]);
+        }
+        $this->deadlineRequisition($owner, ['sla_warning_at' => now()->addDay(), 'due_at' => now()->addDays(2)]);
+
+        $expected = $risks->reverse()->take(5)->pluck('id')->values()->all();
+        $response = $this->actingAs($smo)->get(route('notifications'));
+        $response->assertOk()
+            ->assertViewHas('criticalRequestCount', 7)
+            ->assertViewHas('criticalRequests', fn ($requests) => $requests->pluck('id')->all() === $expected)
+            ->assertSee('View all 7 deadline risks')
+            ->assertSee(route('requests.index', ['status' => 'deadline']), false);
+        $this->assertSame(5, substr_count($response->getContent(), '<a class="notification-deadline-item '));
+
+        $this->get(route('requests.index', ['status' => 'deadline']))->assertOk()
+            ->assertViewHas('activeRequests', fn ($requests) => $requests->total() === 7);
+    }
+
+    public function test_deadline_sidebar_distinguishes_warnings_from_overdue_requests(): void
+    {
+        $this->travelTo(now()->setDate(2026, 10, 23)->setTime(10, 0));
+        $smo = User::factory()->create(['role' => 'smo']);
+        $owner = User::factory()->create();
+        $warning = $this->deadlineRequisition($owner, ['sla_warning_at' => now(), 'due_at' => now()->addDay()]);
+        $overdue = $this->deadlineRequisition($owner, ['due_at' => now()]);
+
+        $this->actingAs($smo)->get(route('notifications'))->assertOk()
+            ->assertViewHas('criticalRequestCount', 2)
+            ->assertSeeInOrder([
+                'notification-deadline-item is-overdue', 'Overdue', $overdue->tracking_code,
+                'This requisition has reached its processing deadline.',
+                'Oct 23, 2026 10:00 AM',
+                'notification-deadline-item is-warning', 'Due soon', $warning->tracking_code,
+                'This requisition is approaching its processing deadline.',
+                'Oct 24, 2026 10:00 AM',
+            ], false)
+            ->assertSee(route('requests.show', $warning), false)
+            ->assertSee(route('requests.show', $overdue), false);
+    }
+
+    public function test_deadline_sidebar_handles_no_risks_and_remains_smo_only(): void
+    {
+        $smo = User::factory()->create(['role' => 'smo']);
+        $owner = User::factory()->create();
+        $this->actingAs($smo)->get(route('notifications'))->assertOk()
+            ->assertViewHas('criticalRequestCount', 0)
+            ->assertSee('No critical request deadlines.')
+            ->assertDontSee('View all 0 deadline risks');
+
+        $risk = $this->deadlineRequisition($owner);
+        $this->actingAs($owner)->get(route('notifications'))->assertOk()
+            ->assertViewHas('criticalRequests', fn ($requests) => $requests->isEmpty())
+            ->assertDontSee('Critical deadlines')
+            ->assertDontSee($risk->tracking_code);
+    }
+
     public function test_pruning_removes_only_expired_read_notifications(): void
     {
         $user = User::factory()->create();
@@ -216,6 +281,20 @@ class NotificationFeatureTest extends TestCase
         $this->assertDatabaseMissing('notifications', ['id' => $expired->id]);
         $this->assertDatabaseHas('notifications', ['id' => $recent->id]);
         $this->assertDatabaseHas('notifications', ['id' => $unread->id]);
+    }
+
+    private function deadlineRequisition(User $owner, array $attributes = []): Requisition
+    {
+        return Requisition::create(array_merge([
+            'user_id' => $owner->id,
+            'request_type' => 'minor',
+            'status' => 'pending',
+            'purpose' => 'Deadline sidebar regression.',
+            'grand_total' => 100,
+            'submitted_at' => now()->subDays(10),
+            'sla_warning_at' => now()->subDays(8),
+            'due_at' => now()->subDay(),
+        ], $attributes));
     }
 
     private function supply(): Supply

@@ -48,12 +48,14 @@ class NotificationController extends Controller
             ])->header('Cache-Control', 'private, no-store, no-cache, must-revalidate');
         }
 
-        $criticalRequests = $user->role === 'smo'
-            ? Requisition::with('items')
-                ->deadlineRisks()
-                ->oldest('due_at')
-                ->get()
-            : collect();
+        $criticalRequests = collect();
+        $criticalRequestCount = 0;
+        if ($user->role === 'smo') {
+            $deadlineQuery = Requisition::query()->deadlineRisks();
+            $criticalRequestCount = (clone $deadlineQuery)->count();
+            $criticalRequests = $deadlineQuery->with(['items', 'user.academicDepartment'])
+                ->oldest('due_at')->oldest('id')->limit(5)->get();
+        }
         $lowStockSupplies = $user->role === 'smo'
             ? Supply::whereColumn('quantity', '<=', 'min_stock_level')
                 ->orderByRaw('CASE WHEN quantity <= 0 THEN 0 ELSE 1 END')
@@ -67,7 +69,7 @@ class NotificationController extends Controller
         ];
 
         return view('notifications', compact(
-            'notes', 'resolvedActions', 'category', 'categoryCounts', 'unreadCount', 'criticalRequests', 'lowStockSupplies', 'personalStats'
+            'notes', 'resolvedActions', 'category', 'categoryCounts', 'unreadCount', 'criticalRequests', 'criticalRequestCount', 'lowStockSupplies', 'personalStats'
         ));
     }
 

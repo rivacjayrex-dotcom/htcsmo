@@ -60,6 +60,10 @@
             padding: 0;
         }
 
+        .login-card:has(> .auth-register-page) {
+            width: min(100%, 1040px);
+        }
+
         .login-card > .auth-page, .auth-page > .row {
             width: 100%;
             min-height: inherit;
@@ -200,7 +204,8 @@
             background: #f8faf8;
         }
 
-        .auth-input .form-control, .auth-input .form-select { padding-inline: var(--space-16); }
+        .auth-input .form-control { padding-inline: var(--space-12); }
+        .auth-input .form-select { padding-left: var(--space-12); }
         .auth-input .form-control:focus, .auth-input .form-select:focus {
             z-index: 3;
             border-color: #22a447;
@@ -271,6 +276,10 @@
 
         .auth-note svg { flex: 0 0 auto; margin-top: .08rem; }
 
+        @media (min-width: 768px) and (max-width: 991.98px) {
+            .auth-register-page .col-sm-6 { width: 100%; }
+        }
+
         @media (max-width: 767.98px) {
             body { padding: 0; align-items: stretch; background: #fff; }
             .login-card:has(> .auth-page) {
@@ -281,7 +290,11 @@
                 box-shadow: none;
             }
 
-            .auth-page > .row { min-height: 100dvh; }
+            .auth-page > .row {
+                min-height: 100dvh;
+                flex-direction: column;
+                flex-wrap: nowrap;
+            }
             .auth-brand-panel { min-height: auto; padding: var(--space-24); display: block; }
             .auth-brand-main {
                 display: grid;
@@ -291,7 +304,7 @@
             }
 
             .auth-brand-logo {
-                grid-row: 1 / span 3;
+                grid-row: 1 / span 2;
                 width: 3.75rem;
                 height: 3.75rem;
                 border-radius: .9rem;
@@ -302,6 +315,7 @@
             .auth-brand-description, .auth-brand-footer { display: none; }
             .auth-form-panel {
                 min-height: 0;
+                flex: 1 0 auto;
                 padding: var(--space-32) var(--space-24) calc(var(--space-32) + var(--space-4));
                 align-items: flex-start;
             }

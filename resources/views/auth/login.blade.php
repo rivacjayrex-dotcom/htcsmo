@@ -35,7 +35,7 @@
                                     name="login"
                                     value="{{ old('login') }}"
                                     class="form-control @error('login') is-invalid @enderror"
-                                    placeholder="Enter your username or school ID"
+                                    placeholder="Username or school ID"
                                     autocomplete="username"
                                     inputmode="text"
                                     required
@@ -61,7 +61,7 @@
                                     type="password"
                                     name="password"
                                     class="form-control @error('password') is-invalid @enderror"
-                                    placeholder="Enter your password"
+                                    placeholder="Your password"
                                     autocomplete="current-password"
                                     required
                                 >

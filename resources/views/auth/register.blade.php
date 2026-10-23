@@ -71,7 +71,7 @@
                                 <label for="email" class="auth-form-label">Institutional email</label>
                                 <div class="input-group auth-input">
                                     <span class="input-group-text" aria-hidden="true"><i data-lucide="mail" width="17" height="17"></i></span>
-                                    <input id="email" type="email" name="email" value="{{ old('email') }}" class="form-control @error('email') is-invalid @enderror" placeholder="username@online.htcgsc.edu.ph" pattern=".+@online\.htcgsc\.edu\.ph" title="Must end with @online.htcgsc.edu.ph" autocomplete="email" required>
+                                    <input id="email" type="email" name="email" value="{{ old('email') }}" class="form-control @error('email') is-invalid @enderror" placeholder="you@online.htcgsc.edu.ph" pattern=".+@online\.htcgsc\.edu\.ph" title="Must end with @online.htcgsc.edu.ph" autocomplete="email" required>
                                     @error('email') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
                             </div>

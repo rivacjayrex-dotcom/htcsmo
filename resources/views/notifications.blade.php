@@ -81,21 +81,27 @@
 
                     <section class="notification-insight-card deadline-watch">
                         <div class="notification-insight-heading">
-                            <div><span>Release queue</span><h2>Critical deadlines</h2></div>
-                            <b>{{ $criticalRequests->count() }}</b>
+                            <div><span>Request deadlines</span><h2>Critical deadlines</h2></div>
+                            <b>{{ $criticalRequestCount }}</b>
                         </div>
                         <div class="notification-deadline-list">
                             @forelse($criticalRequests as $req)
-                                <article class="notification-deadline-item">
-                                    <div><span>Action required</span><small>#{{ $req->id }}</small></div>
+                                @php($isOverdue = $req->isDeadlineOverdue())
+                                <a class="notification-deadline-item {{ $isOverdue ? 'is-overdue' : 'is-warning' }}" href="{{ route('requests.show', $req) }}" aria-label="View request {{ $req->tracking_code }}">
+                                    <div><span>{{ $isOverdue ? 'Overdue' : 'Due soon' }}</span><small>{{ $req->tracking_code }}</small></div>
                                     <h3>{{ $req->items->first()->item_name ?? 'Multiple requested items' }}</h3>
-                                    <p>This requisition has reached its end-to-end processing deadline.</p>
-                                    <a href="{{ route('requests.show', $req) }}" class="notification-icon-control" aria-label="View request #{{ $req->id }}" title="View request"><i data-lucide="arrow-up-right" aria-hidden="true"></i></a>
-                                </article>
+                                    <p>{{ $isOverdue ? 'This requisition has reached its processing deadline.' : 'This requisition is approaching its processing deadline.' }}</p>
+                                    @if($req->due_at)
+                                        <p>Due <time datetime="{{ $req->due_at->toIso8601String() }}">{{ $req->due_at->format('M j, Y g:i A') }}</time></p>
+                                    @endif
+                                </a>
                             @empty
                                 <div class="notification-insight-empty"><i data-lucide="shield-check"></i><span>No critical request deadlines.</span></div>
                             @endforelse
                         </div>
+                        @if($criticalRequestCount > 0)
+                            <a href="{{ route('requests.index', ['status' => 'deadline']) }}" class="notification-insight-link">View all {{ $criticalRequestCount }} deadline risks <i data-lucide="arrow-right" aria-hidden="true"></i></a>
+                        @endif
                     </section>
                 @else
                     <section class="notification-insight-card personal-summary">
@@ -201,14 +207,18 @@
         .notification-insight-link { min-height:38px; display:flex; align-items:center; justify-content:center; gap:var(--space-8); margin-top:var(--space-12); border-radius:9px; background:#edf7f1; color:#1f6b43; font-size:var(--text-caption); font-weight:800; text-decoration:none; }
         .notification-insight-link svg { width:14px; }
         .notification-deadline-list { display:grid; gap:var(--space-8); }
-        .notification-deadline-item { padding:var(--space-12); border:1px solid #efd3d5; border-radius:11px; background:#fff8f8; }
+        .notification-deadline-item { display:block; padding:var(--space-12); border:1px solid #efd3d5; border-radius:11px; background:#fff8f8; color:inherit; text-decoration:none; }
+        .notification-deadline-item:hover { box-shadow:0 3px 10px rgba(24,70,43,.12); }
+        .notification-deadline-item:hover h3 { text-decoration:underline; }
+        .notification-deadline-item:focus-visible { outline:2px solid var(--htc-green); outline-offset:-3px; }
+        .notification-deadline-item.is-warning { border-color:#ecd9ae; background:#fffbf1; }
+        .notification-deadline-item.is-warning > div span { color:#8a5b0a; }
         .notification-deadline-item > div { display:flex; justify-content:space-between; gap:var(--space-8); }
         .notification-deadline-item > div span { color:#b63139; font-size:var(--text-caption); font-weight:900; text-transform:uppercase; }
-        .notification-deadline-item small { color:#9a8587; font-size:var(--text-caption); }
+        .notification-deadline-item small { min-width:0; overflow-wrap:anywhere; color:#9a8587; font-size:var(--text-caption); text-align:right; }
         .notification-deadline-item h3 { margin:var(--space-4) 0 var(--space-4); color:#432e30; font-size:var(--text-body); font-weight:800; }
         .notification-deadline-item p { margin:0 0 var(--space-8); color:#806c6e; font-size:var(--text-secondary); }
-        .notification-deadline-item a { display:inline-flex; align-items:center; gap:var(--space-4); color:#ad2f37; font-size:var(--text-caption); font-weight:800; text-decoration:none; }
-        .notification-deadline-item a svg { width:12px; }
+        .notification-deadline-item p:last-child { margin-bottom:0; }
         .notification-insight-empty { min-height:90px; display:flex; align-items:center; justify-content:center; gap:var(--space-8); color:#7b8b82; font-size:var(--text-caption); text-align:center; }
         .notification-insight-empty svg { width:18px; color:#45815e; }
         .notification-stat-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:var(--space-8); }

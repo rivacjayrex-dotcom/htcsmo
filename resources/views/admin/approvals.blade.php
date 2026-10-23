@@ -88,7 +88,7 @@
 
         <!-- REVIEW MODAL -->
         <div class="modal fade" id="reviewModal" tabindex="-1" aria-hidden="true" aria-labelledby="reviewModalTitle">
-            <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
                 <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden bg-white">
                     <div class="modal-header border-0 bg-light p-4">
                         <div>
@@ -355,7 +355,7 @@
         @if(Auth::user()->role == 'smo')
             <!-- RELEASE CONFIRMATION MODAL -->
             <div class="modal fade" id="releaseConfirmationModal" tabindex="-1" aria-hidden="true" aria-labelledby="releaseConfirmationTitle">
-                <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
                     <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
                         <div class="modal-body p-4 p-md-5 text-center">
                             <div class="release-confirmation-icon mx-auto mb-3" aria-hidden="true">
