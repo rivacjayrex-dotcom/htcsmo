@@ -7,7 +7,7 @@
         $firstName = explode(' ', trim(Auth::user()->name))[0] ?: Auth::user()->name;
     @endphp
 
-    <div class="dashboard-page{{ Auth::user()->role === 'employee' ? ' employee-dashboard' : '' }}">
+    <div class="dashboard-page{{ Auth::user()->role === 'employee' ? ' employee-dashboard' : ' staff-dashboard'.($isSmo ? ' smo-dashboard' : '') }}">
         <section class="dashboard-hero">
             <div class="dashboard-hero-copy">
                 <h2>{{ 'Welcome back, '.$firstName.'.' }}</h2>
@@ -742,7 +742,7 @@
         .modern-metric p {
             margin: 0;
             color: #839088;
-            font-size: var(--text-body);
+            font-size: var(--text-secondary);
             line-height: var(--line-body);
         }
 
@@ -1096,7 +1096,7 @@
         .activity-item p {
             margin: 0;
             color: #7f8c84;
-            font-size: var(--text-body);
+            font-size: var(--text-secondary);
             line-height: var(--line-body);
         }
 
@@ -1364,4 +1364,8 @@
         }
     </style>
     @endPushOnce
+    @if(Auth::user()->role !== 'employee')
+        @include('dashboard.partials.employee-styles')
+        @include('dashboard.partials.staff-styles')
+    @endif
 </x-app-layout>

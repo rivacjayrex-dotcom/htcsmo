@@ -157,6 +157,10 @@
         .notification-feed-list { display:grid; gap:var(--space-12); padding:var(--space-12); background:#f6f9f7; }
         .notification-feed-item { position:relative; display:grid; grid-template-columns:42px minmax(0,1fr); gap:var(--space-12); padding:var(--space-16); border:1px solid #e1e9e4; border-radius:13px; background:#fff; transition:border-color .18s ease,transform .18s ease,box-shadow .18s ease; }
         .notification-feed-item:hover { border-color:#bfd2c5; transform:translateY(-1px); box-shadow:0 7px 16px rgba(24,70,43,.06); }
+        .notification-feed-item > form { position:absolute; inset:0; margin:0; border-radius:inherit; }
+        .notification-card-action { position:absolute; inset:0; z-index:1; width:100%; height:100%; padding:0; border:0; border-radius:inherit; background:transparent; cursor:pointer; }
+        .notification-card-action:focus-visible { outline:2px solid var(--htc-green); outline-offset:2px; }
+        .notification-card-action:disabled { cursor:wait; }
         .notification-feed-item.is-unread { border-left:4px solid var(--htc-green); background:linear-gradient(100deg,#f1faf4,#fff 28%); }
         .notification-feed-item.type-warning.is-unread { border-left-color:#dfa316; }
         .notification-feed-item.type-danger.is-unread { border-left-color:#cf424b; }
@@ -166,7 +170,7 @@
         .type-danger .notification-feed-icon { background:#fde8ea; color:#b52d36; }
         .type-success .notification-feed-icon { background:#e1f3e7; color:#17643d; }
         .notification-feed-content { min-width:0; }
-        .notification-feed-meta,.notification-feed-title-row,.notification-feed-actions { display:flex; align-items:center; }
+        .notification-feed-meta,.notification-feed-title-row { display:flex; align-items:center; }
         .notification-feed-meta { justify-content:space-between; gap:var(--space-12); margin-bottom:var(--space-4); }
         .notification-feed-meta span { color:#4f755f; font-size:var(--text-caption); font-weight:800; letter-spacing:var(--tracking-label); text-transform:uppercase; }
         .notification-feed-meta time { color:#96a39c; font-size:var(--text-caption); }
@@ -174,13 +178,7 @@
         .notification-feed-title-row h3 { margin:0; color:var(--note-ink); font-size:var(--text-body); font-weight:800; overflow-wrap:anywhere; }
         .notification-unread-indicator { width:7px; height:7px; flex:0 0 7px; border-radius:50%; background:#e14952; box-shadow:0 0 0 3px rgba(225,73,82,.1); }
         .notification-feed-content > p { margin:var(--space-4) 0 0; color:var(--note-muted); font-size:var(--text-secondary); line-height:var(--line-body); }
-        .notification-feed-actions { flex-wrap:wrap; gap:var(--space-12); margin-top:var(--space-12); }
-        .notification-primary-action,.notification-read-action,.notification-action-unavailable { display:inline-flex; align-items:center; gap:var(--space-4); font-size:var(--text-caption); font-weight:800; }
-        .notification-primary-action { color:var(--htc-green); }
-        .notification-primary-action svg,.notification-read-action svg { width:18px; height:18px; }
-        .notification-action-unavailable svg { width:18px; height:18px; }
-        .notification-read-action { color:#718078; }
-        .notification-action-unavailable { color:#8d9a93; }
+        .notification-feed-content > .notification-action-unavailable { color:#8d9a93; font-size:var(--text-caption); }
         .notification-empty-state { min-height:300px; display:flex; align-items:center; justify-content:center; flex-direction:column; padding:var(--space-32); text-align:center; }
         .notification-empty-state > span { width:54px; height:54px; display:grid; place-items:center; margin-bottom:var(--space-12); border-radius:16px; background:#eaf3ed; color:#6d8978; }
         .notification-empty-state svg { width:25px; height:25px; }

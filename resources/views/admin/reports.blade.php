@@ -110,7 +110,7 @@
         .analytics-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-16); margin-bottom: var(--space-24); }
         .analytics-eyebrow { display: block; color: #527260; font-size: var(--text-caption); text-transform: uppercase; letter-spacing: var(--tracking-label); font-weight: 800; }
         .analytics-header h2 { margin: var(--space-4) 0; font-weight: 800; font-size: var(--text-heading-md); letter-spacing: var(--tracking-normal); }
-        .analytics-header p,.analytics-section-title p { color: #62766a; font-size: var(--text-body); }
+        .analytics-header p,.analytics-section-title p { color: #62766a; font-size: var(--text-secondary); }
         .analytics-header .btn { display: inline-flex; align-items: center; gap: var(--space-8); padding: var(--space-12) var(--space-16); font-weight: 700; }
         .analytics-section-title { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-12); margin: var(--space-24) 0 var(--space-12); }
         .analytics-section-title h3 { font-size: var(--text-heading-sm); font-weight: 800; margin-bottom: var(--space-4); }
@@ -130,7 +130,7 @@
         .analytics-priority > span > span svg { width: 12px; }
         .analytics-period-panel { margin: var(--space-24) 0; padding: var(--space-24); border-radius: 17px; background: #edf5ef; border: 1px solid #d9e8dd; }
         .analytics-period-panel h3 { font-size: var(--text-heading-sm); font-weight: 800; margin-bottom: var(--space-4); }
-        .analytics-period-panel p { font-size: var(--text-body); color: #597060; }
+        .analytics-period-panel p { font-size: var(--text-secondary); color: #597060; }
         .analytics-period-form { display: flex; align-items: flex-end; flex-wrap: wrap; gap: var(--space-12); margin-top: var(--space-16); }
         .analytics-period-form > div { flex: 1 1 160px; max-width: 280px; }
         .analytics-period-form label { display: block; margin-bottom: var(--space-4); color: #344f3e; font-size: var(--text-secondary); font-weight: 750; }
@@ -140,7 +140,7 @@
         .analytics-metrics { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: var(--space-12); margin-bottom: var(--space-16); }
         .analytics-metrics article { padding: var(--space-24); background: #fff; border: 1px solid #dce7e0; border-radius: 15px; }
         .analytics-metrics strong { display: block; margin: var(--space-8) 0; font-size: var(--text-heading-lg); line-height: var(--line-heading); letter-spacing: var(--tracking-normal); font-weight: 800; overflow-wrap: anywhere; }
-        .analytics-metrics p { font-size: var(--text-body); color: #62766a; }
+        .analytics-metrics p { font-size: var(--text-secondary); color: #62766a; }
         .analytics-metrics .analytics-metric-featured { background: #185b3b; color: #fff; border-color: #185b3b; }
         .analytics-metric-featured .analytics-eyebrow,.analytics-metric-featured p { color: #d3e8db; }
         .analytics-grid { display: grid; grid-template-columns: minmax(0,1.15fr) minmax(0,1fr); gap: var(--space-16); align-items: start; }
@@ -174,7 +174,7 @@
         .analytics-workflow dd { margin: 0; font-weight: 800; font-size: var(--text-secondary); }
         .analytics-inventory { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-16); margin: var(--space-16) 0; padding: var(--space-24); border-radius: 15px; border: 1px solid #dce7e0; background: #fff; }
         .analytics-inventory h3 { font-size: var(--text-heading-sm); font-weight: 750; }
-        .analytics-inventory p { margin-top: var(--space-8); font-size: var(--text-body); color: #62766a; }
+        .analytics-inventory p { margin-top: var(--space-8); font-size: var(--text-secondary); color: #62766a; }
         .analytics-inventory > strong { margin-left: auto; font-size: var(--text-heading-md); overflow-wrap: anywhere; }
         .analytics-inventory > a { font-size: var(--text-secondary); }
         .analytics-definitions { padding: var(--space-16) var(--space-24); border-radius: 15px; background: #f1f5f2; font-size: var(--text-secondary); }

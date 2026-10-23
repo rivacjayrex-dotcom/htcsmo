@@ -73,6 +73,54 @@ test('invalid layout values leave the current preference unchanged', () => {
     assert.equal(values.get('htc-requisition-layout'), 'list');
 });
 
+test('reviewing the cart starts at the items and preserves the catalog and draft', () => {
+    const { engine } = cart();
+    const focus = [];
+    engine.$nextTick = callback => callback();
+    engine.$refs.cartBody = { scrollTop: 400, focus(options) { focus.push(['cart', options]); } };
+    engine.$refs.catalogPane = { focus(options) { focus.push(['catalog', options]); } };
+    engine.cart = [{ id: 12, qty: 2, price: 50 }];
+    engine.search = 'paper';
+    engine.category = 'Office Supplies';
+    engine.purpose = 'For classroom assessment materials.';
+    engine.view = 'catalog';
+    const items = engine.cart;
+
+    engine.reviewCart();
+    assert.equal(engine.cartOpen, true);
+    assert.equal(engine.$refs.cartBody.scrollTop, 0);
+    assert.equal(focus[0][0], 'cart');
+    assert.equal(focus[0][1].preventScroll, true);
+    engine.continueBrowsing();
+    assert.equal(engine.cartOpen, false);
+    assert.equal(focus[1][0], 'catalog');
+    assert.equal(engine.cart, items);
+    assert.equal(engine.search, 'paper');
+    assert.equal(engine.category, 'Office Supplies');
+    assert.equal(engine.purpose, 'For classroom assessment materials.');
+    assert.equal(engine.view, 'catalog');
+});
+
+test('the reason shortcut opens the cart and reveals the required field', () => {
+    const { engine } = cart();
+    const calls = [];
+    engine.$nextTick = callback => callback();
+    engine.$refs.purpose = {
+        focus(options) { calls.push(['focus', options]); },
+        scrollIntoView(options) { calls.push(['scroll', options]); },
+    };
+    engine.completeReason();
+    assert.equal(engine.cartOpen, true);
+    assert.equal(calls[0][0], 'focus');
+    assert.equal(calls[0][1].preventScroll, true);
+    assert.equal(calls[1][0], 'scroll');
+    assert.equal(calls[1][1].block, 'nearest');
+    engine.lastAddedKey = '12';
+    engine.resetModal();
+    assert.equal(engine.cartOpen, false);
+    assert.equal(engine.lastAddedKey, null);
+});
+
 test('keeping a requisition prevents closing and preserves all draft data', async () => {
     const fixture = cart();
     const { engine } = fixture;

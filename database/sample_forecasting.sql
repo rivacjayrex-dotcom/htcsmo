@@ -6,6 +6,7 @@
 -- Run the ENTIRE file with stop-on-error enabled. On error, run ROLLBACK.
 -- Rerunning resets ONLY the six reserved demo supplies and their tagged logs.
 -- These are simulated quantities/prices, not actual institutional usage.
+USE `defaultdb`;
 
 SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
 -- Match the application's Asia/Manila date even on a UTC database server.

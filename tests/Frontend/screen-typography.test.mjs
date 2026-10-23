@@ -31,7 +31,7 @@ test('screen typography stays on the readable scale across shared, page and inli
             if (inPrint(decl) || decl.parent.selector === '.request-purpose-block::after') return;
             if (['inherit', 'initial', 'unset'].includes(decl.value)) return;
             const size = pixels(decl.value);
-            if (![12, 14, 16, 20, 24, 32].includes(size)) failures.push(`${file}: ${decl.parent.selector || 'inline'} = ${decl.value}`);
+            if (![12, 14, 16, 20, 24].includes(size)) failures.push(`${file}: ${decl.parent.selector || 'inline'} = ${decl.value}`);
             if (decl.parent.selector === 'html' && size !== 16) failures.push(`${file}: root must remain 16px`);
         });
     };

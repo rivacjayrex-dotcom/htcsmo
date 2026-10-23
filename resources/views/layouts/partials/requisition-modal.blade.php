@@ -4,7 +4,7 @@
         <div class="modal-content requisition-shell border-0 overflow-hidden">
             <div class="requisition-header">
                 <h4 class="mb-0 fw-bold" id="requisitionModalTitle">Build a requisition</h4>
-                <button type="button" class="requisition-cart-link" x-cloak x-show="view !== 'selection'" @click="$refs.cartPane.scrollIntoView({behavior: 'smooth', block: 'start'}); $refs.purpose.focus({preventScroll: true})"><i data-lucide="shopping-cart" aria-hidden="true"></i> Cart &amp; reason <span x-text="cartQuantity"></span></button>
+                <button type="button" class="requisition-cart-link" x-cloak x-show="view !== 'selection'" @click="reviewCart()" aria-controls="requisition-cart"><i data-lucide="shopping-cart" aria-hidden="true"></i> Review cart <span x-text="cartQuantity"></span></button>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" :disabled="submitting" aria-label="Close requisition"></button>
             </div>
 
@@ -54,8 +54,8 @@
                         <ul class="small mb-0 ps-3">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>
                     </div>
                 @endif
-                <div class="requisition-workspace">
-                    <section class="catalog-pane">
+                <div class="requisition-workspace" :class="{ 'is-reviewing-cart': cartOpen }">
+                    <section class="catalog-pane" x-ref="catalogPane" tabindex="-1" aria-label="Supply catalog">
                         <div x-show="view === 'catalog'">
                             <div class="catalog-toolbar">
                                 <button type="button" class="btn btn-sm btn-light border rounded-pill" @click="backToTiers()"><i data-lucide="chevron-left"></i> Tier</button>
@@ -93,10 +93,6 @@
                                 </template>
                             </div>
                             <div x-cloak x-show="!catalogLoading && !catalogError && filteredItems.length === 0" class="empty-catalog"><i data-lucide="package-search"></i><strong>No matching items</strong><span>Try another search or category. Only SMO-listed items appear here.</span></div>
-                            <button type="button" x-cloak x-show="cart.length" x-transition class="mobile-cart-jump" @click="$refs.cartPane.scrollIntoView({behavior: 'smooth', block: 'start'})">
-                                <span><i data-lucide="shopping-cart"></i> Review requisition</span>
-                                <strong x-text="cartQuantity + ' item' + (cartQuantity === 1 ? '' : 's')"></strong>
-                            </button>
                         </div>
 
                         <div x-cloak x-show="view === 'product' && selectedItem" x-transition class="product-configurator">
@@ -122,36 +118,44 @@
                         </div>
                     </section>
 
-                    <aside class="cart-pane" x-ref="cartPane" aria-label="Cart and required request reason">
+                    <aside class="cart-pane" id="requisition-cart" x-ref="cartPane" aria-label="Cart and required request reason">
                         <div class="cart-title"><div><span class="cart-icon"><i data-lucide="shopping-cart"></i></span><strong>Your cart</strong></div><span x-text="cartQuantity + ' item' + (cartQuantity === 1 ? '' : 's')" aria-live="polite"></span></div>
-                        <div class="cart-reason">
-                            <div class="reason-field">
-                                <label for="requisition-purpose">Reason for request <span class="reason-required">Required</span></label>
-                                <p id="requisition-purpose-help">Tell us why you need these supplies to enable submission.</p>
-                                <textarea id="requisition-purpose" x-ref="purpose" name="purpose" x-model="purpose" maxlength="500" minlength="10" rows="3" required :readonly="submitting" aria-describedby="requisition-purpose-help" placeholder="Example: For printing student assessment materials for the midterm examination."></textarea>
-                                <span><em x-text="purpose.length + '/500'"></em><em :class="purposeIsValid ? 'text-success' : ''" x-text="purposeIsValid ? 'Reason added' : 'At least 10 characters'"></em></span>
+                        <button type="button" class="cart-continue" @click="continueBrowsing()"><i data-lucide="chevron-left" aria-hidden="true"></i> Continue browsing</button>
+                        <div class="cart-body" x-ref="cartBody" tabindex="-1" aria-label="Selected items and request reason">
+                            <div class="cart-items">
+                                <template x-for="(item, index) in cart" :key="item.key">
+                                    <div class="cart-item" :class="{ 'is-recently-added': item.key === lastAddedKey }" :data-cart-key="item.key">
+                                        <div class="cart-item-heading"><strong x-text="item.name"></strong><button type="button" class="cart-remove" @click="removeItem(index)" :aria-label="'Remove ' + item.name"><i data-lucide="x" aria-hidden="true"></i></button></div>
+                                        <small x-text="optionSummary(item.options) || item.specs"></small>
+                                        <div class="cart-item-controls"><div class="mini-quantity" role="group" :aria-label="'Quantity for ' + item.name"><button type="button" @click="item.qty = Math.max(1, item.qty - 1)" :disabled="item.qty <= 1 || submitting" :aria-label="'Decrease quantity of ' + item.name">&minus;</button><span x-text="item.qty" aria-live="polite"></span><button type="button" @click="item.qty = Math.min(item.stock, item.qty + 1)" :disabled="item.qty >= item.stock || submitting" :aria-label="'Increase quantity of ' + item.name">+</button></div><b x-text="'₱' + formatMoney(item.qty * item.price)"></b></div>
+                                        <small class="cart-unit-price" x-text="'₱' + formatMoney(item.price) + ' / ' + item.unit"></small>
+                                        <input type="hidden" :name="'items['+index+'][supply_id]'" :value="item.id"><input type="hidden" :name="'items['+index+'][qty]'" :value="item.qty">
+                                        <template x-for="(value, label) in item.options" :key="label"><input type="hidden" :name="'items['+index+'][options]['+label+']'" :value="value"></template>
+                                    </div>
+                                </template>
+                                <div x-show="cart.length === 0" class="cart-empty"><i data-lucide="shopping-bag"></i><strong>Your cart is empty</strong><span>Choose an item from the approved catalog to begin.</span></div>
                             </div>
-                        </div>
-                        <div class="cart-items">
-                            <template x-for="(item, index) in cart" :key="item.key">
-                                <div class="cart-item">
-                                    <div class="d-flex justify-content-between gap-2"><strong x-text="item.name"></strong><button type="button" @click="removeItem(index)" aria-label="Remove item"><i data-lucide="x"></i></button></div>
-                                    <small x-text="optionSummary(item.options) || item.specs"></small>
-                                    <div class="d-flex justify-content-between align-items-center mt-2"><div class="mini-quantity"><button type="button" @click="item.qty = Math.max(1, item.qty - 1)">−</button><span x-text="item.qty"></span><button type="button" @click="item.qty = Math.min(item.stock, item.qty + 1)">+</button></div><b x-text="'₱' + formatMoney(item.qty * item.price)"></b></div>
-                                    <input type="hidden" :name="'items['+index+'][supply_id]'" :value="item.id"><input type="hidden" :name="'items['+index+'][qty]'" :value="item.qty">
-                                    <template x-for="(value, label) in item.options" :key="label"><input type="hidden" :name="'items['+index+'][options]['+label+']'" :value="value"></template>
+                            <div class="cart-reason">
+                                <div class="reason-field">
+                                    <label for="requisition-purpose">Reason for request <span class="reason-required">Required</span></label>
+                                    <p id="requisition-purpose-help">Briefly describe how you will use these supplies.</p>
+                                    <textarea id="requisition-purpose" x-ref="purpose" name="purpose" x-model="purpose" maxlength="500" minlength="10" rows="2" required :readonly="submitting" aria-describedby="requisition-purpose-help requisition-purpose-count" placeholder="e.g. Printing midterm assessment materials."></textarea>
+                                    <span id="requisition-purpose-count"><em x-text="purpose.length + '/500'"></em><em :class="purposeIsValid ? 'text-success' : ''" x-text="purposeIsValid ? 'Reason added' : 'At least 10 characters'"></em></span>
                                 </div>
-                            </template>
-                            <div x-show="cart.length === 0" class="cart-empty"><i data-lucide="shopping-bag"></i><strong>Your cart is empty</strong><span>Choose an item from the approved catalog to begin.</span></div>
+                            </div>
                         </div>
                         <div class="cart-summary">
                             <div><span>Request tier</span><b x-text="tierLabel"></b></div><div><span>Estimated total</span><strong x-text="'₱' + formatMoney(grandTotal)"></strong></div>
                             <p x-cloak x-show="tier === 'minor' && grandTotal > 1000" class="text-danger mb-2">Minor requests are limited to ₱1,000. Remove items or switch tiers.</p>
-                            <button type="submit" class="btn btn-htc w-100 py-3 fw-bold rounded-3" :disabled="!canSubmit" x-text="submitLabel"></button>
-                            <small><i data-lucide="shield-check"></i> Item details and prices are verified by SMO.</small>
+                            <button type="button" x-cloak x-show="cart.length && !purposeIsValid" class="btn btn-htc w-100 fw-bold rounded-3 cart-submit" @click="completeReason()" :disabled="submitting">Continue: add a reason</button>
+                            <button type="submit" x-show="!cart.length || purposeIsValid" class="btn btn-htc w-100 fw-bold rounded-3 cart-submit" :disabled="!canSubmit || submitting" x-text="submitLabel"></button>
                         </div>
                     </aside>
                 </div>
+                <button type="button" x-cloak x-show="cart.length && !cartOpen" class="mobile-cart-jump" @click="reviewCart()" aria-controls="requisition-cart">
+                    <span><i data-lucide="shopping-cart" aria-hidden="true"></i> Review cart <strong x-text="cartQuantity"></strong></span>
+                    <strong x-text="'₱' + formatMoney(grandTotal)"></strong>
+                </button>
             </form>
             @include('layouts.partials.requisition-confirmation')
         </div>
