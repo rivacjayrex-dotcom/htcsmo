@@ -84,19 +84,19 @@
         <div class="row g-3 mb-4">
             <div class="col-md-4">
                 <div class="card border-0 shadow-sm rounded-4 p-3 h-100">
-                    <small class="text-muted fw-bold text-uppercase" style="font-size: 9px;">Visible Personnel</small>
+                    <small class="text-muted fw-bold text-uppercase" style="font-size: var(--text-caption);">Visible Personnel</small>
                     <h3 class="fw-black mb-0 mt-2">{{ $stats['total'] }}</h3>
                 </div>
             </div>
             <div class="col-md-4">
                 <div class="card border-0 shadow-sm rounded-4 p-3 h-100 border-start border-success border-4">
-                    <small class="text-muted fw-bold text-uppercase" style="font-size: 9px;">Approved Accounts</small>
+                    <small class="text-muted fw-bold text-uppercase" style="font-size: var(--text-caption);">Approved Accounts</small>
                     <h3 class="fw-black text-success mb-0 mt-2">{{ $stats['active'] }}</h3>
                 </div>
             </div>
             <div class="col-md-4">
                 <div class="card border-0 shadow-sm rounded-4 p-3 h-100 border-start border-warning border-4">
-                    <small class="text-muted fw-bold text-uppercase" style="font-size: 9px;">Suspended Accounts</small>
+                    <small class="text-muted fw-bold text-uppercase" style="font-size: var(--text-caption);">Suspended Accounts</small>
                     <h3 class="fw-black text-warning mb-0 mt-2">{{ $stats['suspended'] }}</h3>
                 </div>
             </div>
@@ -281,11 +281,11 @@
 
     @pushOnce('styles', 'page-styles:admin/manage-users.blade.php')
     <style>
-        .mini-label { font-size: 9px; font-weight: 800; text-transform: uppercase; color: #64748b; letter-spacing: 1px; }
+        .mini-label { font-size: var(--text-secondary); font-weight: 800; text-transform: uppercase; color: #64748b; letter-spacing: var(--tracking-label); }
         .btn-htc { background-color: var(--htc-green); color: white; border: none; }
         .btn-htc:hover { background-color: #0d2e16; color: white; }
-        .personnel-categories { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .75rem; }
-        .personnel-category { min-width: 0; display: flex; align-items: center; gap: .75rem; padding: .9rem; border: 1px solid #dfe8e2; border-radius: 15px; color: #526258; background: #fff; text-decoration: none; box-shadow: 0 5px 16px rgba(20, 62, 37, .045); transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease; }
+        .personnel-categories { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-12); }
+        .personnel-category { min-width: 0; display: flex; align-items: center; gap: var(--space-12); padding: var(--space-16); border: 1px solid #dfe8e2; border-radius: 15px; color: #526258; background: #fff; text-decoration: none; box-shadow: 0 5px 16px rgba(20, 62, 37, .045); transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease; }
         .personnel-category:hover { border-color: #91b9a0; color: #214a31; transform: translateY(-1px); box-shadow: 0 8px 20px rgba(20, 62, 37, .08); }
         .personnel-category.active { border-color: #27764b; color: #174d2e; background: #edf8f1; box-shadow: inset 0 0 0 1px #27764b; }
         .personnel-category__icon { width: 38px; height: 38px; flex: 0 0 38px; display: grid; place-items: center; border-radius: 11px; color: #27764b; background: #e8f3ec; }
@@ -293,9 +293,9 @@
         .personnel-category__icon svg { width: 18px; height: 18px; }
         .personnel-category__copy { min-width: 0; flex: 1; }
         .personnel-category__copy strong, .personnel-category__copy small { display: block; }
-        .personnel-category__copy strong { font-size: .76rem; }
-        .personnel-category__copy small { margin-top: .12rem; overflow: hidden; color: #7b8980; font-size: .61rem; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
-        .personnel-category__count { min-width: 28px; padding: .25rem .45rem; border-radius: 999px; color: #53675a; background: #eef2ef; font-size: .67rem; font-weight: 800; text-align: center; }
+        .personnel-category__copy strong { font-size: var(--text-secondary); }
+        .personnel-category__copy small { margin-top: .12rem; overflow: hidden; color: #7b8980; font-size: var(--text-caption); line-height: var(--line-heading); text-overflow: ellipsis; white-space: nowrap; }
+        .personnel-category__count { min-width: 28px; padding: var(--space-4) var(--space-8); border-radius: 999px; color: #53675a; background: #eef2ef; font-size: var(--text-secondary); font-weight: 800; text-align: center; }
         .personnel-category.active .personnel-category__count { color: #19603a; background: #d7ecdf; }
         .personnel-empty-icon { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 12px; color: #678071; background: #edf3ef; }
         .personnel-empty-icon svg { width: 20px; height: 20px; }
@@ -306,10 +306,10 @@
             .personnel-toolbar { align-items: stretch !important; flex-direction: column; }
             .personnel-search { width: 100%; }
             .personnel-search .input-group { flex: 1; }
-            .personnel-search input { min-width: 0 !important; min-height: 42px; font-size: 16px; }
-            .personnel-page > .row.g-3 { --bs-gutter-y: .65rem; }
-            .personnel-page > .card > .card-header { padding: 1rem !important; }
-            .personnel-categories { display: flex; gap: .6rem; margin-right: -.75rem; padding-right: .75rem; overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: thin; }
+            .personnel-search input { min-width: 0 !important; min-height: 42px; font-size: var(--text-body); }
+            .personnel-page > .row.g-3 { --bs-gutter-y: var(--space-12); }
+            .personnel-page > .card > .card-header { padding: var(--space-16) !important; }
+            .personnel-categories { display: flex; gap: var(--space-8); margin-right: calc(-1 * var(--space-12)); padding-right: var(--space-12); overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: thin; }
             .personnel-category { min-width: 230px; scroll-snap-align: start; }
         }
         @media (max-width: 575.98px) {
@@ -317,9 +317,9 @@
             #editPersonnelModal .modal-content { height: 100dvh; max-height: 100dvh; border-radius: 0 !important; }
             #editPersonnelModal .modal-header,
             #editPersonnelModal .modal-body,
-            #editPersonnelModal .modal-footer { padding: 1rem !important; }
+            #editPersonnelModal .modal-footer { padding: var(--space-16) !important; }
             #editPersonnelModal select,
-            #editPersonnelModal input { min-height: 44px; font-size: 16px; }
+            #editPersonnelModal input { min-height: 44px; font-size: var(--text-body); }
             #editPersonnelModal .modal-footer { align-items: stretch; flex-direction: column-reverse; }
             #editPersonnelModal .modal-footer .btn { width: 100%; min-height: 44px; margin: 0; }
         }

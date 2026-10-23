@@ -9,7 +9,7 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=optional" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/confirmations.js'])
     <script src="https://unpkg.com/lucide@latest"></script>
 
@@ -31,13 +31,13 @@
         body {
             min-height: 100dvh;
             margin: 0;
-            padding: clamp(1rem, 3vw, 2.5rem);
+            padding: clamp(var(--space-16), 3vw, calc(var(--space-32) + var(--space-8)));
             display: flex;
             align-items: center;
             justify-content: center;
             overflow-x: hidden;
             color: var(--auth-text);
-            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-family: var(--bs-body-font-family);
             background:
                 radial-gradient(circle at 8% 12%, rgba(34, 197, 94, .15), transparent 26rem),
                 radial-gradient(circle at 92% 88%, rgba(20, 83, 45, .12), transparent 24rem),
@@ -46,7 +46,7 @@
 
         .login-card {
             width: min(100%, 34rem);
-            padding: clamp(1.5rem, 5vw, 2.5rem);
+            padding: clamp(var(--space-24), 5vw, calc(var(--space-32) + var(--space-8)));
             overflow: hidden;
             background: #fff;
             border: 1px solid rgba(20, 83, 45, .08);
@@ -69,7 +69,7 @@
             position: relative;
             isolation: isolate;
             min-height: 100%;
-            padding: clamp(1.75rem, 3.5vw, 2.75rem);
+            padding: clamp(var(--space-32), 3.5vw, calc(var(--space-32) + var(--space-12)));
             display: flex;
             flex-direction: column;
             justify-content: space-between;
@@ -93,7 +93,7 @@
             right: -9rem;
         }
 
-        .auth-legal-copy { color: #7b877f; font-size: .68rem; line-height: 1.5; }
+        .auth-legal-copy { color: #7b877f; font-size: var(--text-caption); line-height: var(--line-body); }
         .auth-legal-copy a { color: var(--auth-green-800); font-weight: 700; text-decoration: none; }
         .auth-legal-copy a:hover { text-decoration: underline; }
 
@@ -107,7 +107,7 @@
         .auth-brand-logo {
             width: clamp(3.75rem, 6vw, 4.5rem);
             height: clamp(3.75rem, 6vw, 4.5rem);
-            padding: .45rem;
+            padding: var(--space-8);
             object-fit: contain;
             background: rgba(255, 255, 255, .96);
             border-radius: 1.2rem;
@@ -115,40 +115,40 @@
         }
 
         .auth-brand-eyebrow {
-            margin: 1.5rem 0 .65rem;
+            margin: var(--space-24) 0 var(--space-12);
             color: #bbf7d0;
-            font-size: .72rem;
+            font-size: var(--text-caption);
             font-weight: 800;
-            letter-spacing: .15em;
+            letter-spacing: var(--tracking-label);
             text-transform: uppercase;
         }
 
         .auth-brand-title {
             max-width: 20rem;
             margin: 0;
-            font-size: clamp(1.5rem, 2.5vw, 2rem);
+            font-size: var(--text-heading-lg);
             font-weight: 800;
-            line-height: 1.12;
-            letter-spacing: -.035em;
+            line-height: var(--line-heading);
+            letter-spacing: var(--tracking-normal);
         }
 
         .auth-brand-description {
             max-width: 22rem;
-            margin: 1rem 0 0;
+            margin: var(--space-16) 0 0;
             color: rgba(255, 255, 255, .72);
-            font-size: .9rem;
-            line-height: 1.65;
+            font-size: var(--text-secondary);
+            line-height: var(--line-prose);
         }
 
         .auth-brand-footer {
-            margin-top: 2rem;
+            margin-top: var(--space-32);
             color: rgba(255, 255, 255, .55);
-            font-size: .72rem;
+            font-size: var(--text-caption);
         }
 
         .auth-form-panel {
             min-height: 100%;
-            padding: clamp(1.75rem, 3.5vw, 3rem);
+            padding: clamp(var(--space-32), 3.5vw, calc(var(--space-32) + var(--space-16)));
             display: flex;
             align-items: center;
             background: #fff;
@@ -161,29 +161,29 @@
         }
 
         .auth-register-page .row.g-3 {
-            --bs-gutter-y: .75rem;
+            --bs-gutter-y: var(--space-12);
         }
 
-        .auth-form-heading { margin-bottom: 1.4rem; }
+        .auth-form-heading { margin-bottom: var(--space-24); }
         .auth-form-heading h1 {
-            margin: 0 0 .45rem;
+            margin: 0 0 var(--space-8);
             color: var(--auth-text);
-            font-size: clamp(1.5rem, 2.5vw, 1.8rem);
+            font-size: var(--text-heading-lg);
             font-weight: 800;
-            letter-spacing: -.035em;
+            letter-spacing: var(--tracking-normal);
         }
 
         .auth-form-heading p {
             margin: 0;
             color: var(--auth-muted);
-            font-size: .9rem;
-            line-height: 1.55;
+            font-size: var(--text-secondary);
+            line-height: var(--line-body);
         }
 
         .auth-form-label {
-            margin-bottom: .45rem;
+            margin-bottom: var(--space-8);
             color: #35433a;
-            font-size: .78rem;
+            font-size: var(--text-secondary);
             font-weight: 700;
         }
 
@@ -191,16 +191,16 @@
             min-height: 2.75rem;
             border-color: var(--auth-border);
             background-color: #fff;
-            font-size: .875rem;
+            font-size: var(--text-body);
         }
 
         .auth-input .input-group-text {
-            padding-inline: .9rem;
+            padding-inline: var(--space-16);
             color: #6d786f;
             background: #f8faf8;
         }
 
-        .auth-input .form-control, .auth-input .form-select { padding-inline: .9rem; }
+        .auth-input .form-control, .auth-input .form-select { padding-inline: var(--space-16); }
         .auth-input .form-control:focus, .auth-input .form-select:focus {
             z-index: 3;
             border-color: #22a447;
@@ -229,9 +229,9 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: .5rem;
+            gap: var(--space-8);
             color: #fff;
-            font-size: .86rem;
+            font-size: var(--text-secondary);
             font-weight: 800;
             background: linear-gradient(135deg, var(--auth-green-800), var(--auth-green-700));
             border: 0;
@@ -253,17 +253,17 @@
         }
 
         .auth-link:hover { color: var(--auth-green-900); text-decoration: underline; }
-        .auth-help { color: #7b857e; font-size: .7rem; line-height: 1.45; }
-        .invalid-feedback { font-size: .72rem; }
+        .auth-help { color: #7b857e; font-size: var(--text-caption); line-height: var(--line-body); }
+        .invalid-feedback { font-size: var(--text-caption); }
 
         .auth-note {
             display: flex;
             align-items: flex-start;
-            gap: .65rem;
-            padding: .8rem .9rem;
+            gap: var(--space-12);
+            padding: var(--space-12) var(--space-16);
             color: #3e5d47;
-            font-size: .73rem;
-            line-height: 1.45;
+            font-size: var(--text-caption);
+            line-height: var(--line-body);
             background: #f0f9f2;
             border: 1px solid #d5efdb;
             border-radius: .75rem;
@@ -282,11 +282,11 @@
             }
 
             .auth-page > .row { min-height: 100dvh; }
-            .auth-brand-panel { min-height: auto; padding: 1.25rem; display: block; }
+            .auth-brand-panel { min-height: auto; padding: var(--space-24); display: block; }
             .auth-brand-main {
                 display: grid;
                 grid-template-columns: auto 1fr;
-                column-gap: 1rem;
+                column-gap: var(--space-16);
                 align-items: center;
             }
 
@@ -297,22 +297,22 @@
                 border-radius: .9rem;
             }
 
-            .auth-brand-eyebrow { margin: 0 0 .25rem; font-size: .62rem; }
-            .auth-brand-title { font-size: 1.25rem; line-height: 1.2; }
+            .auth-brand-eyebrow { margin: 0 0 var(--space-4); font-size: var(--text-caption); }
+            .auth-brand-title { font-size: var(--text-heading-sm); line-height: var(--line-heading); }
             .auth-brand-description, .auth-brand-footer { display: none; }
             .auth-form-panel {
                 min-height: 0;
-                padding: 1.75rem 1.25rem 2.25rem;
+                padding: var(--space-32) var(--space-24) calc(var(--space-32) + var(--space-4));
                 align-items: flex-start;
             }
 
-            .auth-form-heading { margin-bottom: 1.4rem; }
+            .auth-form-heading { margin-bottom: var(--space-24); }
         }
 
         @media (max-width: 359.98px) {
-            .auth-brand-panel, .auth-form-panel { padding-left: 1rem; padding-right: 1rem; }
+            .auth-brand-panel, .auth-form-panel { padding-left: var(--space-16); padding-right: var(--space-16); }
             .auth-brand-logo { width: 3.25rem; height: 3.25rem; }
-            .auth-brand-title { font-size: 1.08rem; }
+            .auth-brand-title { font-size: var(--text-body); }
         }
 
         @media (prefers-reduced-motion: reduce) {

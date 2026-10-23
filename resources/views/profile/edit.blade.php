@@ -19,7 +19,7 @@
                         @endif
                         <h5 class="fw-bold mb-1">{{ Auth::user()->name }}</h5>
                         <p class="text-muted small mb-0">{{ Auth::user()->school_id }}</p>
-                        <span class="badge bg-success-subtle text-success mt-2 px-3 rounded-pill text-uppercase" style="font-size: 10px;">
+                        <span class="badge bg-success-subtle text-success mt-2 px-3 rounded-pill text-uppercase" style="font-size: var(--text-caption);">
                             {{ str_replace('_', ' ', Auth::user()->role) }}
                         </span>
                     </div>
@@ -68,17 +68,17 @@
     <style>
         @media (max-width: 991.98px) {
             .account-summary-card { position: static !important; }
-            .account-settings-page > .row { --bs-gutter-y: 1rem; }
-            .account-summary-card .list-group { flex-direction: row; gap: .5rem; }
+            .account-settings-page > .row { --bs-gutter-y: var(--space-16); }
+            .account-summary-card .list-group { flex-direction: row; gap: var(--space-8); }
             .account-summary-card .list-group-item { flex: 1; margin-bottom: 0 !important; text-align: center; }
         }
         @media (max-width: 575.98px) {
-            .account-settings-page .card { padding: 1rem !important; }
+            .account-settings-page .card { padding: var(--space-16) !important; }
             .account-summary-card .list-group-item { min-height: 42px; display: flex; align-items: center; justify-content: center; }
             .account-settings-page input,
-            .account-settings-page select { min-height: 44px; font-size: 16px !important; }
+            .account-settings-page select { min-height: 44px; font-size: var(--text-body) !important; }
             .profile-photo-row { align-items: flex-start !important; flex-direction: column; }
-            .profile-photo-row > .ms-4 { width: 100%; margin-top: 1rem; margin-left: 0 !important; }
+            .profile-photo-row > .ms-4 { width: 100%; margin-top: var(--space-16); margin-left: 0 !important; }
             .profile-form-action { align-items: stretch !important; flex-direction: column; }
             .profile-form-action .btn { width: 100%; min-height: 44px; }
             .profile-form-action p { margin-left: 0 !important; text-align: center; }

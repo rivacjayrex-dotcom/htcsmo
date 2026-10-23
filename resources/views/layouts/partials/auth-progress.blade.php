@@ -1,9 +1,9 @@
 <style>
-    .auth-progress-dialog { width:min(360px, calc(100vw - 2rem)); margin:auto; padding:1.4rem; border:1px solid #dce4de; border-radius:16px; color:#173b27; background:#fff; box-shadow:0 22px 60px rgb(8 34 19 / 24%); }
+    .auth-progress-dialog { width:min(360px, calc(100vw - 2rem)); margin:auto; padding:var(--space-24); border:1px solid #dce4de; border-radius:16px; color:#173b27; background:#fff; box-shadow:0 22px 60px rgb(8 34 19 / 24%); }
     .auth-progress-dialog::backdrop { background:rgb(10 29 18 / 46%); backdrop-filter:blur(2px); }
-    .auth-progress-dialog__content { display:flex; align-items:center; gap:1rem; }
-    .auth-progress-dialog h2 { margin:0; font-size:1rem; font-weight:700; line-height:1.4; }
-    .auth-progress-dialog p { margin:.35rem 0 0; color:#66756c; font-size:.85rem; line-height:1.5; }
+    .auth-progress-dialog__content { display:flex; align-items:center; gap:var(--space-16); }
+    .auth-progress-dialog h2 { margin:0; font-size:var(--text-heading-md); font-weight:700; line-height:var(--line-body); }
+    .auth-progress-dialog p { margin:var(--space-4) 0 0; color:#66756c; font-size:var(--text-body); line-height:var(--line-body); }
     .auth-progress-spinner { width:1.75rem; height:1.75rem; flex:0 0 1.75rem; border:3px solid #dbe9df; border-top-color:#198754; border-radius:50%; animation:auth-progress-spin .75s linear infinite; }
     body:has(.auth-progress-dialog[open]) { overflow:hidden; }
     @keyframes auth-progress-spin { to { transform:rotate(360deg); } }

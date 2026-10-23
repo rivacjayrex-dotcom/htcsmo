@@ -95,7 +95,7 @@
                             <h5 class="modal-title fw-bold" id="reviewModalTitle">Review Requisition
                                 <span class="text-success font-monospace" x-text="selectedReq.tracking_code"></span>
                             </h5>
-                            <span class="badge bg-dark rounded-pill px-3 mt-1" style="font-size: 9px;" x-text="(selectedReq.request_type || '').toUpperCase() + ' TIER'"></span>
+                            <span class="badge bg-dark rounded-pill px-3 mt-1" style="font-size: var(--text-caption);" x-text="(selectedReq.request_type || '').toUpperCase() + ' TIER'"></span>
                         </div>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close requisition review"></button>
                     </div>
@@ -104,11 +104,11 @@
                         <!-- REQUESTOR INFO -->
                         <div class="row mb-4 bg-light p-3 rounded-4 g-2">
                             <div class="col-md-6">
-                                <small class="text-muted text-uppercase fw-bold" style="font-size: 9px;">Official Requestor</small>
+                                <small class="text-muted text-uppercase fw-bold" style="font-size: var(--text-caption);">Official Requestor</small>
                                 <div class="fw-bold fs-6 text-dark" x-text="requestorName"></div>
                             </div>
                             <div class="col-md-6 text-md-end">
-                                <small class="text-muted text-uppercase fw-bold" style="font-size: 9px;">Department / Unit</small>
+                                <small class="text-muted text-uppercase fw-bold" style="font-size: var(--text-caption);">Department / Unit</small>
                                 <div class="fw-bold fs-6 text-success" x-text="requestorDept"></div>
                             </div>
                         </div>
@@ -315,7 +315,7 @@
                                     @csrf
                                         <input type="hidden" name="queue_query" :value="queueQuery">
                                     <div class="mb-3">
-                                        <label for="approvalRemarks" class="form-label small fw-bold text-muted text-uppercase label-letter-spacing" style="font-size: 9px;">
+                                        <label for="approvalRemarks" class="form-label small fw-bold text-muted text-uppercase label-letter-spacing" style="font-size: var(--text-caption);">
                                             Signatory Remarks / Decision Notes
                                         </label>
                                         <textarea id="approvalRemarks" name="remarks" maxlength="1000" class="form-control border-0 bg-light rounded-3 shadow-none" rows="2" placeholder="State reason if rejecting or requesting office inquiry..."></textarea>
@@ -390,17 +390,17 @@
     @pushOnce('styles', 'page-styles:admin/approvals.blade.php')
     <style>
         .queue-remarks { white-space: pre-wrap; overflow-wrap: anywhere; }
-        .fulfillment-table td { max-width: 19rem; overflow-wrap: anywhere; font-size: .85rem; }
+        .fulfillment-table td { max-width: 19rem; overflow-wrap: anywhere; font-size: var(--text-secondary); }
         @media (max-width: 767.98px) {
             .fulfillment-table td { max-width: none; }
             .fulfillment-table td > * { grid-column: 2; }
             .approval-workspace .nav-link { white-space: normal; }
         }
-        .approval-purpose { display: flex; align-items: flex-start; gap: .85rem; padding: 1rem; border: 1px solid #dce9e1; border-radius: 14px; background: #f5faf7; }
+        .approval-purpose { display: flex; align-items: flex-start; gap: var(--space-12); padding: var(--space-16); border: 1px solid #dce9e1; border-radius: 14px; background: #f5faf7; }
         .approval-purpose-icon { width: 36px; height: 36px; flex: 0 0 36px; display: grid; place-items: center; border-radius: 10px; background: #dff2e6; color: var(--htc-green); }
         .approval-purpose-icon svg { width: 17px; height: 17px; }
-        .approval-purpose small { display: block; margin-bottom: .25rem; color: #718078; font-size: 9px; letter-spacing: .08em; }
-        .approval-purpose p { color: #26382e; font-size: .82rem; line-height: 1.6; white-space: pre-line; overflow-wrap: anywhere; }
+        .approval-purpose small { display: block; margin-bottom: var(--space-4); color: #718078; font-size: var(--text-caption); letter-spacing: var(--tracking-label); }
+        .approval-purpose p { color: #26382e; font-size: var(--text-body); line-height: var(--line-body); white-space: pre-line; overflow-wrap: anywhere; }
         .release-confirmation-icon { width: 58px; height: 58px; display: grid; place-items: center; border-radius: 18px; background: #e3f4e9; color: #187044; }
         .release-confirmation-icon svg { width: 28px; height: 28px; }
     </style>

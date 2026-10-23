@@ -28,7 +28,7 @@
             <div class="ms-4 flex-grow-1">
                 <label for="profile_photo" class="form-label small fw-bold text-muted text-uppercase d-block">Change Profile Photo</label>
                 <input id="profile_photo" type="file" name="profile_photo" accept="image/jpeg,image/png,image/webp" aria-describedby="profile-photo-help" class="form-control form-control-sm border-0 bg-light shadow-none @error('profile_photo') is-invalid @enderror">
-                <small id="profile-photo-help" class="text-muted" style="font-size: 10px;">Square JPG, PNG, or WebP, max 2MB. Choose the image, then save your changes.</small>
+                <small id="profile-photo-help" class="text-muted" style="font-size: var(--text-caption);">Square JPG, PNG, or WebP, max 2MB. Choose the image, then save your changes.</small>
                 @error('profile_photo')
                     <div class="invalid-feedback">{{ $message }}</div>
                 @enderror

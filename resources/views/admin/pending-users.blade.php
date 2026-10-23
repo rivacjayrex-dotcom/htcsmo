@@ -37,7 +37,7 @@
                                 <div>
                                     <h6 class="fw-bold mb-0 text-dark">{{ $u->name }}</h6>
                                     <div class="text-muted small mb-1">ID: {{ $u->school_id }}</div>
-                                    <span class="badge bg-success-subtle text-success rounded-pill px-3" style="font-size: 9px;">
+                                    <span class="badge bg-success-subtle text-success rounded-pill px-3" style="font-size: var(--text-caption);">
                                         {{ $u->academicDepartment?->dept_code ?? $u->department ?? 'UNASSIGNED' }} DEPARTMENT
                                     </span>
                                 </div>
@@ -108,16 +108,16 @@
 
     @pushOnce('styles', 'page-styles:admin/pending-users.blade.php')
     <style>
-        .mini-label { font-size: 9px; font-weight: 800; text-transform: uppercase; color: #94a3b8; letter-spacing: 1px; margin-bottom: 5px; }
+        .mini-label { font-size: var(--text-secondary); font-weight: 800; text-transform: uppercase; color: #94a3b8; letter-spacing: var(--tracking-label); margin-bottom: var(--space-4); }
         .bg-success-subtle { background-color: #f0fdf4 !important; }
         .btn-htc { background-color: var(--htc-green); color: white; border: none; }
         .btn-htc:hover { background-color: #0d2e16; color: white; transform: translateY(-1px); }
         .pending-user-avatar { flex: 0 0 60px; }
         @media (max-width: 767.98px) {
-            .pending-user-identity { padding: 1rem !important; border-right: 0 !important; border-bottom: 1px solid #e2e8f0; }
-            .pending-user-role { padding: 1rem !important; }
+            .pending-user-identity { padding: var(--space-16) !important; border-right: 0 !important; border-bottom: 1px solid #e2e8f0; }
+            .pending-user-role { padding: var(--space-16) !important; }
             .pending-users-page select,
-            .pending-users-page button[type="submit"] { min-height: 44px; font-size: 16px; }
+            .pending-users-page button[type="submit"] { min-height: 44px; font-size: var(--text-body); }
         }
     </style>
     @endPushOnce

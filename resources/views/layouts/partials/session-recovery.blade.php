@@ -1,7 +1,7 @@
 <style>
-    #sessionExpiredDialog { max-width:34rem; padding:1.5rem; border:1px solid #dce4de; border-radius:1rem; color:#173b27; background:#fff; font:1rem/1.6 system-ui,sans-serif; }
+    #sessionExpiredDialog { max-width:34rem; padding:var(--space-24); border:1px solid #dce4de; border-radius:1rem; color:#173b27; background:#fff; font:var(--text-body)/var(--line-body) var(--bs-body-font-family); }
     #sessionExpiredDialog::backdrop { background:rgb(10 29 18 / 50%); }
-    #sessionExpiredNotice { position:fixed; inset:auto 1rem 1rem; z-index:21000; padding:1rem; border:2px solid #14532d; border-radius:.5rem; background:#fff; color:#173b27; }
+    #sessionExpiredNotice { position:fixed; inset:auto 1rem 1rem; z-index:21000; padding:var(--space-16); border:2px solid #14532d; border-radius:.5rem; background:#fff; color:#173b27; }
     #sessionExpiredNotice[hidden] { display:none; }
     #sessionExpiredDialog a,#sessionExpiredNotice a { color:#14532d; text-decoration:underline; }
     #sessionExpiredDialog :focus-visible,#sessionExpiredNotice :focus-visible { outline:3px solid #b38328; outline-offset:3px; }
