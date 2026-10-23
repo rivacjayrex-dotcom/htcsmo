@@ -12,6 +12,20 @@ if [ -z "${APP_KEY:-}" ]; then
     exit 1
 fi
 
+# Preserve file logging while exposing Laravel exceptions in container logs.
+case "${LOG_CHANNEL:-stack}" in
+    stack)
+        case ",${LOG_STACK:-single}," in
+            *,stderr,*) ;;
+            *) export LOG_STACK="${LOG_STACK:-single},stderr" ;;
+        esac
+        ;;
+    single|daily)
+        export LOG_STACK="${LOG_CHANNEL},stderr"
+        export LOG_CHANNEL=stack
+        ;;
+esac
+
 php artisan storage:link || true
 php artisan view:clear
 php artisan route:clear
@@ -23,7 +37,7 @@ php artisan migrate --force
 # Keep scheduled deadline notifications running in the web-service container.
 # The scheduler uses a shared cache lock, so horizontally scaled instances do
 # not execute the same daily notification job more than once.
-php artisan schedule:work >> storage/logs/scheduler.log 2>&1 &
-php artisan queue:work --queue=mail,default --sleep=5 --tries=3 --timeout=30 >> storage/logs/queue.log 2>&1 &
+php artisan schedule:work &
+php artisan queue:work --queue=mail,default --sleep=5 --tries=3 --timeout=30 &
 
 exec apache2-foreground

@@ -78,16 +78,41 @@ class RequisitionController extends Controller
             return $requisition;
         });
 
-        $this->sendSubmissionEmails($requisition, $user);
+        $notificationFailed = false;
+        foreach ([
+            'email' => fn () => $this->sendSubmissionEmails($requisition, $user),
+            'in_app' => fn () => $this->sendSubmissionNotifications($requisition, $user, $notifications, count($validated['items'])),
+        ] as $channel => $send) {
+            try {
+                if ($send() === false) {
+                    $notificationFailed = true;
+                }
+            } catch (\Throwable $exception) {
+                $notificationFailed = true;
+                Log::error('Requisition saved but submission notification failed.', [
+                    'requisition_id' => $requisition->id,
+                    'user_id' => $user->id,
+                    'channel' => $channel,
+                    'exception' => $exception,
+                ]);
+            }
+        }
 
+        return redirect()->route('dashboard')->with('success', $notificationFailed
+            ? "Requisition {$requisition->tracking_code} was submitted, but some notifications could not be sent. Please contact the SMO."
+            : 'Requisition processed successfully.');
+    }
+
+    private function sendSubmissionNotifications(Requisition $requisition, User $user, NotificationService $notifications, int $itemCount): void
+    {
         $notifications->send($user, 'requisition.submitted', 'Requisition Submitted',
-            'Your request for '.count($validated['items']).' item(s) has been submitted.', [
+            'Your request for '.$itemCount.' item(s) has been submitted.', [
                 'icon' => 'send', 'type' => 'info', 'action_type' => 'requisition',
                 'action_id' => $requisition->id,
                 'dedupe_key' => "requisition:{$requisition->id}:submitted:owner",
             ]);
 
-        if ($initialStatus === 'pending') {
+        if ($requisition->status === 'pending') {
             User::query()->where('role', 'dept_head')->where('department_id', $user->department_id)
                 ->where('account_status', User::ACCOUNT_ACTIVE)->eachById(fn (User $head) => $notifications->send(
                     $head, 'requisition.awaiting_approval', 'Requisition Awaiting Review',
@@ -115,11 +140,9 @@ class RequisitionController extends Controller
                 ]
             );
         }
-
-        return redirect()->route('dashboard')->with('success', 'Requisition processed successfully.');
     }
 
-    private function sendSubmissionEmails(Requisition $requisition, User $requestor): void
+    private function sendSubmissionEmails(Requisition $requisition, User $requestor): bool
     {
         $recipients = User::query()
             ->where('role', 'smo')
@@ -128,6 +151,7 @@ class RequisitionController extends Controller
             ->get()
             ->prepend($requestor);
 
+        $queued = true;
         foreach ($recipients as $recipient) {
             $isRequestor = $recipient->is($requestor);
 
@@ -144,6 +168,7 @@ class RequisitionController extends Controller
                     '#185b3b',
                 );
             } catch (\Throwable $exception) {
+                $queued = false;
                 Log::error('Could not queue requisition submission email.', [
                     'requisition_id' => $requisition->id,
                     'user_id' => $recipient->id,
@@ -151,6 +176,8 @@ class RequisitionController extends Controller
                 ]);
             }
         }
+
+        return $queued;
     }
 
     private function validateSelectedOptions(Supply $supply, array $selected): array

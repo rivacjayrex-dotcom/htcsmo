@@ -6,8 +6,10 @@ use App\Jobs\SendRequisitionEmail;
 use App\Models\Requisition;
 use App\Models\Supply;
 use App\Models\User;
+use App\Services\NotificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
@@ -132,13 +134,61 @@ class RequisitionSubmissionEmailTest extends TestCase
             }
         );
 
-        $this->submit($requestor, $this->supply())->assertRedirect(route('dashboard'));
+        $this->submit($requestor, $this->supply())->assertRedirect(route('dashboard'))
+            ->assertSessionHas('success', fn ($message) => str_contains($message, 'was submitted, but some notifications could not be sent'));
 
         $this->assertDatabaseCount('requisitions', 1);
         $this->assertSame([$requestor->id, $smo->id], $attemptedRecipients);
         Log::shouldHaveReceived('error')->once()->with('Could not queue requisition submission email.', \Mockery::on(
             fn ($context) => $context['user_id'] === $requestor->id
                 && $context['requisition_id'] === Requisition::firstOrFail()->id
+        ));
+    }
+
+    public function test_smo_recipient_lookup_failure_does_not_turn_a_saved_request_into_a_500(): void
+    {
+        Queue::fake();
+        Log::spy();
+        $requestor = User::factory()->create();
+        $supply = $this->supply();
+        DB::connection()->beforeExecuting(function (string $query, array $bindings): void {
+            if (str_contains($query, 'users') && in_array('smo', $bindings, true)) {
+                throw new \RuntimeException('SMO recipient lookup unavailable');
+            }
+        });
+
+        $this->submit($requestor, $supply)->assertRedirect(route('dashboard'))
+            ->assertSessionHas('success', fn ($message) => str_contains($message, 'was submitted, but some notifications could not be sent'));
+
+        $this->assertDatabaseCount('requisitions', 1);
+        $this->assertDatabaseCount('requisition_items', 1);
+        $this->assertDatabaseHas('notifications', ['user_id' => $requestor->id, 'event_type' => 'requisition.submitted']);
+        Log::shouldHaveReceived('error')->once()->with('Requisition saved but submission notification failed.', \Mockery::on(
+            fn ($context) => $context['channel'] === 'email'
+                && $context['requisition_id'] === Requisition::firstOrFail()->id
+                && $context['exception'] instanceof \RuntimeException
+        ));
+    }
+
+    public function test_in_app_notification_failure_does_not_undo_submission_or_prevent_email(): void
+    {
+        Queue::fake();
+        Log::spy();
+        $requestor = User::factory()->create();
+        User::factory()->create(['role' => 'smo']);
+        $this->mock(NotificationService::class)->shouldReceive('send')->once()
+            ->andThrow(new \RuntimeException('In-app notification unavailable'));
+
+        $this->submit($requestor, $this->supply())->assertRedirect(route('dashboard'))
+            ->assertSessionHas('success', fn ($message) => str_contains($message, 'was submitted, but some notifications could not be sent'));
+
+        $this->assertDatabaseCount('requisitions', 1);
+        $this->assertDatabaseCount('requisition_items', 1);
+        Queue::assertPushed(SendRequisitionEmail::class, 2);
+        Log::shouldHaveReceived('error')->once()->with('Requisition saved but submission notification failed.', \Mockery::on(
+            fn ($context) => $context['channel'] === 'in_app'
+                && $context['requisition_id'] === Requisition::firstOrFail()->id
+                && $context['exception'] instanceof \RuntimeException
         ));
     }
 

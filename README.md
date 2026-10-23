@@ -239,7 +239,11 @@ SESSION_DRIVER=database
 SESSION_DOMAIN=
 SESSION_SECURE_COOKIE=true
 SESSION_SAME_SITE=lax
+LOG_CHANNEL=stack
+LOG_STACK=single,stderr
 ```
+
+Docker startup also forwards Laravel's file log channels and queue/scheduler output to container logs, so Render Logs includes application exceptions alongside HTTP access records. A saved requisition still returns its confirmation when a later email-recipient lookup or in-app notification fails; the confirmation notes that some notifications could not be sent, and the exception is logged with the requisition ID.
 
 ### Session expiry and deployment checks
 
