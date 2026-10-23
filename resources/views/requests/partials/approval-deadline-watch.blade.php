@@ -44,7 +44,7 @@
             <article class="approval-deadline-item {{ $isOverdue ? 'overdue' : 'near' }}" x-data="{ expanded: false }" :data-dirty="expanded ? 'true' : null">
                 <span class="approval-deadline-state">
                     <i data-lucide="{{ $isOverdue ? 'siren' : 'clock-alert' }}"></i>
-                    {{ $isOverdue ? 'At deadline' : 'Nearing deadline' }}
+                    <span class="approval-deadline-state-label">{{ $isOverdue ? 'At deadline' : 'Nearing deadline' }}</span>
                 </span>
                 <div class="approval-deadline-request">
                     <strong>{{ $deadlineRequest->tracking_code }}</strong>
@@ -136,8 +136,9 @@
     .approval-deadline-list { padding: var(--space-4) var(--space-16); }
     .approval-deadline-item { display: grid; grid-template-columns: 130px minmax(190px,1.3fr) minmax(145px,.8fr) 80px auto; align-items: center; gap: var(--space-12); padding: var(--space-12) var(--space-4); border-bottom: 1px solid #edf0ed; }
     .approval-deadline-item:last-child { border-bottom: 0; }
-    .approval-deadline-state { display: inline-flex; width: fit-content; align-items: center; gap: var(--space-4); padding: var(--space-4) var(--space-8); border-radius: 999px; font-size: var(--text-caption); font-weight: 900; text-transform: uppercase; }
-    .approval-deadline-state svg { width: 12px; height: 12px; }
+    .approval-deadline-state { display: inline-flex; width: fit-content; align-items: center; gap: var(--space-8); padding: var(--space-4) var(--space-12); border-radius: 999px; font-size: var(--text-caption); font-weight: 900; line-height: var(--line-heading); text-transform: uppercase; }
+    .approval-deadline-state svg { width: 12px; height: 12px; flex: 0 0 12px; }
+    .approval-deadline-item.overdue .approval-deadline-state-label { white-space: nowrap; }
     .approval-deadline-item.near .approval-deadline-state { color: #8b5a08; background: #fff0c9; }
     .approval-deadline-item.overdue .approval-deadline-state { color: #b32c36; background: #fde3e5; }
     .approval-deadline-request strong, .approval-deadline-request span, .approval-deadline-owner small, .approval-deadline-owner strong, .approval-deadline-age strong, .approval-deadline-age span { display: block; }

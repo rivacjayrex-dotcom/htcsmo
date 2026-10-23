@@ -19,11 +19,6 @@
     @endphp
 
     <div class="analytics-page" data-filter-workspace="analytics">
-        <header class="analytics-header" data-filter-region="heading">
-            <div><span class="analytics-eyebrow">SMO / Insights</span><h2>Operational Analytics</h2><p>See what needs attention and where supplies are going.</p></div>
-            <a class="btn btn-htc rounded-pill" href="{{ $reportLink() }}"><i data-lucide="file-chart-column" aria-hidden="true"></i> Open Report Center</a>
-        </header>
-
         <section aria-labelledby="operationsHeading">
             <div class="analytics-section-title"><div><h3 id="operationsHeading">Today's priorities</h3><p>Current snapshot · All active requests, regardless of the reporting period</p></div><span class="analytics-asof">As of {{ now()->format('M d, Y · g:i A') }}</span></div>
             <div class="analytics-priorities">
@@ -35,7 +30,6 @@
         </section>
 
         <section class="analytics-period-panel" aria-labelledby="periodHeading">
-            <div><h3 id="periodHeading">Explore a reporting period</h3><p>Applies to fulfilled requests, department value, and stock release history below.</p></div>
             @if($errors->any())<div class="alert alert-danger" role="alert"><ul class="mb-0">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
             <form id="analyticsFilters" method="GET" action="{{ route('admin.reports.index') }}#analytics-results" class="analytics-period-form" data-dynamic-search>
                 <div><label for="analyticsPeriod">Reporting period</label><select id="analyticsPeriod" name="period" class="form-select">

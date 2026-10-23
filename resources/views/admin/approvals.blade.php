@@ -391,6 +391,8 @@
     <style>
         .queue-remarks { white-space: pre-wrap; overflow-wrap: anywhere; }
         .fulfillment-table td { max-width: 19rem; overflow-wrap: anywhere; font-size: var(--text-secondary); }
+        .fulfillment-table th:last-child, .fulfillment-table td[data-label="Action"] { min-width: 8rem; }
+        .fulfillment-table [data-review-request] { display: inline-flex; align-items: center; justify-content: center; min-width: 5.5rem; white-space: nowrap; overflow-wrap: normal; word-break: normal; }
         @media (max-width: 767.98px) {
             .fulfillment-table td { max-width: none; }
             .fulfillment-table td > * { grid-column: 2; }

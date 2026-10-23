@@ -43,7 +43,7 @@
                         <i data-lucide="user-cog" class="text-success me-3"></i>
                         <div>
                             <h6 class="fw-bold mb-0">Profile Information</h6>
-                            <small class="text-muted">Update your username and profile photo. Your full name and email address are read-only.</small>
+                            <small class="text-muted">Update your full name, username, and profile photo. Your email address is read-only.</small>
                         </div>
                     </div>
                     @include('profile.partials.update-profile-information-form')

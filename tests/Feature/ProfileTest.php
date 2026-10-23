@@ -9,6 +9,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class ProfileTest extends TestCase
@@ -24,27 +25,30 @@ class ProfileTest extends TestCase
             ->get('/profile');
 
         $response->assertOk()
-            ->assertSee('Full Name (Read-only)')
+            ->assertSee('Full Name')
+            ->assertDontSee('Full Name (Read-only)')
             ->assertSee('Email Address (Read-only)');
 
         $document = new \DOMDocument;
         @$document->loadHTML($response->getContent());
-        foreach (['name', 'email'] as $field) {
-            $input = $document->getElementById($field);
-            $this->assertNotNull($input);
-            $this->assertTrue($input->hasAttribute('readonly'));
-            $this->assertFalse($input->hasAttribute('name'));
-            $this->assertSame($user->{$field}, $input->getAttribute('value'));
-        }
+        $name = $document->getElementById('name');
+        $this->assertNotNull($name);
+        $this->assertFalse($name->hasAttribute('readonly'));
+        $this->assertSame('name', $name->getAttribute('name'));
+        $this->assertSame($user->name, $name->getAttribute('value'));
+        $email = $document->getElementById('email');
+        $this->assertNotNull($email);
+        $this->assertTrue($email->hasAttribute('readonly'));
+        $this->assertFalse($email->hasAttribute('name'));
+        $this->assertSame($user->email, $email->getAttribute('value'));
     }
 
-    public function test_username_can_be_updated_without_changing_name_email_or_department(): void
+    public function test_full_name_and_username_can_be_updated_without_changing_email_or_department(): void
     {
         $department = Department::where('dept_code', 'CAS')->firstOrFail();
         $user = User::factory()->create();
         $originalDepartment = $user->department;
         $originalDepartmentId = $user->department_id;
-        $originalName = $user->name;
         $originalEmail = $user->email;
         $originalVerification = $user->email_verified_at;
 
@@ -63,7 +67,7 @@ class ProfileTest extends TestCase
 
         $user->refresh();
 
-        $this->assertSame($originalName, $user->name);
+        $this->assertSame('Test User', $user->name);
         $this->assertSame('updated_user', $user->username);
         $this->assertSame($originalDepartment, $user->department);
         $this->assertSame($originalDepartmentId, $user->department_id);
@@ -121,17 +125,16 @@ class ProfileTest extends TestCase
         $this->assertNotNull($user->fresh());
     }
 
-    public function test_saving_with_an_existing_short_username_preserves_read_only_fields(): void
+    public function test_name_can_be_updated_with_an_existing_short_username(): void
     {
         $user = User::factory()->create(['role' => 'smo', 'username' => 'smo']);
-        $originalName = $user->name;
         $this->actingAs($user)->from('/profile')->patch('/profile', [
             'name' => 'Updated SMO Name', 'username' => 'smo', 'email' => 'changed@example.com',
         ])->assertSessionHasNoErrors()->assertSessionHas('status', 'profile-updated')->assertRedirect('/profile');
-        $this->assertSame($originalName, $user->fresh()->name);
+        $this->assertSame('Updated SMO Name', $user->fresh()->name);
         $this->assertSame($user->email, $user->fresh()->email);
         $this->assertSame('smo', $user->fresh()->username);
-        $this->get('/profile')->assertOk()->assertSee($originalName)->assertDontSee('Updated SMO Name');
+        $this->get('/profile')->assertOk()->assertSee('Updated SMO Name');
     }
 
     public function test_replacing_a_username_still_requires_at_least_four_characters(): void
@@ -149,7 +152,7 @@ class ProfileTest extends TestCase
         $user = User::factory()->create();
         $this->actingAs($user)->from('/profile')->patch('/profile', [
             'name' => ['Invalid'], 'username' => ['Invalid'], 'email' => ['Invalid'],
-        ])->assertSessionHasErrors(['username'])->assertRedirect('/profile');
+        ])->assertSessionHasErrors(['name', 'username'])->assertRedirect('/profile');
         $this->assertSame($user->name, $user->fresh()->name);
     }
 
@@ -228,13 +231,51 @@ class ProfileTest extends TestCase
     public function test_profile_save_cannot_change_privileged_or_institutional_fields(): void
     {
         $user = User::factory()->create();
-        $original = $user->only(['name', 'email', 'school_id', 'department_id', 'role', 'account_status', 'account_version']);
+        $original = $user->only(['email', 'school_id', 'department_id', 'role', 'account_status', 'account_version']);
         $this->actingAs($user)->patch('/profile', [
             'name' => 'Profile Only', 'username' => 'profile_only', 'email' => 'changed@example.com',
             'role' => 'president', 'school_id' => '99999-9999', 'department_id' => 999,
             'account_status' => 'suspended', 'account_version' => 999,
         ])->assertSessionHasNoErrors()->assertRedirect('/profile');
         $this->assertSame($original, $user->fresh()->only(array_keys($original)));
-        $this->assertDatabaseHas('user_activity_logs', ['user_id' => $user->id, 'action' => 'Updated own profile: username']);
+        $this->assertSame('Profile Only', $user->fresh()->name);
+        $this->assertDatabaseHas('user_activity_logs', ['user_id' => $user->id, 'action' => 'Updated own profile: name, username']);
+    }
+
+    #[DataProvider('profileRoles')]
+    public function test_all_roles_can_edit_their_own_full_name(string $role): void
+    {
+        $user = User::factory()->create(['role' => $role]);
+        $other = User::factory()->create();
+        $name = "María O'Connor-Santos";
+
+        $this->actingAs($user)->patch(route('profile.update'), [
+            'name' => $name,
+            'username' => $user->username,
+            'user_id' => $other->id,
+        ])->assertSessionHasNoErrors()->assertRedirect(route('profile.edit'));
+
+        $this->assertSame($name, $user->fresh()->name);
+        $this->assertSame($other->name, $other->fresh()->name);
+        $this->assertDatabaseHas('user_activity_logs', ['user_id' => $user->id, 'action' => 'Updated own profile: name']);
+    }
+
+    public static function profileRoles(): array
+    {
+        return array_map(fn (string $role) => [$role], User::ROLES);
+    }
+
+    public function test_invalid_full_names_are_rejected_without_saving_other_changes(): void
+    {
+        $user = User::factory()->create();
+
+        foreach (['', '   ', null, ['Invalid'], str_repeat('A', 256)] as $invalid) {
+            $this->actingAs($user)->from(route('profile.edit'))->patch(route('profile.update'), [
+                'name' => $invalid, 'username' => 'new_username',
+            ])->assertSessionHasErrors('name')->assertRedirect(route('profile.edit'));
+            $this->assertSame($user->name, $user->fresh()->name);
+            $this->assertSame($user->username, $user->fresh()->username);
+        }
+        $this->assertDatabaseCount('user_activity_logs', 0);
     }
 }
