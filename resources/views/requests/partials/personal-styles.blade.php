@@ -43,7 +43,6 @@
     .personal-panel h2 > span { display:inline-grid; place-items:center; min-width:24px; height:24px; margin-left:var(--space-4); padding:0 var(--space-8); border-radius:7px; color:#3f6850; background:#edf4ef; font-size:var(--text-secondary); vertical-align:middle; }
     .personal-panel header p { max-width:490px; margin:var(--space-8) 0 0; color:#708074; font-size:var(--text-body); line-height:var(--line-body); }
     .personal-panel header > a { display:inline-flex; align-items:center; gap:var(--space-4); font-size:var(--text-secondary); font-weight:650; text-decoration:none; }
-    .personal-panel header > a:hover { text-decoration:underline; }
     .personal-panel footer { padding:var(--space-16) var(--space-24); border-top:1px solid #eaf0ec; background:#fbfcfb; font-size:var(--text-secondary); font-weight:650; }
     .personal-section-icon { display:grid; place-items:center; flex:0 0 32px; width:32px; height:32px; border:1px solid #e1e9e4; border-radius:9px; color:#588169; background:#f7faf8; }
 
@@ -92,12 +91,16 @@
     .personal-updates > li.is-unread::before { content:''; position:absolute; left:0; top:1.2rem; height:24px; width:3px; background:#4f9570; border-radius:0 3px 3px 0; }
     .personal-update-heading { display:flex; align-items:flex-start; gap:var(--space-8); flex-wrap:wrap; }
     .personal-update-heading > svg { width:15px; height:15px; color:#6c9279; margin-top:2px; }
-    .personal-updates h3 { flex:1; min-width:100px; margin:0; color:#35503e; font-size:var(--text-heading-sm); font-weight:700; line-height:var(--line-body); }
-    .personal-unread { padding:.15rem var(--space-4); border-radius:5px; background:#e7f2ea; color:#2b7549; font-size:var(--text-secondary); font-weight:750; }
-    .personal-updates p { color:#6b7d70; font-size:var(--text-body); line-height:var(--line-prose); margin:var(--space-8) 0; overflow-wrap:anywhere; }
-    .personal-updates time { display:block; color:#869389; font-size:var(--text-secondary); margin-bottom:var(--space-12); }
+    .personal-notifications h2 { font-size:var(--text-heading-sm); }
+    .personal-notifications header p { font-size:var(--text-secondary); }
+    .personal-updates h3 { flex:1; min-width:100px; margin:0; color:#35503e; font-size:var(--text-body); font-weight:700; line-height:var(--line-body); }
+    .personal-unread { padding:.15rem var(--space-4); border-radius:5px; background:#e7f2ea; color:#2b7549; font-size:var(--text-caption); font-weight:750; }
+    .personal-updates p { color:#6b7d70; font-size:var(--text-secondary); line-height:var(--line-body); margin:var(--space-8) 0; overflow-wrap:anywhere; }
+    .personal-updates time { display:block; color:#64766b; font-size:var(--text-caption); margin-bottom:var(--space-12); }
     .personal-updates a,.personal-link-button { font-size:var(--text-secondary); }
-    .personal-link-button { display:inline-flex; gap:var(--space-4); align-items:center; border:0; padding:0; color:#2a6843; background:transparent; font-weight:650; text-align:left; text-decoration:underline; text-underline-offset:3px; }
+    .personal-link-button,.personal-updates a,.personal-panel header > a,.personal-panel footer > a,.personal-archive-card > a,.personal-start-state > a { display:inline-flex; align-items:center; justify-content:center; gap:var(--space-8); min-height:44px; max-width:100%; padding:var(--space-8) var(--space-12); border:1px solid #cbded1; border-radius:8px; color:#2a6843; background:#edf5ef; font-size:var(--text-secondary); font-weight:650; line-height:var(--line-body); text-align:left; text-decoration:none; overflow-wrap:anywhere; cursor:pointer; }
+    :is(.personal-link-button,.personal-updates a,.personal-panel header > a,.personal-panel footer > a,.personal-archive-card > a,.personal-start-state > a):hover { background:#e0eee5; border-color:#a2bfae; text-decoration:none; }
+    :is(.personal-link-button,.personal-updates a,.personal-panel header > a,.personal-panel footer > a,.personal-archive-card > a,.personal-start-state > a):focus-visible { outline:3px solid #44795b; outline-offset:2px; text-decoration:none; }
     .personal-sla,.personal-archive-card { margin:0 0 var(--space-16); padding:var(--space-24); border:1px solid #e0e9e3; border-radius:14px; background:#f7faf8; }
     .personal-sla { display:block; }.personal-sla-heading { display:flex; align-items:center; gap:var(--space-8); margin-bottom:var(--space-12); }.personal-sla h3,.personal-archive-card h3 { margin:0; font-size:var(--text-heading-sm); font-weight:700; color:#3e5d48; }
     .personal-sla > strong { display:block; color:#3f634c; font-size:var(--text-heading-sm); font-weight:700; letter-spacing:var(--tracking-normal); }

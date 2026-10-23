@@ -66,10 +66,6 @@
     .employee-deadline.is-overdue { color:#a13b36; }
     .employee-deadline svg { width:12px; height:12px; }
     .employee-deadline :is(time,span) { flex-basis:100%; padding-left:var(--space-16); }
-    .employee-next-step { max-width:28rem; margin-top:var(--space-4); font-size:var(--text-caption); color:var(--employee-muted); }
-    .employee-next-step summary { display:list-item; width:fit-content; min-height:24px; padding:.15rem 0; cursor:pointer; color:#436c53; font-weight:600; }
-    .employee-next-step summary:focus-visible { outline:3px solid #b38328; outline-offset:3px; border-radius:2px; }
-    .employee-next-step p { margin:var(--space-4) 0 0; padding:var(--space-8) var(--space-8); border-left:2px solid #bacfc1; background:#f4f8f5; font-size:var(--text-body); line-height:var(--line-body); overflow-wrap:anywhere; }
     .employee-dashboard .employee-request-table .employee-date { color:var(--employee-muted); font-size:var(--text-secondary); white-space:nowrap; }
     .employee-dashboard .employee-request-table .employee-value { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
     .employee-dashboard .employee-request-table td.employee-value { color:#294533; font-weight:650; }
@@ -91,7 +87,15 @@
     :is(.employee-dashboard,.employee-notification-drawer) .personal-notifications .is-unread { background:#f5f9fd; }
     :is(.employee-dashboard,.employee-notification-drawer) .personal-notifications .is-unread::before { background:#6c96ba; }
     :is(.employee-dashboard,.employee-notification-drawer) .personal-notifications .personal-unread { color:#335f84; background:#e5eef8; }
-    :is(.employee-dashboard,.employee-notification-drawer) .personal-notifications :is(a,button) { color:#355f83; }
+    :is(.employee-dashboard,.employee-notification-drawer) .personal-notifications :is(a,button):not(.personal-update-open) { color:#355f83; background:#eaf2fa; border-color:#bfd2e4; }
+    :is(.employee-dashboard,.employee-notification-drawer) .personal-notifications :is(a,button):not(.personal-update-open):hover { background:#dceaf6; border-color:#91b2d0; }
+    :is(.employee-dashboard,.employee-notification-drawer) .personal-update-form { margin:0; }
+    :is(.employee-dashboard,.employee-notification-drawer) .personal-updates .personal-update-open { position:absolute; inset:0; z-index:1; display:block; width:100%; height:100%; min-height:0; padding:0; border:0; border-radius:0; background:transparent; cursor:pointer; }
+    :is(.employee-dashboard,.employee-notification-drawer) .personal-updates .personal-update-open:focus-visible { outline:3px solid #7da0bf; outline-offset:-3px; }
+    :is(.employee-dashboard,.employee-notification-drawer) .personal-updates > li:has(.personal-update-open:hover) { background:#eaf2fa; }
+    :is(.employee-dashboard,.employee-notification-drawer) .personal-updates h3 { font-size:var(--text-secondary); line-height:1.4; }
+    :is(.employee-dashboard,.employee-notification-drawer) .personal-updates p { margin:var(--space-4) 0; line-height:1.45; }
+    :is(.employee-dashboard,.employee-notification-drawer) .personal-updates time { margin-bottom:0; }
     :is(.employee-dashboard,.employee-notification-drawer) .personal-notifications footer { background:#f4f8fc; border-top-color:#e1e9f1; }
     .employee-guidance-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:var(--space-16); align-items:start; }
     .employee-guidance-grid > * { min-width:0; margin:0; }
@@ -102,10 +106,8 @@
     .employee-dashboard .personal-archive-card { border-style:solid; }
     .employee-dashboard .personal-archive-card h3 { font-size:var(--text-heading-sm); }
     .employee-dashboard .personal-archive-card p { margin:var(--space-8) 0 var(--space-12); font-size:var(--text-body); line-height:var(--line-body); }
-    .employee-dashboard .personal-updates > li { padding:var(--space-12) var(--space-16); }
-    .employee-dashboard .personal-updates p { margin:var(--space-4) 0 var(--space-8); line-height:var(--line-body); }
-    .employee-dashboard .personal-updates time { color:#64766b; margin-bottom:var(--space-8); }
-    .employee-dashboard .personal-updates :is(a,button) { display:inline-flex; align-items:center; min-height:28px; }
+    .employee-dashboard .personal-updates > li { padding:var(--space-8) var(--space-12); }
+    .employee-dashboard .personal-updates time { color:#64766b; }
 
     .employee-notifications-launcher { display:none; }
     .employee-notification-drawer { inset:0 0 0 auto; width:min(360px,calc(100vw - 1rem)); max-width:none; height:100dvh; max-height:100dvh; margin:0; padding:0; overflow-y:auto; border:0; border-left:1px solid #d8e4ef; border-radius:14px 0 0 14px; background:#fff; color:#20392d; font:inherit; }
@@ -113,9 +115,8 @@
     .employee-notification-drawer .personal-side-stack { display:block; position:static; max-height:none; overflow:visible; }
     .employee-notification-drawer .personal-panel { margin:0; border:0; border-radius:0; }
     .employee-notification-drawer .personal-panel > header { padding:var(--space-16) var(--space-16); }
-    .employee-notification-drawer .personal-panel h2 { font-size:var(--text-heading-md); }
-    .employee-notification-drawer .personal-updates > li { padding:var(--space-16) var(--space-16); }
-    .employee-notification-drawer .personal-updates :is(a,button) { min-height:32px; display:inline-flex; align-items:center; }
+    .employee-notification-drawer .personal-panel h2 { font-size:var(--text-heading-sm); }
+    .employee-notification-drawer .personal-updates > li { padding:var(--space-12); }
     .employee-notifications-close { display:block; width:100%; min-height:44px; padding:var(--space-12) var(--space-16); border:0; border-bottom:1px solid #dce6ef; background:#f4f8fc; color:#355f83; text-align:right; font:inherit; font-weight:650; }
     .employee-notification-drawer :is(a,button):focus-visible { outline:3px solid #7da0bf; outline-offset:2px; }
     @media screen and (min-width:768px) and (max-width:1199px) {

@@ -53,6 +53,7 @@ function browser({
     const region = {
         dataset: { liveRegion: "workspace" },
         innerHTML: "original content",
+        querySelectorAll: () => [],
     };
     const elements = new Map();
     const document = Object.assign(new EventTarget(), {
@@ -62,7 +63,7 @@ function browser({
         documentElement: { getAttribute: () => null },
         getElementById: (id) => {
             if (id === "notificationUnreadCount") return badge;
-            if (!elements.has(id)) elements.set(id, new EventTarget());
+            if (!elements.has(id)) elements.set(id, Object.assign(new EventTarget(), {hidden: true, textContent: ''}));
             return elements.get(id);
         },
         querySelector: () => null,
@@ -83,6 +84,13 @@ function browser({
             },
         },
         reloads: 0,
+        scrollX: 0,
+        scrollY: 320,
+        scrollTo(position) {
+            this.lastScroll = position;
+            this.scrollX = position.left;
+            this.scrollY = position.top;
+        },
         htcRuntimeState: bufferedState,
         AudioContext: audioContextClass,
     });
@@ -248,7 +256,7 @@ test('runtime expiry stops polling and preserves the current workspace', async (
     await fixture.runTimer(0);
     assert.equal(window.reloads, 0);
     assert.equal(region.innerHTML, 'original content');
-    assert.equal([...fixture.timers.values()].some(timer => timer.delay >= 15000), false);
+    assert.equal([...fixture.timers.values()].some(timer => timer.delay >= 3000), false);
 });
 
 test('a cross-tab account change offers recovery without reloading unsaved work', async () => {
@@ -266,7 +274,7 @@ test('a cross-tab account change offers recovery without reloading unsaved work'
     assert.equal(region.innerHTML, 'original content');
 });
 
-test("automatic refresh waits until the entire popup stack is dismissed", async () => {
+test("background updates are silent and do not wait for notification popups to close", async () => {
     const fixture = browser();
     const { center, context, window, payload, runTimer, region } = fixture;
     let version = "before";
@@ -283,29 +291,17 @@ test("automatic refresh waits until the entire popup stack is dismissed", async 
     vm.runInContext(runtimeSource, context);
     await runTimer(0);
     version = "after";
-    await runTimer(15000);
+    await runTimer(3000);
     assert.equal(center.show, true);
-    assert.equal(
-        [...fixture.timers.values()].some((timer) => timer.delay === 500),
-        false,
-    );
-    center.dismiss(43);
-    await runTimer(300);
-    assert.equal(
-        [...fixture.timers.values()].some((timer) => timer.delay === 500),
-        false,
-    );
-    center.dismiss(44);
-    await runTimer(300);
-    assert.equal(
-        [...fixture.timers.values()].some((timer) => timer.delay === 500),
-        false,
-    );
-    center.dismiss(45);
-    await runTimer(300);
-    await runTimer(500);
+    assert.equal(fixture.document.getElementById('liveRefreshNotice').hidden, true);
+    region.querySelectorAll = () => [];
+    await runTimer(100);
     assert.equal(window.reloads, 0);
     assert.equal(region.innerHTML, "updated content");
+    assert.equal(center.show, true);
+    assert.equal(center.toasts.length, 3);
+    assert.equal(fixture.document.getElementById('liveRefreshNotice').hidden, true);
+    assert.equal(fixture.document.getElementById('liveUpdateStatus').textContent, 'Content updated.');
 });
 
 test("each popup expires independently and frees a slot for the queue", async () => {
@@ -484,9 +480,9 @@ test("an unrelated inventory change does not refresh a request page", async () =
     vm.runInContext(runtimeSource, fixture.context);
     await fixture.runTimer(0);
     inventoryVersion = "inventory-after";
-    await fixture.runTimer(15000);
+    await fixture.runTimer(3000);
     assert.equal(
-        [...fixture.timers.values()].some((timer) => timer.delay === 500),
+        [...fixture.timers.values()].some((timer) => timer.delay === 100),
         false,
     );
     assert.equal(fixture.region.innerHTML, "original content");
@@ -514,8 +510,8 @@ test("a dashboard clock change refreshes its content even when business data is 
     await fixture.runTimer(0);
     assert.equal(fixture.region.innerHTML, "original content");
     dashboardVersion = "minute-after";
-    await fixture.runTimer(15000);
-    await fixture.runTimer(500);
+    await fixture.runTimer(3000);
+    await fixture.runTimer(100);
     assert.equal(fixture.region.innerHTML, "updated content");
     assert.equal(fixture.window.reloads, 0);
 });
@@ -539,8 +535,134 @@ test("an edit begun during a background fetch prevents replacement of unsaved wo
     vm.runInContext(runtimeSource, fixture.context);
     await fixture.runTimer(0);
     version = "after";
-    await fixture.runTimer(15000);
-    await fixture.runTimer(500);
+    await fixture.runTimer(3000);
+    await fixture.runTimer(100);
     assert.equal(fixture.region.innerHTML, "original content");
+    assert.equal(fixture.window.reloads, 0);
+});
+
+function liveWorkspace() {
+    const fixture = browser();
+    fixture.document.body.dataset.runtimeVersion = 'before';
+    let version = 'before';
+    const requests = [];
+    fixture.context.fetch = async url => {
+        requests.push(url);
+        if (url.startsWith('/api/')) return {
+            ok: true,
+            json: async () => ({account_id: 7, version, notifications: []}),
+        };
+        return {ok: true, text: async () => 'fragment'};
+    };
+    vm.runInContext(runtimeSource, fixture.context);
+    return {...fixture, requests, change: () => { version = 'after'; }};
+}
+
+test('idle workspaces poll every three seconds without fetching unchanged page content', async () => {
+    const fixture = liveWorkspace();
+    await fixture.runTimer(0);
+    await fixture.runTimer(3000);
+    assert.equal(fixture.requests.length, 2);
+    assert.ok(fixture.requests.every(url => url.startsWith('/api/')));
+    assert.equal(fixture.document.getElementById('liveRefreshNotice').hidden, true);
+});
+
+test('updates defer silently during editing and resume without a reload after focus leaves', async () => {
+    const fixture = liveWorkspace();
+    await fixture.runTimer(0);
+    fixture.document.activeElement = {tagName: 'TEXTAREA'};
+    fixture.change();
+    await fixture.runTimer(3000);
+    assert.equal(fixture.region.innerHTML, 'original content');
+    assert.equal(fixture.document.getElementById('liveRefreshNotice').hidden, true);
+    assert.equal([...fixture.timers.values()].some(timer => timer.delay === 100), false);
+    fixture.document.activeElement = null;
+    fixture.document.dispatchEvent(new Event('focusout'));
+    await fixture.runTimer(150);
+    await fixture.runTimer(100);
+    assert.equal(fixture.region.innerHTML, 'updated content');
+    assert.equal(fixture.window.reloads, 0);
+});
+
+test('background replacement preserves window and notification rail scrolling and link focus', async () => {
+    const fixture = liveWorkspace();
+    const rail = {id: '', scrollTop: 120, scrollLeft: 0, hasAttribute: () => true};
+    fixture.document.querySelectorAll = selector => selector === '[data-live-region]' ? [fixture.region]
+        : selector.startsWith('[data-live-region] [id]') ? [rail] : [];
+    fixture.document.querySelector = selector => selector === '[data-employee-notifications]' ? rail : null;
+    const restored = fixture.document.getElementById('record-link');
+    restored.focus = options => { restored.focusOptions = options; };
+    fixture.document.activeElement = {id: 'record-link', tagName: 'A', isConnected: false};
+    fixture.document.addEventListener('htc:workspace-updated', () => { rail.scrollTop = 0; });
+    await fixture.runTimer(0);
+    fixture.change();
+    await fixture.runTimer(3000);
+    await fixture.runTimer(100);
+    assert.equal(fixture.window.lastScroll.top, 320);
+    assert.equal(fixture.window.lastScroll.behavior, 'instant');
+    assert.equal(rail.scrollTop, 120);
+    assert.equal(restored.focusOptions.preventScroll, true);
+});
+
+test('a navigation or filter URL change during a request cannot replace the new results', async () => {
+    const fixture = liveWorkspace();
+    const fetch = fixture.context.fetch;
+    fixture.context.fetch = async url => {
+        if (!url.startsWith('/api/')) fixture.window.location.href = 'http://localhost/dashboard?status=pending';
+        return fetch(url);
+    };
+    await fixture.runTimer(0);
+    fixture.change();
+    await fixture.runTimer(3000);
+    await fixture.runTimer(100);
+    assert.equal(fixture.region.innerHTML, 'original content');
+    assert.equal(fixture.document.getElementById('liveRefreshNotice').hidden, true);
+});
+
+test('failed content updates keep existing results and retry automatically without reloading', async () => {
+    const fixture = liveWorkspace();
+    const fetch = fixture.context.fetch;
+    let failed = true;
+    fixture.context.fetch = async url => failed && !url.startsWith('/api/')
+        ? {ok: false, status: 503} : fetch(url);
+    await fixture.runTimer(0);
+    fixture.change();
+    await fixture.runTimer(3000);
+    await fixture.runTimer(100);
+    assert.equal(fixture.region.innerHTML, 'original content');
+    assert.equal(fixture.document.getElementById('liveRefreshNotice').hidden, false);
+    assert.match(fixture.document.getElementById('liveRefreshMessage').textContent, /Retrying automatically/);
+    failed = false;
+    fixture.document.getElementById('liveRefreshButton').dispatchEvent(new Event('click'));
+    await new Promise(setImmediate);
+    await fixture.runTimer(100);
+    assert.equal(fixture.region.innerHTML, 'updated content');
+    assert.equal(fixture.document.getElementById('liveRefreshNotice').hidden, true);
+    assert.equal(fixture.window.reloads, 0);
+});
+
+test('connection failures back off, show recovery feedback, and clear it on reconnection', async () => {
+    const fixture = browser();
+    fixture.context.fetch = async () => { throw new Error('Offline'); };
+    vm.runInContext(runtimeSource, fixture.context);
+    await fixture.runTimer(0);
+    await fixture.runTimer(6000);
+    await fixture.runTimer(12000);
+    assert.equal(fixture.document.getElementById('liveRefreshNotice').hidden, false);
+    fixture.context.fetch = async () => ({ok: true, json: async () => ({account_id: 7, version: 'stable', notifications: []})});
+    await fixture.runTimer(24000);
+    assert.equal(fixture.document.getElementById('liveRefreshNotice').hidden, true);
+    assert.equal(fixture.window.reloads, 0);
+});
+
+test('pages without a safe live region do not show a routine refresh banner or reload', async () => {
+    const fixture = liveWorkspace();
+    fixture.document.querySelectorAll = () => [];
+    await fixture.runTimer(0);
+    fixture.change();
+    await fixture.runTimer(3000);
+    await fixture.runTimer(100);
+    assert.ok(fixture.requests.every(url => url.startsWith('/api/')));
+    assert.equal(fixture.document.getElementById('liveRefreshNotice').hidden, true);
     assert.equal(fixture.window.reloads, 0);
 });

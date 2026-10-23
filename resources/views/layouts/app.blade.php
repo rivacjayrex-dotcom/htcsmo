@@ -27,6 +27,11 @@
             --sidebar-width: 250px;
         }
 
+        html {
+            overflow-x: hidden;
+            overflow-x: clip;
+        }
+
         body {
             background:
                 radial-gradient(circle at 8% 8%, rgba(34, 197, 94, .07), transparent 26rem),
@@ -35,25 +40,29 @@
             font-family: var(--bs-body-font-family);
             color: #334155;
             overflow-x: hidden;
+            overflow-x: clip;
             scroll-behavior: auto !important; /* Removes smooth scrolling "anchor" feel */
         }
 
         :target { background: none; padding-top: 0; }
 
         /* Sidebar Styling */
-        .sidebar { width: var(--sidebar-width); height: 100vh; position: fixed; isolation: isolate; overflow: hidden; background: linear-gradient(145deg, #052e16 0%, #14532d 48%, #166534 100%); border-right: 1px solid rgba(7, 42, 25, .45); z-index: 1000; padding: var(--space-24); display: flex; flex-direction: column; box-shadow: 8px 0 28px rgba(15, 56, 36, .16); }
+        .sidebar { width: var(--sidebar-width); height: 100vh; height: 100dvh; position: fixed; top: 0; left: 0; isolation: isolate; overflow: hidden; background: linear-gradient(145deg, #052e16 0%, #14532d 48%, #166534 100%); border-right: 1px solid rgba(7, 42, 25, .45); z-index: 1000; padding: var(--space-24); display: flex; flex-direction: column; box-shadow: 8px 0 28px rgba(15, 56, 36, .16); }
         .sidebar::before, .sidebar::after { content: ''; position: absolute; z-index: -1; border-radius: 999px; pointer-events: none; background: rgba(255, 255, 255, .055); }
         .sidebar::before { width: 18rem; height: 18rem; top: -10rem; right: -10rem; }
         .sidebar::after { width: 13rem; height: 13rem; right: -7rem; bottom: -5rem; background: rgba(74, 222, 128, .07); }
         .sidebar > * { position: relative; z-index: 1; }
+        .sidebar > .brand-section, .sidebar-footer { flex-shrink: 0; }
         .brand-section { display: flex; align-items: center; padding-bottom: var(--space-24); margin-bottom: var(--space-8); border-bottom: 1px solid rgba(255, 255, 255, .14); }
         .brand-logo { width: 45px; height: 45px; object-fit: contain; margin-right: var(--space-12); padding: var(--space-4); border-radius: 12px; background: rgba(255, 255, 255, .96); box-shadow: 0 5px 16px rgba(5, 30, 17, .18); }
         .brand-title { font-size: var(--text-body); font-weight: 800; letter-spacing: var(--tracking-label); line-height: var(--line-heading); color: #fff; text-transform: uppercase; }
 
         /* This is the magic part: the middle section scrolls, top and bottom stay fixed */
         .sidebar .flex-grow-1 {
+            min-height: 0;
             overflow-y: auto;
             overflow-x: hidden;
+            overscroll-behavior-y: contain;
             padding-right: var(--space-4); /* Space for the scrollbar */
             margin-right: calc(-1 * var(--space-4)); /* Keeps the links aligned */
         }
@@ -93,7 +102,7 @@
         .sidebar-count { min-width: 21px; height: 21px; display: inline-grid; margin-left: auto; padding: 0 var(--space-4); place-items: center; border: 1px solid rgba(255,255,255,.2); border-radius: 999px; color: #fff; background: #c73a43; font-size: var(--text-caption); font-weight: 900; box-shadow: 0 4px 10px rgba(77,10,15,.2); }
 
         /* Main Content & Top Bar */
-        .main-content { margin-left: var(--sidebar-width); width: calc(100% - var(--sidebar-width)); }
+        .main-content { margin-left: var(--sidebar-width); width: calc(100% - var(--sidebar-width)); min-width: 0; }
         .top-bar { min-height: 72px; background: radial-gradient(circle at 14% -170%, rgba(74, 222, 128, .26), transparent 21rem), radial-gradient(circle at 92% 180%, rgba(255, 255, 255, .11), transparent 15rem), linear-gradient(120deg, #052e16, #14532d 55%, #166534); border-bottom: 1px solid rgba(255, 255, 255, .12); display: flex; align-items: center; justify-content: space-between; gap: var(--space-16); padding: 0 var(--space-24); position: sticky; top: 0; z-index: 1010; box-shadow: 0 7px 22px rgba(9, 54, 29, .16); }
         .page-context { min-width: 0; display: flex; flex-direction: column; gap: .12rem; }
         .page-eyebrow { color: #a7e7bd; font-size: var(--text-caption); font-weight: 800; letter-spacing: var(--tracking-label); line-height: var(--line-heading); text-transform: uppercase; }
@@ -1293,19 +1302,15 @@
             display: none !important;
         }
 
-        .live-refresh-notice .spinner-border {
-            color: var(--htc-green);
-        }
-
         .notification-toast-wrap {
             position: fixed;
             right: 22px;
             bottom: 22px;
             z-index: 10050;
-            width: min(390px, calc(100vw - 28px));
+            width: min(340px, calc(100vw - 28px));
             display: flex;
             flex-direction: column;
-            gap: var(--space-12);
+            gap: var(--space-8);
             max-height: calc(100dvh - 100px);
             overflow-y: auto;
             overscroll-behavior: contain;
@@ -1317,9 +1322,9 @@
             flex-shrink: 0;
             overflow: hidden;
             border: 1px solid #dce7e0;
-            border-radius: 17px;
+            border-radius: 14px;
             background: rgba(255,255,255,.98);
-            box-shadow: 0 20px 55px rgba(20, 48, 31, .2);
+            box-shadow: 0 12px 32px rgba(20, 48, 31, .18);
             backdrop-filter: blur(12px);
             animation: notificationToastEnter .25s ease-out;
         }
@@ -1344,23 +1349,24 @@
         .notification-toast-body {
             display: flex;
             align-items: flex-start;
-            gap: var(--space-12);
-            padding: var(--space-16);
+            gap: var(--space-8);
+            padding: var(--space-12);
         }
 
         .notification-toast-icon {
-            width: 42px;
-            height: 42px;
-            flex: 0 0 42px;
+            width: 34px;
+            height: 34px;
+            flex: 0 0 34px;
             display: grid;
             place-items: center;
-            border-radius: 12px;
+            border-radius: 10px;
             color: #276947;
             background: #e6f4eb;
         }
 
         .notification-toast-icon svg {
-            width: 20px;
+            width: 18px;
+            height: 18px;
         }
 
         .type-warning .notification-toast-icon {
@@ -1387,6 +1393,8 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: var(--space-8);
+            padding-right: var(--space-16);
             margin-bottom: var(--space-4);
         }
 
@@ -1401,27 +1409,29 @@
         .notification-toast-meta time {
             color: #a0aaa4;
             font-size: var(--text-caption);
+            white-space: nowrap;
         }
 
         .notification-toast h6 {
             margin: 0 var(--space-24) var(--space-4) 0;
             color: #203128;
-            font-size: var(--text-heading-sm);
+            font-size: var(--text-body);
             font-weight: 800;
         }
 
         .notification-toast p {
             margin: 0;
             color: #6f7d75;
-            font-size: var(--text-body);
+            font-size: var(--text-secondary);
             line-height: var(--line-body);
         }
 
         .notification-toast-actions {
             display: flex;
+            flex-wrap: wrap;
             align-items: center;
-            gap: var(--space-12);
-            margin-top: var(--space-12);
+            gap: var(--space-8);
+            margin-top: var(--space-8);
         }
 
         .notification-toast-actions a {
@@ -1456,12 +1466,13 @@
             margin-top: var(--space-4);
             color: #8b968f;
             font-size: var(--text-caption);
+            line-height: 1.4;
         }
 
         .notification-toast-close {
             position: absolute;
-            top: .8rem;
-            right: .8rem;
+            top: .5rem;
+            right: .5rem;
             padding: .15rem;
             border: 0;
             background: transparent;
@@ -1589,7 +1600,13 @@
 
         /* Shared responsive application shell */
         @media (max-width: 991.98px) {
-            body.sidebar-open { overflow: hidden; }
+            body.sidebar-open {
+                position: fixed;
+                top: var(--sidebar-scroll-top, 0px);
+                left: 0;
+                width: 100%;
+                overflow: hidden;
+            }
             .sidebar {
                 width: min(290px, 86vw);
                 padding: var(--space-16);
@@ -1668,7 +1685,7 @@
             .main-content-inner nav.d-flex.justify-items-center .page-link { width: 100%; min-height: 40px; }
             .modal-dialog { width: calc(100% - 1rem); margin: var(--space-8); }
             .modal-content { max-height: calc(100dvh - 1rem); }
-            .notification-toast-wrap { right: 10px; bottom: 10px; width: calc(100vw - 20px); }
+            .notification-toast-wrap { right: 10px; bottom: 10px; width: min(340px, calc(100vw - 20px)); }
             .live-refresh-notice { top: 68px; right: 10px; left: 10px; max-width: none; }
         }
 
@@ -2305,11 +2322,11 @@
         </template>
     </div>
 
-    <!-- LIVE DATA REFRESH STATUS -->
+    <!-- Live updates stay silent unless recovery is needed. -->
+    <div id="liveUpdateStatus" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
     <div id="liveRefreshNotice" class="live-refresh-notice" role="status" aria-live="polite" hidden>
-        <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
-        <span id="liveRefreshMessage">New activity detected. Refreshing…</span>
-        <button type="button" id="liveRefreshButton" class="btn btn-sm btn-outline-success">Refresh</button>
+        <span id="liveRefreshMessage"></span>
+        <button type="button" id="liveRefreshButton" class="btn btn-sm btn-outline-success">Retry updates</button>
     </div>
 
     @include('layouts.partials.runtime-guard')
@@ -2329,11 +2346,21 @@
 
             if (!sidebar || !toggle || !backdrop) return;
 
+            let sidebarScrollY = 0;
             const setSidebar = open => {
                 const shouldOpen = Boolean(open && mobileQuery.matches);
+                const wasOpen = document.body.classList.contains('sidebar-open');
+                if (shouldOpen && !wasOpen) {
+                    sidebarScrollY = window.scrollY;
+                    document.body.style.setProperty('--sidebar-scroll-top', `-${sidebarScrollY}px`);
+                }
                 sidebar.classList.toggle('is-open', shouldOpen);
                 backdrop.classList.toggle('is-open', shouldOpen);
                 document.body.classList.toggle('sidebar-open', shouldOpen);
+                if (!shouldOpen && wasOpen) {
+                    document.body.style.removeProperty('--sidebar-scroll-top');
+                    window.scrollTo(0, sidebarScrollY);
+                }
                 toggle.setAttribute('aria-expanded', String(shouldOpen));
                 sidebar.setAttribute('aria-hidden', String(mobileQuery.matches && !shouldOpen));
 
@@ -2825,6 +2852,8 @@
             const cacheKey = 'htc-runtime-state:{{ Auth::id() }}';
             const notice = document.getElementById('liveRefreshNotice');
             const message = document.getElementById('liveRefreshMessage');
+            const status = document.getElementById('liveUpdateStatus');
+            const pollInterval = 3000;
             let currentVersion = document.body?.dataset.runtimeVersion || null;
             let pendingVersion = currentVersion;
             let refreshPending = false;
@@ -2832,9 +2861,9 @@
             let timer = null;
             let failures = 0;
             let lastCheckedAt = 0;
-            let notificationBusy = false;
             let refreshTimer = null;
             let refreshing = false;
+            let workspaceFailed = false;
             const tabId = window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
             const leaseKey = `htc-runtime-poller:${expectedAccountId}`;
             const syncChannel = 'BroadcastChannel' in window ? new BroadcastChannel(`htc-runtime-${expectedAccountId}`) : null;
@@ -2854,7 +2883,7 @@
                 try {
                     const lease = JSON.parse(localStorage.getItem(leaseKey) || 'null');
                     if (lease && lease.tab !== tabId && lease.until > Date.now()) return false;
-                    localStorage.setItem(leaseKey, JSON.stringify({tab: tabId, until: Date.now() + 30000}));
+                    localStorage.setItem(leaseKey, JSON.stringify({tab: tabId, until: Date.now() + pollInterval * 3}));
                     return JSON.parse(localStorage.getItem(leaseKey) || 'null')?.tab === tabId;
                 } catch (error) { return true; }
             };
@@ -2862,31 +2891,28 @@
             const userIsWorking = () => {
                 const active = document.activeElement;
                 const editing = active && ['INPUT', 'TEXTAREA', 'SELECT'].includes(active.tagName);
-                return window.htcSession?.expired || document.hidden || notificationBusy || editing
+                return window.htcSession?.expired || document.hidden || editing
                     || document.documentElement?.getAttribute('aria-busy') === 'true'
-                    || Boolean(document.querySelector('.modal.show, dialog[open], .main-content-inner [data-dirty], .main-content-inner form[aria-busy="true"], .main-content-inner input[type="checkbox"]:checked'));
+                    || document.body?.classList?.contains('sidebar-open')
+                    || Boolean(document.querySelector('.modal.show, dialog[open], .main-content-inner [data-dirty], .main-content-inner [aria-busy="true"], .main-content-inner input[type="checkbox"]:checked, [data-filter-state="loading"], [data-filter-state="invalid"], [data-filter-state="error"]'));
             };
 
-            const showNotice = (deferred = false) => {
-                message.textContent = deferred
-                    ? 'New activity is available. This page will refresh when you finish.'
-                    : 'New activity detected. Refreshing…';
+            const showUpdateError = () => {
+                message.textContent = 'Live updates are temporarily unavailable. Retrying automatically.';
                 notice.hidden = false;
             };
 
             const refreshWorkspace = async () => {
                 if (window.htcSession?.expired || refreshing || !refreshPending || userIsWorking()) return;
                 const regions = [...document.querySelectorAll('[data-live-region]')];
-                if (!regions.length) {
-                    message.textContent = 'New activity is available. Refresh to update this page.';
-                    return;
-                }
+                if (!regions.length) return;
                 refreshing = true;
                 const targetVersion = pendingVersion;
+                const targetUrl = window.location.href;
                 const controller = new AbortController();
                 const timeout = window.setTimeout(() => controller.abort(), 10000);
                 try {
-                    const response = await fetch(window.location.href, {
+                    const response = await fetch(targetUrl, {
                         headers: {'Accept': 'text/html', 'X-Workspace-Refresh': 'true', 'X-Requested-With': 'XMLHttpRequest'},
                         credentials: 'same-origin', cache: 'no-store', signal: controller.signal,
                     });
@@ -2898,7 +2924,15 @@
                     }));
                     if (replacements.some(item => !item.next)) throw new Error('Missing live content');
                     // An action can begin while the response is in flight. Keep the user's work.
-                    if (userIsWorking()) return;
+                    if (userIsWorking() || window.location.href !== targetUrl) return;
+                    const focused = document.activeElement;
+                    const focusId = focused?.id;
+                    const focusHref = focused?.getAttribute?.('href');
+                    const scrollX = window.scrollX;
+                    const scrollY = window.scrollY;
+                    const scrollContainers = [...document.querySelectorAll('[data-live-region] [id], [data-employee-notifications]')]
+                        .filter(element => (element.scrollTop || element.scrollLeft) && (element.id || element.hasAttribute('data-employee-notifications')))
+                        .map(element => ({id: element.id, top: element.scrollTop, left: element.scrollLeft}));
                     const activeTabs = [...document.querySelectorAll('[data-bs-toggle="pill"].active')].map(tab => tab.id);
                     replacements.forEach(({region, next}) => {
                         next.querySelectorAll('script').forEach(script => script.remove());
@@ -2921,11 +2955,24 @@
                     window.lucide?.createIcons();
                     currentVersion = targetVersion;
                     refreshPending = pendingVersion !== currentVersion;
-                    notice.hidden = !refreshPending;
+                    workspaceFailed = false;
+                    notice.hidden = true;
                     document.dispatchEvent(new CustomEvent('htc:workspace-updated'));
+                    scrollContainers.forEach(saved => {
+                        const element = saved.id ? document.getElementById(saved.id) : document.querySelector('[data-employee-notifications]');
+                        if (element) { element.scrollTop = saved.top; element.scrollLeft = saved.left; }
+                    });
+                    if (focused && !focused.isConnected) {
+                        const replacement = focusId ? document.getElementById(focusId)
+                            : focusHref ? [...document.querySelectorAll('a[href]')].find(link => link.getAttribute('href') === focusHref) : null;
+                        replacement?.focus({preventScroll: true});
+                    }
+                    if (Number.isFinite(scrollY) && Number.isFinite(scrollX)) window.scrollTo({left: scrollX, top: scrollY, behavior: 'instant'});
+                    status.textContent = 'Content updated.';
                 } catch (error) {
-                    if (error.name === 'SessionExpiredError') return;
-                    message.textContent = 'New activity is available. Refresh to update this page.';
+                    if (window.htcSession?.expired || error.name === 'SessionExpiredError') return;
+                    workspaceFailed = true;
+                    showUpdateError();
                 } finally {
                     window.clearTimeout(timeout);
                     refreshing = false;
@@ -2937,16 +2984,14 @@
                 if (userIsWorking()) {
                     window.clearTimeout(refreshTimer);
                     refreshTimer = null;
-                    showNotice(true);
                     return;
                 }
-                showNotice(false);
                 if (refreshTimer !== null) return;
                 refreshTimer = window.setTimeout(() => {
                     refreshTimer = null;
                     if (userIsWorking()) refreshWhenSafe();
                     else return refreshWorkspace();
-                }, 500);
+                }, 100);
             };
 
             const scheduleCheck = delay => {
@@ -2973,6 +3018,7 @@
                 failures = 0;
                 lastCheckedAt = Date.now();
                 cacheMetadata(data);
+                if (!workspaceFailed) notice.hidden = true;
                 window.htcRuntimeState = data;
                 document.dispatchEvent(new CustomEvent('htc:runtime-state', {detail: data}));
                 const version = data.versions?.[scope] || data.version;
@@ -2994,8 +3040,8 @@
                     const cached = JSON.parse(sessionStorage.getItem(cacheKey) || 'null');
                     const age = Date.now() - Number(cached?.cached_at || 0);
                     const mutationAge = Date.now() - Number(sessionStorage.getItem('htc-runtime-mutated-at') || 0);
-                    const cacheDelay = age >= 0 && age < 12000 ? 12000 - age : 0;
-                    const mutationDelay = mutationAge >= 0 && mutationAge < 6000 ? 6000 - mutationAge : 0;
+                    const cacheDelay = age >= 0 && age < pollInterval ? pollInterval - age : 0;
+                    const mutationDelay = mutationAge >= 0 && mutationAge < 1000 ? 1000 - mutationAge : 0;
                     return Math.max(cacheDelay, mutationDelay);
                 } catch (error) {
                     return 0;
@@ -3010,7 +3056,7 @@
                     return;
                 }
                 if (!ownPollingLease()) {
-                    scheduleCheck(15000);
+                    scheduleCheck(pollInterval);
                     return;
                 }
                 checking = true;
@@ -3041,22 +3087,19 @@
                     syncChannel?.postMessage({type: 'state', data});
                 } catch (error) {
                     failures++;
+                    if (failures >= 3 && !window.htcSession?.expired) showUpdateError();
                 } finally {
                     window.clearTimeout(timeout);
                     checking = false;
-                    const retryDelay = failures ? Math.min(60000, 15000 * (2 ** failures)) : 15000;
+                    const retryDelay = failures ? Math.min(60000, pollInterval * (2 ** failures)) : pollInterval;
                     scheduleCheck(retryDelay);
                 }
             };
 
             document.addEventListener('visibilitychange', () => {
                 if (document.hidden) releaseLease();
-                if (!document.hidden && Date.now() - lastCheckedAt > 5000) checkForUpdates();
+                if (!document.hidden && Date.now() - lastCheckedAt > pollInterval) checkForUpdates();
                 if (!document.hidden) refreshWhenSafe();
-            });
-            document.addEventListener('htc:notification-activity', event => {
-                notificationBusy = Boolean(event.detail?.active);
-                refreshWhenSafe();
             });
             document.addEventListener('focusout', () => window.setTimeout(refreshWhenSafe, 150));
             document.addEventListener('htc:session-expired', () => {
@@ -3071,7 +3114,10 @@
                 if (form && (form.method || 'get').toLowerCase() !== 'get') form.dataset.dirty = 'true';
             });
             window.addEventListener('pagehide', releaseLease);
-            document.getElementById('liveRefreshButton')?.addEventListener('click', () => window.location.reload());
+            document.getElementById('liveRefreshButton')?.addEventListener('click', async () => {
+                await checkForUpdates();
+                refreshWhenSafe();
+            });
             scheduleCheck(initialDelay());
         })();
 

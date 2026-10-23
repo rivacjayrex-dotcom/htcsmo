@@ -148,7 +148,7 @@
         .notification-panel-heading,.notification-insight-heading { display:flex; align-items:center; justify-content:space-between; gap:var(--space-16); }
         .notification-panel-heading { padding:var(--space-16) var(--space-16); border-bottom:1px solid #e7eee9; background:linear-gradient(135deg,#fbfdfc,#f4f8f5); }
         .notification-panel-heading > div > span,.notification-insight-heading > div > span { color:#87978e; font-size:var(--text-caption); font-weight:800; letter-spacing:var(--tracking-label); text-transform:uppercase; }
-        .notification-panel-heading h2,.notification-insight-heading h2 { margin:.12rem 0 0; color:var(--note-ink); font-size:var(--text-heading-md); font-weight:800; }
+        .notification-panel-heading h2,.notification-insight-heading h2 { margin:.12rem 0 0; color:var(--note-ink); font-size:var(--text-heading-sm); font-weight:800; }
         .notification-live-label { display:inline-flex; align-items:center; gap:var(--space-4); color:#3c7655; font-size:var(--text-secondary); font-weight:800; text-transform:uppercase; }
         .notification-live-label svg { width:13px; height:13px; }
         .notification-feed-container { position:relative; min-height:260px; transition:opacity .15s ease; }
@@ -171,9 +171,9 @@
         .notification-feed-meta span { color:#4f755f; font-size:var(--text-caption); font-weight:800; letter-spacing:var(--tracking-label); text-transform:uppercase; }
         .notification-feed-meta time { color:#96a39c; font-size:var(--text-caption); }
         .notification-feed-title-row { gap:var(--space-8); }
-        .notification-feed-title-row h3 { margin:0; color:var(--note-ink); font-size:var(--text-heading-sm); font-weight:800; overflow-wrap:anywhere; }
+        .notification-feed-title-row h3 { margin:0; color:var(--note-ink); font-size:var(--text-body); font-weight:800; overflow-wrap:anywhere; }
         .notification-unread-indicator { width:7px; height:7px; flex:0 0 7px; border-radius:50%; background:#e14952; box-shadow:0 0 0 3px rgba(225,73,82,.1); }
-        .notification-feed-content > p { margin:var(--space-4) 0 0; color:var(--note-muted); font-size:var(--text-body); line-height:var(--line-body); }
+        .notification-feed-content > p { margin:var(--space-4) 0 0; color:var(--note-muted); font-size:var(--text-secondary); line-height:var(--line-body); }
         .notification-feed-actions { flex-wrap:wrap; gap:var(--space-12); margin-top:var(--space-12); }
         .notification-primary-action,.notification-read-action,.notification-action-unavailable { display:inline-flex; align-items:center; gap:var(--space-4); font-size:var(--text-caption); font-weight:800; }
         .notification-primary-action { color:var(--htc-green); }
@@ -207,8 +207,8 @@
         .notification-deadline-item > div { display:flex; justify-content:space-between; gap:var(--space-8); }
         .notification-deadline-item > div span { color:#b63139; font-size:var(--text-caption); font-weight:900; text-transform:uppercase; }
         .notification-deadline-item small { color:#9a8587; font-size:var(--text-caption); }
-        .notification-deadline-item h3 { margin:var(--space-4) 0 var(--space-4); color:#432e30; font-size:var(--text-heading-sm); font-weight:800; }
-        .notification-deadline-item p { margin:0 0 var(--space-8); color:#806c6e; font-size:var(--text-body); }
+        .notification-deadline-item h3 { margin:var(--space-4) 0 var(--space-4); color:#432e30; font-size:var(--text-body); font-weight:800; }
+        .notification-deadline-item p { margin:0 0 var(--space-8); color:#806c6e; font-size:var(--text-secondary); }
         .notification-deadline-item a { display:inline-flex; align-items:center; gap:var(--space-4); color:#ad2f37; font-size:var(--text-caption); font-weight:800; text-decoration:none; }
         .notification-deadline-item a svg { width:12px; }
         .notification-insight-empty { min-height:90px; display:flex; align-items:center; justify-content:center; gap:var(--space-8); color:#7b8b82; font-size:var(--text-caption); text-align:center; }
@@ -221,9 +221,9 @@
         .notification-guide-card { padding:var(--space-16); border-radius:16px; background:linear-gradient(145deg,#103f29,#1b7147); color:#fff; box-shadow:0 10px 24px rgba(14,67,39,.14); }
         .notification-guide-icon { width:38px; height:38px; display:grid; place-items:center; margin-bottom:var(--space-12); border-radius:11px; background:rgba(255,255,255,.12); }
         .notification-guide-icon svg { width:18px; }
-        .notification-guide-card h2 { margin:.15rem 0 var(--space-12); color:#fff; font-size:var(--text-heading-md); }
+        .notification-guide-card h2 { margin:.15rem 0 var(--space-12); color:#fff; font-size:var(--text-heading-sm); }
         .notification-guide-card ul { display:grid; gap:var(--space-12); margin:0; padding:0; list-style:none; }
-        .notification-guide-card li { display:grid; grid-template-columns:15px minmax(0,1fr); gap:var(--space-8); color:#d4ebdc; font-size:var(--text-body); line-height:var(--line-body); }
+        .notification-guide-card li { display:grid; grid-template-columns:15px minmax(0,1fr); gap:var(--space-8); color:#d4ebdc; font-size:var(--text-secondary); line-height:var(--line-body); }
         .notification-guide-card li svg { width:14px; height:14px; color:#8fe0ab; }
         @media(max-width:991.98px){.notification-center-grid{grid-template-columns:1fr}.notification-insights-column{grid-template-columns:repeat(2,minmax(0,1fr))}}
         @media(max-width:575.98px){.notification-center-page{padding-top:var(--space-4)}.notification-toolbar{gap:var(--space-4)}.notification-category-nav{gap:var(--space-4)}.notification-category-link{padding:var(--space-8)}.notification-center-grid{gap:var(--space-12)}.notification-insights-column{grid-template-columns:1fr}.notification-feed-item{grid-template-columns:36px minmax(0,1fr);padding:var(--space-12)}.notification-feed-icon{width:36px;height:36px}.notification-feed-meta{align-items:flex-start;flex-direction:column;gap:.1rem}.notification-panel-heading{padding:var(--space-12)}.notification-live-label{display:none}}

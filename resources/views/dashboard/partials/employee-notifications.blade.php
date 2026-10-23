@@ -1,4 +1,4 @@
-<a class="employee-notifications-launcher" data-employee-notifications-open href="{{ route('notifications') }}"><i data-lucide="bell" aria-hidden="true"></i>Notifications</a>
+<a class="employee-notifications-launcher" data-employee-notifications-open href="{{ route('notifications') }}"><i data-lucide="bell" aria-hidden="true"></i></a>
 <script>
     (() => {
         if (window.__employeeNotificationsLoaded) return;
@@ -7,7 +7,7 @@
         const drawer = document.createElement('dialog');
         drawer.className = 'employee-notification-drawer';
         drawer.setAttribute('aria-labelledby', 'personalUpdatesHeading');
-        drawer.innerHTML = '<button type="button" class="employee-notifications-close">Close notifications &times;</button>';
+        drawer.innerHTML = '<button type="button" class="employee-notifications-close"> &times;</button>';
         const closeButton = drawer.querySelector('button');
         document.body.appendChild(drawer);
         let sidebar = null;

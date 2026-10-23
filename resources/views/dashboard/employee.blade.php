@@ -9,7 +9,7 @@
     <span data-employee-notifications-anchor hidden></span>
     <aside class="personal-side-stack" data-employee-notifications aria-labelledby="personalUpdatesHeading" tabindex="0">
         <section class="personal-panel personal-notifications" aria-labelledby="personalUpdatesHeading">
-            <header><div><h2 id="personalUpdatesHeading">Notifications</h2><p>Your latest request-related updates.</p></div><span class="personal-section-icon"><i data-lucide="bell" aria-hidden="true"></i></span></header>
+            <header><div><h2 id="personalUpdatesHeading">Notifications</h2></div><span class="personal-section-icon"><i data-lucide="bell" aria-hidden="true"></i></span></header>
             <ul class="personal-updates">
                 @forelse($personalNotifications as $notification)
                     <li class="{{ $notification->is_read ? '' : 'is-unread' }}">
@@ -17,9 +17,9 @@
                         <p>{{ Str::limit($notification->message, 180) }}</p>
                         <time datetime="{{ $notification->created_at->toIso8601String() }}">{{ $notification->created_at->diffForHumans() }}</time>
                         @if($personalNotificationActions[$notification->id] ?? null)
-                            <form method="POST" action="{{ route('notifications.open', $notification) }}">@csrf<button type="submit" class="personal-link-button">Open related request<span class="visually-hidden">: {{ $notification->title }}</span><i data-lucide="arrow-up-right" aria-hidden="true"></i></button></form>
+                            <form class="personal-update-form" method="POST" action="{{ route('notifications.open', $notification) }}">@csrf<button type="submit" class="personal-update-open" aria-label="Open notification: {{ $notification->title }}"></button></form>
                         @else
-                            <a href="{{ route('notifications') }}">View in notification center</a>
+                            <a class="personal-update-open" href="{{ route('notifications') }}" aria-label="View in notification center: {{ $notification->title }}"></a>
                         @endif
                     </li>
                 @empty
@@ -54,7 +54,7 @@
     </section>
 
         <section class="personal-panel" aria-labelledby="personalRequestsHeading">
-            <header><div><h2 id="personalRequestsHeading">My procurement activity</h2><p>Showing {{ $recentRequests->count() }} of {{ $activeCount }} active requests. Action requests first, then deadline warnings, then recent submissions.</p></div><a href="{{ route('requests.index') }}">View all requests <i data-lucide="arrow-up-right" aria-hidden="true"></i></a></header>
+            <header><div><h2 id="personalRequestsHeading">My procurement activity</h2></div><a href="{{ route('requests.index') }}">View all requests <i data-lucide="arrow-up-right" aria-hidden="true"></i></a></header>
             <div class="employee-table-wrap">
             <table class="table employee-request-table" aria-labelledby="personalRequestsHeading">
                 <caption class="visually-hidden">Your active requisitions, current status, submission date, requested value, and available actions.</caption>
@@ -84,12 +84,6 @@
             </table>
             </div>
         </section>
-    <div class="employee-guidance-grid">
-        <section class="personal-sla" aria-label="Request processing target">
-            <div class="personal-sla-heading"><span class="personal-section-icon"><i data-lucide="clock-3" aria-hidden="true"></i></span><h3>Processing target</h3></div><strong>Three working days</strong><p>Measured from submission, excluding weekends and institutional holidays. This is a target, not a guaranteed pickup date.</p><a href="{{ route('requests.index', ['status' => 'deadline']) }}"><span>{{ $personalDeadlineCount }}</span> of your active requests near or past the target — review deadline warnings <i data-lucide="arrow-up-right" aria-hidden="true"></i></a>
-        </section>
-        <section class="personal-archive-card"><span class="personal-section-icon"><i data-lucide="archive" aria-hidden="true"></i></span><h3>Looking for a past request?</h3><p>Your completed, released, and disapproved requisitions stay in your archive.</p><a href="{{ route('requests.archive') }}">View my archive <i data-lucide="arrow-right" aria-hidden="true"></i></a></section>
-    </div>
     </div>
     </div>
 </div>
