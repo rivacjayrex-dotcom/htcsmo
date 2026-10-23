@@ -36,7 +36,7 @@
     }">
         <div class="personnel-toolbar d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
             <div>
-                <h4 class="fw-black text-dark mb-1">{{ $scopeLabel }} Personnel</h4>
+                <h4 class="fw-black text-dark mb-1"><b>{{ $scopeLabel }} Personnel</b></h4>
                 <p class="text-muted small mb-0">
                     @if(Auth::user()->role === 'dept_head')
                         Manage faculty and staff accounts assigned to your department.

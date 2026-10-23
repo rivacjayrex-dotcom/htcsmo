@@ -91,12 +91,12 @@ Route::get('/api/requisition-catalog', [SupplyController::class, 'requisitionCat
     ->name('api.requisition-catalog');
 
 Route::get('/api/latest-notification', [NotificationController::class, 'poll'])
-    ->middleware(['auth', 'throttle:20,1']);
+    ->middleware(['auth', 'throttle:runtime-polling']);
 Route::get('/api/system-version', [RequestController::class, 'systemVersion'])
     ->middleware('auth')
     ->name('api.system-version');
 Route::get('/api/runtime-state', [RequestController::class, 'runtimeState'])
-    ->middleware(['auth', 'throttle:20,1'])
+    ->middleware(['auth', 'throttle:runtime-polling'])
     ->name('api.runtime-state');
 
 // Requestors may manage only their own pending requisitions.

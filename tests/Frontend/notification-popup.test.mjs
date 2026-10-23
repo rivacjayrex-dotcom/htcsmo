@@ -655,6 +655,110 @@ test('connection failures back off, show recovery feedback, and clear it on reco
     assert.equal(fixture.window.reloads, 0);
 });
 
+for (const [label, header, delay] of [
+    ['seconds', '45', 45000],
+    ['long cooldown', '120', 120000],
+    ['HTTP date', 'Fri, 23 Oct 2026 02:01:00 GMT', 60000],
+    ['missing header', null, 60000],
+    ['invalid header', 'unavailable', 60000],
+]) {
+    test(`rate limiting respects Retry-After (${label}) and manual retries cannot bypass it`, async () => {
+        const fixture = browser();
+        let clock = Date.parse('2026-10-23T02:00:00Z');
+        fixture.context.Date = class extends Date { static now() { return clock; } };
+        let requests = 0;
+        fixture.context.fetch = async () => {
+            requests++;
+            return requests === 1
+                ? {ok: false, status: 429, headers: {get: () => header}}
+                : {ok: true, json: async () => ({account_id: 7, version: 'stable', notifications: []})};
+        };
+        vm.runInContext(runtimeSource, fixture.context);
+        await fixture.runTimer(0);
+        assert.equal(fixture.document.getElementById('liveRefreshNotice').hidden, false);
+        assert.match(fixture.document.getElementById('liveRefreshMessage').textContent, /paused briefly/);
+        for (let click = 0; click < 3; click++) {
+            fixture.document.getElementById('liveRefreshButton').dispatchEvent(new Event('click'));
+        }
+        await new Promise(setImmediate);
+        assert.equal(requests, 1);
+        assert.equal([...fixture.timers.values()].some(timer => timer.delay === delay), true);
+        assert.equal(fixture.region.innerHTML, 'original content');
+        clock += delay;
+        await fixture.runTimer(delay);
+        assert.equal(requests, 2);
+        assert.equal(fixture.document.getElementById('liveRefreshNotice').hidden, true);
+        assert.equal(fixture.window.reloads, 0);
+    });
+}
+
+test('server cooldown survives navigation without BroadcastChannel', async () => {
+    const sharedStorage = new Map();
+    const first = browser({sharedStorage});
+    const second = browser({sharedStorage});
+    let requests = 0;
+    let clock = Date.parse('2026-10-23T02:00:00Z');
+    const clockDate = class extends Date { static now() { return clock; } };
+    first.context.Date = second.context.Date = clockDate;
+    first.context.fetch = async () => {
+        requests++;
+        return {ok: false, status: 429, headers: {get: () => '60'}};
+    };
+    second.context.fetch = async () => {
+        requests++;
+        return {ok: true, json: async () => ({account_id: 7, version: 'stable', notifications: []})};
+    };
+    vm.runInContext(runtimeSource, first.context);
+    await first.runTimer(0);
+    vm.runInContext(runtimeSource, second.context);
+    await second.runTimer(0);
+    assert.equal(requests, 1);
+    clock += 60000;
+    await second.runTimer(60000);
+    assert.equal(requests, 2);
+});
+
+test('tabs share cooldowns even when browser storage is unavailable', async () => {
+    const channelClass = channels();
+    const first = browser({storageDisabled: true, channelClass});
+    const second = browser({storageDisabled: true, channelClass});
+    let requests = 0;
+    let clock = Date.parse('2026-10-23T02:00:00Z');
+    const clockDate = class extends Date { static now() { return clock; } };
+    for (const fixture of [first, second]) {
+        fixture.context.Date = clockDate;
+        fixture.context.fetch = async () => {
+            requests++;
+            return requests === 1
+                ? {ok: false, status: 429, headers: {get: () => '60'}}
+                : {ok: true, json: async () => ({account_id: 7, version: 'stable', notifications: []})};
+        };
+        vm.runInContext(runtimeSource, fixture.context);
+    }
+    await first.runTimer(0);
+    second.document.getElementById('liveRefreshButton').dispatchEvent(new Event('click'));
+    await new Promise(setImmediate);
+    assert.equal(requests, 1);
+    clock += 60000;
+    await second.runTimer(60000);
+    assert.equal(requests, 2);
+});
+
+test('rate-limit cooldown still works without browser storage or cross-tab APIs', async () => {
+    const fixture = browser({storageDisabled: true});
+    let requests = 0;
+    fixture.context.fetch = async () => {
+        requests++;
+        return {ok: false, status: 429};
+    };
+    vm.runInContext(runtimeSource, fixture.context);
+    await fixture.runTimer(0);
+    fixture.document.getElementById('liveRefreshButton').dispatchEvent(new Event('click'));
+    await new Promise(setImmediate);
+    assert.equal(requests, 1);
+    assert.equal(fixture.window.reloads, 0);
+});
+
 test('pages without a safe live region do not show a routine refresh banner or reload', async () => {
     const fixture = liveWorkspace();
     fixture.document.querySelectorAll = () => [];

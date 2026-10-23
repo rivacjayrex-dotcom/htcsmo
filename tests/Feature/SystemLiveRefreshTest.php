@@ -75,4 +75,22 @@ class SystemLiveRefreshTest extends TestCase
     {
         $this->getJson(route('api.runtime-state'))->assertUnauthorized();
     }
+
+    public function test_runtime_polling_has_headroom_for_multiple_tabs_and_remains_rate_limited_per_account(): void
+    {
+        $user = User::factory()->create();
+        $url = route('api.runtime-state');
+
+        // Three tabs without browser coordination make 60 polls per minute.
+        // Navigation and manual retries must not exhaust the normal allowance.
+        for ($attempt = 0; $attempt < 120; $attempt++) {
+            $this->actingAs($user)->getJson($url)->assertOk();
+        }
+        $this->getJson($url)->assertStatus(429)->assertHeader('Retry-After');
+
+        $other = User::factory()->create();
+        $this->actingAs($other)->getJson($url)->assertOk();
+        $this->travel(61)->seconds();
+        $this->actingAs($user)->getJson($url)->assertOk();
+    }
 }

@@ -2914,7 +2914,30 @@
             let workspaceFailed = false;
             const tabId = window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
             const leaseKey = `htc-runtime-poller:${expectedAccountId}`;
+            const retryKey = `htc-runtime-retry:${expectedAccountId}`;
+            let retryAt = 0;
             const syncChannel = 'BroadcastChannel' in window ? new BroadcastChannel(`htc-runtime-${expectedAccountId}`) : null;
+
+            const retryWait = () => {
+                try {
+                    const stored = Number(localStorage.getItem(retryKey));
+                    if (Number.isFinite(stored)) retryAt = Math.max(retryAt, stored);
+                } catch (error) { /* The in-memory cooldown still protects this tab. */ }
+                return Math.max(0, retryAt - Date.now());
+            };
+
+            const pausePolling = response => {
+                const retryAfter = response.headers?.get('Retry-After');
+                const seconds = Number(retryAfter);
+                const until = seconds > 0 && Number.isFinite(seconds)
+                    ? Date.now() + seconds * 1000 : Date.parse(retryAfter || '');
+                retryAt = Math.max(retryAt, Date.now() + pollInterval,
+                    Number.isFinite(until) ? until : Date.now() + 60000);
+                try { localStorage.setItem(retryKey, String(retryAt)); } catch (error) { /* Storage is optional. */ }
+                syncChannel?.postMessage({type: 'cooldown', until: retryAt});
+                message.textContent = 'Live updates are paused briefly. Retrying automatically.';
+                notice.hidden = false;
+            };
 
             const releaseLease = () => {
                 if (!syncChannel) return;
@@ -3081,6 +3104,10 @@
             syncChannel?.addEventListener('message', event => {
                 if (event.data?.type === 'state') acceptRuntimeState(event.data.data);
                 if (event.data?.type === 'released' && !document.hidden) scheduleCheck(0);
+                if (event.data?.type === 'cooldown' && Number.isFinite(event.data.until)) {
+                    retryAt = Math.max(retryAt, event.data.until);
+                    scheduleCheck(retryWait());
+                }
             });
 
             const initialDelay = () => {
@@ -3098,6 +3125,13 @@
 
             const checkForUpdates = async () => {
                 if (window.htcSession?.expired || checking) return;
+                // Navigation, tab takeover, and the Retry button must all obey
+                // the server's cooldown instead of extending a 429 failure loop.
+                const wait = retryWait();
+                if (wait > 0) {
+                    scheduleCheck(wait);
+                    return;
+                }
                 if (document.hidden) {
                     releaseLease();
                     scheduleCheck(60000);
@@ -3124,6 +3158,10 @@
                         credentials: 'same-origin',
                         signal: controller.signal,
                     });
+                    if (response.status === 429) {
+                        pausePolling(response);
+                        return;
+                    }
                     if (!response.ok) throw new Error(`Runtime poll failed with HTTP ${response.status}`);
 
                     const data = await response.json();
@@ -3140,7 +3178,7 @@
                     window.clearTimeout(timeout);
                     checking = false;
                     const retryDelay = failures ? Math.min(60000, pollInterval * (2 ** failures)) : pollInterval;
-                    scheduleCheck(retryDelay);
+                    scheduleCheck(Math.max(retryDelay, retryWait()));
                 }
             };
 

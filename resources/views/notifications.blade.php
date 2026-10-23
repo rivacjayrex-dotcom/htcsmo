@@ -21,6 +21,7 @@
                        aria-label="{{ $categoryLabels[$key] }}" title="{{ $categoryLabels[$key] }}"
                        @if($category === $key) aria-current="page" @endif>
                         <i aria-hidden="true" data-lucide="{{ match($key) { 'all' => 'layout-list', 'approvals' => 'clipboard-check', 'deadlines' => 'alarm-clock', 'accounts' => 'users', default => 'bell' } }}"></i>
+                        <span>{{ $categoryLabels[$key] }}</span>
                         <b data-category-count>{{ $categoryCounts[$key] }}</b>
                     </a>
                 @endforeach
@@ -30,7 +31,9 @@
                        data-notification-category="inventory" data-category-label="Inventory"
                        aria-label="Inventory" title="Inventory"
                        @if($category === 'inventory') aria-current="page" @endif>
-                        <i data-lucide="package-search" aria-hidden="true"></i><b data-category-count>{{ $categoryCounts['inventory'] }}</b>
+                        <i data-lucide="package-search" aria-hidden="true"></i>
+                        <span>{{ $categoryLabels['inventory'] }}</span>
+                        <b data-category-count>{{ $categoryCounts['inventory'] }}</b>
                     </a>
                 @endif
             </nav>

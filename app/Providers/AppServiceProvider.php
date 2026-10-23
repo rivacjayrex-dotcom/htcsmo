@@ -14,7 +14,10 @@ use App\Models\SupplyOptionValue;
 use App\Models\SupplyUnit;
 use App\Models\User;
 use App\Observers\WorkspaceObserver;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -32,6 +35,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // A visible tab polls 20 times/minute. Allow navigation, retries, and
+        // browsers without cross-tab coordination while retaining a hard cap.
+        RateLimiter::for('runtime-polling', fn (Request $request) => Limit::perMinute(120)
+            ->by((string) ($request->user()?->id ?? $request->ip())));
+
         foreach ([
             Requisition::class, RequisitionItem::class,
             ApprovalLog::class, Supply::class,
