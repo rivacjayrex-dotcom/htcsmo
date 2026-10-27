@@ -5,11 +5,11 @@
                 <th class="inventory-select-cell">
                     <input type="checkbox"
                            class="inventory-select"
-                           aria-label="Select all matching {{ $tier }} items"
-                           title="Select all matching {{ $tier }} items"
-                           :checked="allMatchingSelected('{{ $tier }}')"
-                           :indeterminate="someMatchingSelected('{{ $tier }}')"
-                           @change="toggleMatching('{{ $tier }}')">
+                           aria-label="Select all matching items"
+                           title="Select all matching items"
+                           :checked="allMatchingSelected()"
+                           :indeterminate="someMatchingSelected()"
+                           @change="toggleMatching()">
                 </th>
                 <th class="ps-4">Item</th>
                 <th>Category & choices</th>
@@ -36,7 +36,7 @@
                     </td>
                     <td class="ps-4 inventory-primary" data-label="Item">
                         <div class="d-flex align-items-center gap-3">
-                            <div class="inventory-item-icon {{ $tier }}"><i data-lucide="{{ $tier === 'major' ? 'monitor' : 'package' }}"></i></div>
+                            <div class="inventory-item-icon"><i data-lucide="package"></i></div>
                             <div>
                                 <div class="fw-bold text-dark">{{ $item->item_name }}</div>
                                 <small class="text-muted">{{ $item->brand ?: 'No brand' }}@if($item->model_number) · {{ $item->model_number }}@endif</small>
@@ -78,11 +78,11 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="6" class="inventory-empty"><i data-lucide="package-open"></i><strong>{{ request()->filled('search') || request('stock', 'all') !== 'all' ? 'No matching '.$tier.' items' : 'No '.$tier.' items yet' }}</strong><span>Try another search or stock filter, or register an item in this tier.</span></td></tr>
+                <tr><td colspan="6" class="inventory-empty"><i data-lucide="package-open"></i><strong>{{ request()->filled('search') || request('stock', 'all') !== 'all' ? 'No matching items' : 'No catalog items yet' }}</strong><span>Try another search or stock filter, or register a new item.</span></td></tr>
             @endforelse
             @if($items->isNotEmpty())
-                <tr x-cloak x-show="matchingIds('{{ $tier }}').length === 0">
-                    <td colspan="6" class="inventory-empty"><i data-lucide="search-x"></i><strong>No matching {{ $tier }} items</strong><span>Try another search term or stock filter.</span></td>
+                <tr x-cloak x-show="matchingIds().length === 0">
+                    <td colspan="6" class="inventory-empty"><i data-lucide="search-x"></i><strong>No matching items</strong><span>Try another search term or stock filter.</span></td>
                 </tr>
             @endif
         </tbody>

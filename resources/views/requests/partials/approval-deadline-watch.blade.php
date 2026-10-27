@@ -25,6 +25,9 @@
                 {{ $isSmoDeadlineView ? 'Approvals needing follow-up' : 'Requests requiring your attention' }}
                 <em>{{ $approvalDeadlineCount ?? $approvalDeadlineRequests->count() }}</em>
             </h3>
+            @if(($approvalDeadlineCount ?? 0) > $approvalDeadlineRequests->count())
+                <p>Showing the earliest {{ $approvalDeadlineRequests->count() }} of {{ $approvalDeadlineCount }} approval follow-ups.</p>
+            @endif
         </div>
         <div class="approval-deadline-heading__actions">
             <a href="{{ $isSmoDeadlineView ? route('requests.index', ['status' => 'deadline']) : route('admin.approvals') }}">

@@ -567,6 +567,48 @@ test('idle workspaces poll every three seconds without fetching unchanged page c
     assert.equal(fixture.document.getElementById('liveRefreshNotice').hidden, true);
 });
 
+test('slow successful polls leave a longer gap and keep the polling lease until the next check', async () => {
+    const sharedStorage = new Map();
+    const fixture = browser({sharedStorage, channelClass: channels()});
+    let clock = Date.parse('2026-10-27T05:45:00Z');
+    fixture.context.Date = class extends Date { static now() { return clock; } };
+    fixture.context.fetch = async () => {
+        clock += 7000;
+        return {ok: true, json: async () => ({account_id: 7, version: 'stable', notifications: []})};
+    };
+    vm.runInContext(runtimeSource, fixture.context);
+    await fixture.runTimer(0);
+    assert.ok([...fixture.timers.values()].some(timer => timer.delay === 14000));
+    const lease = JSON.parse(sharedStorage.get('htc-runtime-poller:7'));
+    assert.ok(lease.until > clock + 14000);
+
+    const other = browser({sharedStorage, channelClass: fixture.context.BroadcastChannel});
+    other.context.Date = fixture.context.Date;
+    let otherRequests = 0;
+    other.context.fetch = async () => { otherRequests++; return {ok: true, json: async () => ({account_id: 7})}; };
+    vm.runInContext(runtimeSource, other.context);
+    clock += 3000;
+    await other.runTimer(3000);
+    assert.equal(otherRequests, 0);
+});
+
+test('polling waits for foreground activity to finish before requesting runtime state', async () => {
+    const fixture = browser();
+    let busy = true;
+    let requests = 0;
+    fixture.document.documentElement.getAttribute = () => busy ? 'true' : null;
+    fixture.context.fetch = async () => {
+        requests++;
+        return {ok: true, json: async () => ({account_id: 7, version: 'stable', notifications: []})};
+    };
+    vm.runInContext(runtimeSource, fixture.context);
+    await fixture.runTimer(0);
+    assert.equal(requests, 0);
+    busy = false;
+    await fixture.runTimer(3000);
+    assert.equal(requests, 1);
+});
+
 test('updates defer silently during editing and resume without a reload after focus leaves', async () => {
     const fixture = liveWorkspace();
     await fixture.runTimer(0);

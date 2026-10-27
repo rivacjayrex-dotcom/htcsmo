@@ -14,9 +14,12 @@ use App\Models\SupplyOptionValue;
 use App\Models\SupplyUnit;
 use App\Models\User;
 use App\Observers\WorkspaceObserver;
+use App\Services\BusinessDaySlaService;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Database\Events\TransactionRolledBack;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
@@ -27,7 +30,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->scoped(BusinessDaySlaService::class);
     }
 
     /**
@@ -35,6 +38,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Event::listen(TransactionRolledBack::class, fn () => app(BusinessDaySlaService::class)->clearHolidayCache());
+
         // A visible tab polls 20 times/minute. Allow navigation, retries, and
         // browsers without cross-tab coordination while retaining a hard cap.
         RateLimiter::for('runtime-polling', fn (Request $request) => Limit::perMinute(120)

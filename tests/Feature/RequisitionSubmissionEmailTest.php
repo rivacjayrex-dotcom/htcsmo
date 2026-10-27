@@ -7,6 +7,7 @@ use App\Models\Requisition;
 use App\Models\Supply;
 use App\Models\User;
 use App\Services\NotificationService;
+use App\Services\WorkspaceVersionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
@@ -190,6 +191,30 @@ class RequisitionSubmissionEmailTest extends TestCase
                 && $context['requisition_id'] === Requisition::firstOrFail()->id
                 && $context['exception'] instanceof \RuntimeException
         ));
+    }
+
+    public function test_refresh_marker_failure_after_commit_does_not_fail_a_saved_submission_or_skip_notifications(): void
+    {
+        Queue::fake();
+        Log::spy();
+        $requestor = User::factory()->create();
+        User::factory()->create(['role' => 'smo']);
+        $supply = $this->supply();
+        $this->partialMock(WorkspaceVersionService::class)->shouldReceive('touch')
+            ->with('requisitions')->twice()
+            ->andThrow(new \RuntimeException('Refresh cache is unavailable'));
+
+        $response = $this->submit($requestor, $supply);
+        $this->assertDatabaseCount('requisitions', 1);
+        $this->assertDatabaseCount('requisition_items', 1);
+        $response->assertRedirect(route('dashboard'));
+        $this->assertDatabaseHas('notifications', ['user_id' => $requestor->id, 'event_type' => 'requisition.submitted']);
+        Queue::assertPushed(SendRequisitionEmail::class, 2);
+        Log::shouldHaveReceived('warning')->twice()->with(
+            'Workspace refresh marker failed after a committed change.',
+            \Mockery::on(fn ($context) => $context['domain'] === 'requisitions'
+                && $context['exception'] instanceof \RuntimeException),
+        );
     }
 
     private function submit(User $requestor, Supply $supply): TestResponse

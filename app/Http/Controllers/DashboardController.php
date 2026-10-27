@@ -6,6 +6,7 @@ use App\Models\Notification;
 use App\Models\Requisition;
 use App\Models\Supply;
 use App\Services\EmployeeDashboardService;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -89,16 +90,24 @@ class DashboardController extends Controller
             $approvalDeadlineQuery = (clone $deadlineQuery)->awaitingAdministrativeApproval();
             $approvalDeadlineCount = (clone $approvalDeadlineQuery)->count();
             $approvalDeadlineRequests = $approvalDeadlineQuery
-                ->with(['items', 'user.academicDepartment'])
                 ->oldest('due_at')
                 ->orderBy('id')
                 ->take(6)
                 ->get();
-            $stats['total'] = Requisition::count();
-            $stats['pending'] = Requisition::whereNotIn('status', Requisition::ARCHIVED_STATUSES)->count();
+            $archivedPlaceholders = implode(',', array_fill(0, count(Requisition::ARCHIVED_STATUSES), '?'));
+            $fulfilledPlaceholders = implode(',', array_fill(0, count(Requisition::FULFILLED_STATUSES), '?'));
+            $requisitionStats = Requisition::query()->selectRaw(
+                "COUNT(*) as total,
+                 COALESCE(SUM(CASE WHEN status NOT IN ($archivedPlaceholders) THEN 1 ELSE 0 END), 0) as pending,
+                 COALESCE(SUM(CASE WHEN status IN ($fulfilledPlaceholders) AND closed_at >= ? AND closed_at < ? THEN grand_total ELSE 0 END), 0) as monthly_value",
+                [...Requisition::ARCHIVED_STATUSES, ...Requisition::FULFILLED_STATUSES,
+                    now()->startOfMonth(), now()->startOfMonth()->addMonth()],
+            )->first();
+            $stats['total'] = (int) $requisitionStats->total;
+            $stats['pending'] = (int) $requisitionStats->pending;
+            $stats['monthly_value'] = (float) $requisitionStats->monthly_value;
             $stats['urgent'] = (clone $deadlineQuery)->count();
             $deadlineRequests = (clone $deadlineQuery)
-                ->with(['items', 'user.academicDepartment'])
                 ->oldest('due_at')->orderBy('id')->take(4)->get();
             $inventoryStats = Supply::query()->selectRaw(
                 'COALESCE(SUM(CASE WHEN quantity <= min_stock_level THEN 1 ELSE 0 END), 0) as low_stock,
@@ -112,17 +121,21 @@ class DashboardController extends Controller
                 ->orderBy('id')
                 ->take(4)
                 ->get();
-            $stats['monthly_value'] = Requisition::whereIn('status', Requisition::FULFILLED_STATUSES)
-                ->where('closed_at', '>=', now()->startOfMonth())
-                ->where('closed_at', '<', now()->startOfMonth()->addMonth())->sum('grand_total');
-
             // SMO TABLE: Only pull active items that still need to be processed or released
-            $allStaffRequests = Requisition::with(['items', 'user.academicDepartment'])
+            $allStaffRequests = Requisition::query()
                 ->whereNotIn('status', Requisition::ARCHIVED_STATUSES)
                 ->latest()
                 ->orderByDesc('id')
                 ->take(10)
                 ->get();
+
+            // These previews overlap. Load their relations together so each
+            // table needs one round trip rather than one per preview.
+            (new EloquentCollection([
+                ...$approvalDeadlineRequests->all(),
+                ...$deadlineRequests->all(),
+                ...$allStaffRequests->all(),
+            ]))->load(['items', 'user.academicDepartment']);
 
             $recentActivity = Notification::where('user_id', $user->id)->latest('id')->take(5)->get();
         }

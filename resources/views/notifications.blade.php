@@ -12,49 +12,48 @@
     @endphp
 
     <div class="container-fluid notification-center-page" data-filter-workspace="notifications" data-notification-center data-notification-endpoint="{{ route('notifications') }}" data-notification-account="{{ Auth::id() }}">
-        <div class="notification-toolbar" data-filter-region="toolbar">
-            <nav class="notification-category-nav" aria-label="Notification categories" data-filter-links>
-                @foreach(['all', 'approvals', 'deadlines', 'accounts'] as $key)
-                    <a href="{{ route('notifications', ['category' => $key]) }}#notification-results"
-                       class="notification-category-link {{ $category === $key ? 'is-active' : '' }}"
-                       data-notification-category="{{ $key }}" data-category-label="{{ $categoryLabels[$key] }}"
-                       aria-label="{{ $categoryLabels[$key] }}" title="{{ $categoryLabels[$key] }}"
-                       @if($category === $key) aria-current="page" @endif>
-                        <i aria-hidden="true" data-lucide="{{ match($key) { 'all' => 'layout-list', 'approvals' => 'clipboard-check', 'deadlines' => 'alarm-clock', 'accounts' => 'users', default => 'bell' } }}"></i>
-                        <span>{{ $categoryLabels[$key] }}</span>
-                        <b data-category-count>{{ $categoryCounts[$key] }}</b>
-                    </a>
-                @endforeach
-                @if(Auth::user()->role === 'smo')
-                    <a href="{{ route('notifications', ['category' => 'inventory']) }}#notification-results"
-                       class="notification-category-link {{ $category === 'inventory' ? 'is-active' : '' }}"
-                       data-notification-category="inventory" data-category-label="Inventory"
-                       aria-label="Inventory" title="Inventory"
-                       @if($category === 'inventory') aria-current="page" @endif>
-                        <i data-lucide="package-search" aria-hidden="true"></i>
-                        <span>{{ $categoryLabels['inventory'] }}</span>
-                        <b data-category-count>{{ $categoryCounts['inventory'] }}</b>
-                    </a>
-                @endif
-            </nav>
-            <div class="notification-toolbar-actions">
-                <div class="notification-unread-count" title="Unread notifications">
-                    <i data-lucide="mail" aria-hidden="true"></i>
-                    <span class="visually-hidden">Unread notifications:</span>
-                    <strong data-unread-count aria-live="polite" aria-atomic="true">{{ $unreadCount }}</strong>
-                </div>
-                <form method="POST" action="{{ route('notifications.read-all') }}" data-mark-all-read-form @if($unreadCount < 1) hidden @endif>
-                    @csrf
-                    <button type="submit" class="notification-icon-control" aria-label="Mark all read" title="Mark all read"><i data-lucide="check-check" aria-hidden="true"></i></button>
-                </form>
-            </div>
-        </div>
-
         <div class="notification-center-grid">
             <main class="notification-activity-panel" id="notification-results" data-filter-results data-filter-region="results" data-result-count="{{ $notes->total() }}" tabindex="-1" aria-label="Matching notifications">
                 <div class="notification-panel-heading">
                     <div><span>Activity feed</span><h2 data-current-category>{{ $categoryLabels[$category] }}</h2></div>
-                    <span class="notification-live-label" role="img" aria-label="Live updates" title="Live updates"><i data-lucide="radio" aria-hidden="true"></i></span>
+                    <div class="notification-toolbar-actions">
+                        <span class="notification-live-label" role="img" aria-label="Live updates" title="Live updates"><i data-lucide="radio" aria-hidden="true"></i></span>
+                        <div class="notification-unread-count" title="Unread notifications">
+                            <i data-lucide="mail" aria-hidden="true"></i>
+                            <span class="visually-hidden">Unread notifications:</span>
+                            <strong data-unread-count aria-live="polite" aria-atomic="true">{{ $unreadCount }}</strong>
+                        </div>
+                        <form method="POST" action="{{ route('notifications.read-all') }}" data-mark-all-read-form @if($unreadCount < 1) hidden @endif>
+                            @csrf
+                            <button type="submit" class="notification-icon-control" aria-label="Mark all read" title="Mark all read"><i data-lucide="check-check" aria-hidden="true"></i></button>
+                        </form>
+                    </div>
+                </div>
+                <div class="notification-toolbar">
+                    <nav class="notification-category-nav" aria-label="Notification categories" data-filter-links>
+                        @foreach(['all', 'approvals', 'deadlines', 'accounts'] as $key)
+                            <a href="{{ route('notifications', ['category' => $key]) }}#notification-results"
+                               class="notification-category-link {{ $category === $key ? 'is-active' : '' }}"
+                               data-notification-category="{{ $key }}" data-category-label="{{ $categoryLabels[$key] }}"
+                               aria-label="{{ $categoryLabels[$key] }}" title="{{ $categoryLabels[$key] }}"
+                               @if($category === $key) aria-current="page" @endif>
+                                <i aria-hidden="true" data-lucide="{{ match($key) { 'all' => 'layout-list', 'approvals' => 'clipboard-check', 'deadlines' => 'alarm-clock', 'accounts' => 'users', default => 'bell' } }}"></i>
+                                <span>{{ $categoryLabels[$key] }}</span>
+                                <b data-category-count>{{ $categoryCounts[$key] }}</b>
+                            </a>
+                        @endforeach
+                        @if(Auth::user()->role === 'smo')
+                            <a href="{{ route('notifications', ['category' => 'inventory']) }}#notification-results"
+                               class="notification-category-link {{ $category === 'inventory' ? 'is-active' : '' }}"
+                               data-notification-category="inventory" data-category-label="Inventory"
+                               aria-label="Inventory" title="Inventory"
+                               @if($category === 'inventory') aria-current="page" @endif>
+                                <i data-lucide="package-search" aria-hidden="true"></i>
+                                <span>{{ $categoryLabels['inventory'] }}</span>
+                                <b data-category-count>{{ $categoryCounts['inventory'] }}</b>
+                            </a>
+                        @endif
+                    </nav>
                 </div>
                 <div class="notification-feed-container" data-notification-feed aria-live="polite">
                     @include('notifications.feed', ['notes' => $notes, 'resolvedActions' => $resolvedActions])
@@ -133,7 +132,7 @@
     @pushOnce('styles', 'page-styles:notifications.blade.php')
     <style>
         .notification-center-page { --note-ink:#173226; --note-muted:#708178; --note-line:#dfe8e2; padding:var(--space-12) 0 var(--space-24); }
-        .notification-toolbar { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:var(--space-8); margin-bottom:var(--space-16); padding:var(--space-8); border:1px solid var(--note-line); border-radius:14px; background:#fff; box-shadow:0 5px 16px rgba(24,70,43,.04); }
+        .notification-toolbar { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:var(--space-8); padding:var(--space-12) var(--space-16); border-bottom:1px solid var(--note-line); background:#fff; }
         .notification-toolbar-actions { display:flex; align-items:center; gap:var(--space-8); margin-left:auto; }
         .notification-toolbar-actions form { margin:0; }
         .notification-unread-count { min-height:44px; display:inline-flex; align-items:center; gap:var(--space-8); padding:var(--space-8) var(--space-12); border-radius:10px; background:#edf7f1; color:#155936; }
@@ -145,7 +144,7 @@
         .notification-icon-control svg { width:18px; height:18px; }
         .notification-icon-control:focus-visible,.notification-category-link:focus-visible,.notification-insight-link:focus-visible { outline:2px solid var(--htc-green); outline-offset:2px; }
         .notification-eyebrow { color:#a9e8bf; font-size:var(--text-caption); font-weight:800; letter-spacing:var(--tracking-label); text-transform:uppercase; }
-        .notification-category-nav { display:flex; flex-wrap:wrap; gap:var(--space-4); }
+        .notification-category-nav { display:flex; flex:1 1 auto; flex-wrap:wrap; min-width:0; gap:var(--space-4); }
         .notification-category-link { min-height:44px; display:inline-flex; align-items:center; gap:var(--space-8); padding:var(--space-8) var(--space-12); border-radius:10px; color:#677970; font-size:var(--text-caption); font-weight:800; text-decoration:none; white-space:nowrap; transition:.18s ease; }
         .notification-category-link:hover { background:#f0f6f2; color:var(--htc-green); }
         .notification-category-link.is-active { background:var(--htc-green); color:#fff; box-shadow:0 5px 13px rgba(24,91,59,.2); }
@@ -237,7 +236,7 @@
         .notification-guide-card li { display:grid; grid-template-columns:15px minmax(0,1fr); gap:var(--space-8); color:#d4ebdc; font-size:var(--text-secondary); line-height:var(--line-body); }
         .notification-guide-card li svg { width:14px; height:14px; color:#8fe0ab; }
         @media(max-width:991.98px){.notification-center-grid{grid-template-columns:1fr}.notification-insights-column{grid-template-columns:repeat(2,minmax(0,1fr))}}
-        @media(max-width:575.98px){.notification-center-page{padding-top:var(--space-4)}.notification-toolbar{gap:var(--space-4)}.notification-category-nav{gap:var(--space-4)}.notification-category-link{padding:var(--space-8)}.notification-center-grid{gap:var(--space-12)}.notification-insights-column{grid-template-columns:1fr}.notification-feed-item{grid-template-columns:36px minmax(0,1fr);padding:var(--space-12)}.notification-feed-icon{width:36px;height:36px}.notification-feed-meta{align-items:flex-start;flex-direction:column;gap:.1rem}.notification-panel-heading{padding:var(--space-12)}.notification-live-label{display:none}}
+        @media(max-width:575.98px){.notification-center-page{padding-top:var(--space-4)}.notification-toolbar{gap:var(--space-8);padding:var(--space-12)}.notification-category-nav{gap:var(--space-4)}.notification-category-link{padding:var(--space-8)}.notification-center-grid{gap:var(--space-12)}.notification-insights-column{grid-template-columns:1fr}.notification-feed-item{grid-template-columns:36px minmax(0,1fr);padding:var(--space-12)}.notification-feed-icon{width:36px;height:36px}.notification-feed-meta{align-items:flex-start;flex-direction:column;gap:.1rem}.notification-panel-heading{padding:var(--space-12)}.notification-live-label{display:none}}
         @media(prefers-reduced-motion:reduce){.notification-feed-item,.notification-feed-container{transition:none}}
     </style>
     @endPushOnce

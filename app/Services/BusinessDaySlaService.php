@@ -12,6 +12,14 @@ class BusinessDaySlaService
 
     public const WARNING_AFTER_DAYS = 2;
 
+    /** @var array<string, true>|null */
+    private ?array $holidayDates = null;
+
+    public function clearHolidayCache(): void
+    {
+        $this->holidayDates = null;
+    }
+
     /**
      * @return array{submitted_at: Carbon, sla_warning_at: Carbon, due_at: Carbon}
      */
@@ -30,10 +38,7 @@ class BusinessDaySlaService
     {
         $date = Carbon::instance($start)->copy();
         $remaining = max(0, $days);
-        $holidays = $this->holidayDatesBetween(
-            $date->copy()->startOfDay(),
-            $date->copy()->addDays(($remaining + 1) * 3)->endOfDay(),
-        );
+        $holidays = $remaining > 0 ? $this->holidayDates() : [];
 
         while ($remaining > 0) {
             $date->addDay();
@@ -55,7 +60,7 @@ class BusinessDaySlaService
             return 0;
         }
 
-        $holidays = $this->holidayDatesBetween($cursor->copy()->startOfDay(), $finish->copy()->endOfDay());
+        $holidays = $this->holidayDates();
         $elapsed = 0;
 
         while ($cursor->copy()->addDay()->lessThanOrEqualTo($finish)) {
@@ -78,10 +83,7 @@ class BusinessDaySlaService
             return false;
         }
 
-        $holidayDates ??= $this->holidayDatesBetween(
-            Carbon::instance($date)->copy()->startOfDay(),
-            Carbon::instance($date)->copy()->endOfDay(),
-        );
+        $holidayDates ??= $this->holidayDates();
 
         return ! isset($holidayDates[$date->toDateString()]);
     }
@@ -89,10 +91,11 @@ class BusinessDaySlaService
     /**
      * @return array<string, true>
      */
-    private function holidayDatesBetween(CarbonInterface $start, CarbonInterface $end): array
+    private function holidayDates(): array
     {
-        return InstitutionalHoliday::query()
-            ->whereBetween('holiday_date', [$start->toDateString(), $end->toDateString()])
+        // Shared across rows for this request/job; never persist calendar data
+        // between requests, where a holiday may have been edited elsewhere.
+        return $this->holidayDates ??= InstitutionalHoliday::query()
             ->pluck('holiday_date')
             ->mapWithKeys(fn ($date) => [Carbon::parse($date)->toDateString() => true])
             ->all();

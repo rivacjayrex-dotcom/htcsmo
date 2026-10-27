@@ -36,6 +36,7 @@ test('screen typography stays on the readable scale across shared, page and inli
         });
     };
     inspect(css, 'app.css');
+    for (const file of ['workspace.css', 'guest.css']) inspect(readFileSync(new URL(`resources/css/${file}`, root), 'utf8'), file);
     for (const file of screenFiles) {
         const view = readFileSync(file, 'utf8');
         for (const [,block] of view.matchAll(/<style(?:\s[^>]*)?>([\s\S]*?)<\/style>/g)) inspect(block, file);

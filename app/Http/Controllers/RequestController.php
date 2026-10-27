@@ -58,8 +58,11 @@ class RequestController extends Controller
                 [false]
             )
             ->first();
-        $notifications = Notification::query()->forUser($user)->unread()
-            ->where('id', '>', $afterId)->oldest('id')->limit(10)->get();
+        $latestId = (int) $notificationState->latest_id;
+        $notifications = (int) $notificationState->unread_count > 0 && $afterId < $latestId
+            ? Notification::query()->forUser($user)->unread()
+                ->where('id', '>', $afterId)->oldest('id')->limit(10)->get()
+            : collect();
         $resolvedActions = $actionResolver->resolve($notifications, $user);
         $payloads = $notifications->map(
             fn (Notification $notification) => $notification->pollPayload(
@@ -68,7 +71,6 @@ class RequestController extends Controller
                 true,
             )
         )->values();
-        $latestId = (int) $notificationState->latest_id;
         $versions = app(WorkspaceVersionService::class)->versions();
         $versions['dashboard'] = app(WorkspaceVersionService::class)->dashboardVersion($versions['all'], $latestId);
 

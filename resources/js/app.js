@@ -1,3 +1,4 @@
+import './icons';
 import * as bootstrap from 'bootstrap';
 
 import './bootstrap';

@@ -288,7 +288,13 @@ composer run dev
 
 ## Performance and background email
 
+To investigate slow pages without changing application data, run `php artisan smo:check-performance --samples=5`. This measures database connection setup and trivial query round trips; it does not measure browser rendering. A localhost application can still be slow when its database is hosted remotely. See the [performance review](docs/PERFORMANCE-REVIEW.md) for measurements, implemented optimizations, and the remaining environment changes.
+
+On Windows, PHP's built-in server used by `php artisan serve` handles one request at a time. Slow database-backed background polls can delay navigation. For concurrent local requests, start XAMPP Apache and open `http://localhost/htc-supply-system/public/`, or configure an Apache virtual host with this project's `public` directory as its document root. Built-in-server multiple workers are not supported on Windows.
+
 Open tabs share one runtime poller per signed-in account when BroadcastChannel and browser storage are available. Polls read cached change markers instead of recalculating totals across business tables. Inventory changes do not invalidate request-only workspaces. Dashboard, inventory, request/archive pages, and approval tables refresh their live content in place; open dialogs, selected inventory rows, and edited forms defer replacement. Other pages offer a refresh button when updates are available.
+
+Fast polls retain a three-second minimum gap. Slow responses leave a longer gap, and foreground requests take priority. Idle polls skip reloading notification payloads; unread counts and action authorization still use current database records.
 
 Inventory forecasts aggregate release history by month and cache results for five minutes. Model changes invalidate the cache after their database transaction commits. After importing SQL or making bulk changes outside Eloquent model events, run `php artisan cache:clear` to invalidate forecasts and workspace versions.
 

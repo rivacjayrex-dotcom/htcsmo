@@ -11,7 +11,7 @@ class InventoryWorkspaceTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_inventory_separates_tiers_and_prioritizes_low_stock(): void
+    public function test_inventory_combines_all_items_and_prioritizes_low_stock(): void
     {
         $smo = User::factory()->create(['role' => 'smo']);
 
@@ -25,10 +25,30 @@ class InventoryWorkspaceTest extends TestCase
         $response->assertOk()
             ->assertSee('<title>Manage Stock</title>', false)
             ->assertSee('Restock priority')
-            ->assertSee('Minor catalog')
-            ->assertSee('Major catalog')
+            ->assertSee('Stock catalog')
+            ->assertDontSee('Minor catalog')
+            ->assertDontSee('Major catalog')
+            ->assertSee('Tiles')
+            ->assertSee('List')
             ->assertSeeInOrder([$out->item_name, $low->item_name, $healthy->item_name])
             ->assertSee($major->item_name);
+
+        $this->assertSame([$out->id, $low->id, $healthy->id, $major->id], $response->viewData('catalogSupplies')->pluck('id')->all());
+    }
+
+    public function test_catalog_filters_search_across_all_items_even_with_an_old_tier_link(): void
+    {
+        $smo = User::factory()->create(['role' => 'smo']);
+        $minor = $this->supply('Catalog Paper', 'minor', 2, 5);
+        $major = $this->supply('Catalog Printer', 'major', 1, 5);
+        $this->supply('Other Stock', 'minor', 20, 5);
+
+        $response = $this->actingAs($smo)->get(route('inventory.index', [
+            'search' => 'Catalog', 'stock' => 'low', 'tier' => 'minor',
+        ]));
+
+        $response->assertOk();
+        $this->assertSame([$minor->id, $major->id], $response->viewData('catalogSupplies')->pluck('id')->all());
     }
 
     public function test_smo_registers_brands_as_requestor_choices_without_a_brand_field(): void

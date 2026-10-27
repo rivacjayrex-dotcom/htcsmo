@@ -4,11 +4,14 @@ namespace Tests\Feature;
 
 use App\Jobs\SendRequisitionEmail;
 use App\Mail\RequisitionAlertMail;
+use App\Models\ApprovalLog;
+use App\Models\Notification;
 use App\Models\Requisition;
 use App\Models\Supply;
 use App\Models\SupplyInventoryLog;
 use App\Models\User;
 use App\Services\InventoryForecastService;
+use App\Services\NotificationActionResolver;
 use App\Services\WorkspaceVersionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -20,6 +23,48 @@ class WorkspacePerformanceTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_dashboard_previews_share_calendar_and_relationship_queries(): void
+    {
+        $smo = User::factory()->create(['role' => 'smo']);
+        $owner = User::factory()->create();
+        foreach (range(1, 10) as $number) {
+            $requisition = Requisition::create([
+                'user_id' => $owner->id, 'request_type' => 'minor', 'status' => 'pending',
+                'purpose' => 'Dashboard query fixture '.$number, 'grand_total' => 50,
+            ]);
+            $requisition->forceFill([
+                'submitted_at' => now()->subDays(7), 'sla_warning_at' => now()->subDays(3),
+                'due_at' => now()->subDay(),
+            ])->saveQuietly();
+            $requisition->items()->create([
+                'item_name' => 'Paper '.$number, 'quantity' => 1, 'unit' => 'Ream(s)',
+                'unit_price' => 50, 'subtotal' => 50,
+            ]);
+        }
+        app()->forgetScopedInstances();
+        DB::enableQueryLog();
+        DB::flushQueryLog();
+
+        try {
+            $response = $this->actingAs($smo)->get(route('dashboard'))->assertOk();
+            $queries = collect(DB::getQueryLog())->pluck('query');
+        } finally {
+            DB::disableQueryLog();
+        }
+
+        foreach (['institutional_holidays', 'requisition_items', 'users'] as $table) {
+            $this->assertCount(1, $queries->filter(fn ($sql) => str_contains($sql, 'from "'.$table.'"')), $table);
+        }
+        foreach (['approvalDeadlineRequests', 'deadlineRequests', 'allStaffRequests'] as $preview) {
+            foreach ($response->viewData($preview) as $requisition) {
+                $this->assertTrue($requisition->relationLoaded('items'));
+                $this->assertCount(1, $requisition->items);
+                $this->assertTrue($requisition->relationLoaded('user'));
+                $this->assertSame($owner->id, $requisition->user->id);
+            }
+        }
+    }
+
     public function test_idle_runtime_poll_does_not_query_business_tables(): void
     {
         $user = User::factory()->create();
@@ -30,7 +75,85 @@ class WorkspacePerformanceTest extends TestCase
         DB::disableQueryLog();
 
         $this->assertCount(0, $queries->filter(fn ($sql) => preg_match('/from ["`]?(requisitions|supplies|approval_logs)["`]?\b/i', $sql)));
-        $this->assertLessThanOrEqual(3, $queries->count());
+        $this->assertCount(1, $queries);
+    }
+
+    public function test_presented_notifications_do_not_reload_payloads_and_read_state_stays_current(): void
+    {
+        $user = User::factory()->create();
+        $notification = Notification::create([
+            'user_id' => $user->id, 'title' => 'Existing notice', 'message' => 'Presented', 'is_read' => false,
+        ]);
+        DB::enableQueryLog();
+        DB::flushQueryLog();
+        try {
+            $this->actingAs($user)->getJson(route('api.runtime-state', ['after_id' => $notification->id]))
+                ->assertOk()->assertJsonPath('unread_count', 1)->assertJsonCount(0, 'notifications');
+            $this->assertCount(1, DB::getQueryLog());
+        } finally {
+            DB::disableQueryLog();
+        }
+
+        $notification->markAsRead();
+        $this->getJson(route('api.runtime-state'))->assertOk()
+            ->assertJsonPath('unread_count', 0)->assertJsonCount(0, 'notifications');
+        $next = Notification::create([
+            'user_id' => $user->id, 'title' => 'New notice', 'message' => 'New', 'is_read' => false,
+        ]);
+        $this->getJson(route('api.runtime-state', ['after_id' => $notification->id]))->assertOk()
+            ->assertJsonPath('unread_count', 1)->assertJsonPath('notifications.0.id', $next->id);
+    }
+
+    public function test_personal_notification_links_need_one_query_without_loading_approval_history(): void
+    {
+        $owner = User::factory()->create();
+        $requisition = Requisition::create([
+            'user_id' => $owner->id, 'request_type' => 'minor', 'status' => 'pending',
+            'purpose' => 'Personal notification query fixture', 'grand_total' => 50,
+        ]);
+        $notification = Notification::create([
+            'user_id' => $owner->id, 'title' => 'Request notice', 'message' => 'Request',
+            'action_type' => 'requisition', 'action_id' => $requisition->id,
+        ]);
+        DB::enableQueryLog();
+        DB::flushQueryLog();
+        try {
+            $actions = app(NotificationActionResolver::class)->resolve(collect([$notification]), $owner);
+            $this->assertSame(route('requests.show', $requisition), $actions[$notification->id]['url']);
+            $this->assertCount(1, DB::getQueryLog());
+        } finally {
+            DB::disableQueryLog();
+        }
+    }
+
+    public function test_lean_notification_review_links_recheck_department_and_clarification_owner(): void
+    {
+        $owner = User::factory()->create(['department' => 'CETE']);
+        $head = User::factory()->create(['role' => 'dept_head', 'department' => 'CETE']);
+        $otherHead = User::factory()->create(['role' => 'dept_head', 'department' => 'CAS']);
+        $finance = User::factory()->create(['role' => 'vp_finance']);
+        $requisition = Requisition::create([
+            'user_id' => $owner->id, 'request_type' => 'minor', 'status' => 'pending',
+            'purpose' => 'Notification authorization fixture', 'grand_total' => 50,
+        ]);
+        $notification = Notification::create([
+            'user_id' => $head->id, 'title' => 'Review request', 'message' => 'Review',
+            'action_type' => 'approval_queue', 'action_id' => $requisition->id,
+        ]);
+        $resolver = app(NotificationActionResolver::class);
+        $notes = collect([$notification]);
+        $this->assertNotNull($resolver->resolve($notes, $head)[$notification->id]);
+        $this->assertNull($resolver->resolve($notes, $otherHead)[$notification->id]);
+
+        $requisition->update(['status' => 'for_clarification']);
+        foreach ([$head, $finance] as $actor) {
+            ApprovalLog::create([
+                'requisition_id' => $requisition->id, 'acted_by_user_id' => $actor->id,
+                'role' => $actor->role, 'action' => 'Requested Clarification',
+            ]);
+        }
+        $this->assertNull($resolver->resolve($notes, $head)[$notification->id]);
+        $this->assertNotNull($resolver->resolve($notes, $finance)[$notification->id]);
     }
 
     public function test_inventory_changes_do_not_invalidate_request_workspaces(): void
@@ -43,6 +166,25 @@ class WorkspacePerformanceTest extends TestCase
         $this->assertNotSame($before['inventory'], $after['inventory']);
         $this->assertSame($before['requests'], $after['requests']);
         $this->assertNotSame($before['all'], $after['all']);
+    }
+
+    public function test_database_backed_version_markers_need_one_round_trip_when_warm(): void
+    {
+        config(['cache.default' => 'database']);
+        $service = app(WorkspaceVersionService::class);
+        $before = $service->versions();
+        DB::enableQueryLog();
+        DB::flushQueryLog();
+        try {
+            $this->assertSame($before, $service->versions());
+            $this->assertCount(1, DB::getQueryLog());
+        } finally {
+            DB::disableQueryLog();
+        }
+        $service->touch('inventory');
+        $after = $service->versions();
+        $this->assertNotSame($before['inventory'], $after['inventory']);
+        $this->assertSame($before['requests'], $after['requests']);
     }
 
     public function test_rolled_back_changes_do_not_invalidate_cached_workspaces(): void

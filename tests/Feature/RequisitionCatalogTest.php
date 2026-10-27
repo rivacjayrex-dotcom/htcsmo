@@ -30,9 +30,11 @@ class RequisitionCatalogTest extends TestCase
 
         $this->actingAs($user)
             ->get(route('dashboard'))
-            ->assertOk()
-            ->assertSee('#globalRequestModal .btn-htc:not(:disabled)', false)
-            ->assertSee('#globalRequestModal .btn-htc:disabled', false);
+            ->assertOk();
+
+        $styles = file_get_contents(resource_path('css/workspace.css'));
+        $this->assertStringContainsString('#globalRequestModal .btn-htc:not(:disabled)', $styles);
+        $this->assertStringContainsString('#globalRequestModal .btn-htc:disabled', $styles);
     }
 
     public function test_authenticated_page_does_not_embed_the_supply_catalog(): void

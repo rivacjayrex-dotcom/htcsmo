@@ -3,8 +3,7 @@
 
     @php
         $totalItems = $supplies->count();
-        $minorItems = $supplies->where('requisition_tier', 'minor')->values();
-        $majorItems = $supplies->where('requisition_tier', 'major')->values();
+        $healthyItems = $supplies->filter(fn ($item) => $item->quantity > $item->min_stock_level)->count();
         $attentionItems = $supplies->filter(fn ($item) => $item->quantity <= $item->min_stock_level)->values();
         $lowStockItems = $supplies->filter(fn ($item) => $item->quantity > 0 && $item->quantity <= $item->min_stock_level)->count();
         $outOfStockItems = $supplies->where('quantity', '<=', 0)->count();
@@ -15,7 +14,6 @@
 
             return [
                 'id' => $item->id,
-                'tier' => $item->requisition_tier ?? 'minor',
                 'status' => $status,
                 'text' => strtolower(implode(' ', [$item->item_name, $item->brand, $item->model_number, $item->category, $item->specifications])),
             ];
@@ -31,7 +29,7 @@
             <div>
                 <span class="inventory-eyebrow">SMO Inventory Control</span>
                 <h3>Manage institutional stock</h3>
-                <p>Monitor availability, organize request tiers, and prioritize items that need restocking.</p>
+                <p>Monitor availability, browse the catalog, and prioritize items that need restocking.</p>
             </div>
             <a href="{{ route('inventory.create') }}" class="btn btn-htc inventory-add-btn"><i data-lucide="plus"></i> Register new item</a>
         </div>
@@ -52,9 +50,9 @@
             </div>
             <div class="inventory-metrics">
                 <div><span class="metric-icon total"><i data-lucide="boxes"></i></span><p>Total catalog</p><strong>{{ $totalItems }}</strong><small>registered items</small></div>
-                <div><span class="metric-icon minor"><i data-lucide="shopping-basket"></i></span><p>Minor tier</p><strong>{{ $minorItems->count() }}</strong><small>routine supplies</small></div>
-                <div><span class="metric-icon major"><i data-lucide="monitor-up"></i></span><p>Major tier</p><strong>{{ $majorItems->count() }}</strong><small>equipment & assets</small></div>
-                <div class="{{ $attentionItems->isNotEmpty() ? 'attention' : '' }}"><span class="metric-icon warning"><i data-lucide="triangle-alert"></i></span><p>Needs attention</p><strong>{{ $attentionItems->count() }}</strong><small>{{ $outOfStockItems }} out · {{ $lowStockItems }} low</small></div>
+                <div><span class="metric-icon healthy"><i data-lucide="circle-check"></i></span><p>Healthy stock</p><strong>{{ $healthyItems }}</strong><small>above restock threshold</small></div>
+                <div><span class="metric-icon low"><i data-lucide="triangle-alert"></i></span><p>Low stock</p><strong>{{ $lowStockItems }}</strong><small>ready for restocking</small></div>
+                <div class="{{ $outOfStockItems > 0 ? 'attention' : '' }}"><span class="metric-icon warning"><i data-lucide="circle-x"></i></span><p>Out of stock</p><strong>{{ $outOfStockItems }}</strong><small>unavailable items</small></div>
                 <div><span class="metric-icon value"><i data-lucide="badge-dollar-sign"></i></span><p>Stock value</p><strong>₱{{ number_format($inventoryValue, 0) }}</strong><small>estimated on hand</small></div>
             </div>
         </section>
@@ -72,7 +70,7 @@
                 </div>
                 <div class="forecast-readiness">
                     <form id="forecastFilters" method="GET" action="{{ route('inventory.index') }}#demand-forecast" class="forecast-period-form" data-dynamic-search data-filter-target="#demand-forecast">
-                        @foreach(request()->only('search', 'stock', 'tier') as $key => $value)<input type="hidden" name="{{ $key }}" value="{{ $value }}">@endforeach
+                        @foreach(request()->only('search', 'stock') as $key => $value)<input type="hidden" name="{{ $key }}" value="{{ $value }}">@endforeach
                         <label for="forecastPeriod">Report period</label>
                         <select id="forecastPeriod" name="forecast_period">
                             <option value="monthly" @selected($forecast['period'] === 'monthly')>Monthly</option>
@@ -106,7 +104,7 @@
                                 <span class="forecast-confidence {{ $prediction['confidence'] }}">{{ ucfirst($prediction['confidence']) }} confidence</span>
                             </div>
                             <div class="forecast-item-name">{{ $item->item_name }}</div>
-                            <small>{{ strtoupper($item->requisition_tier ?? 'minor') }} · {{ $item->category }}</small>
+                            <small>{{ $item->category }}</small>
                             <div class="forecast-quantity"><span>Suggested purchase</span><strong>{{ $prediction['recommended_order'] }} <em>{{ $item->unit }}</em></strong></div>
                             <div class="forecast-facts">
                                 <div><span>Expected use</span><b>{{ $prediction['forecast_demand'] }}</b></div>
@@ -139,7 +137,7 @@
                            @if($loop->index >= 4) x-cloak x-show="showAllRestock" x-transition.opacity @endif>
                             <span class="restock-status">{{ $item->quantity <= 0 ? 'Out of stock' : 'Low stock' }}</span>
                             <strong>{{ $item->item_name }}</strong>
-                            <small>{{ strtoupper($item->requisition_tier ?? 'minor') }} · {{ $item->category }}</small>
+                            <small>{{ $item->category }}</small>
                             <div><b>{{ $item->quantity }} {{ $item->unit }}</b><span>Threshold: {{ $item->min_stock_level }}</span></div>
                             <em>Update stock <i data-lucide="arrow-up-right"></i></em>
                         </a>
@@ -162,12 +160,11 @@
             <div class="catalog-controls">
                 <div>
                     <span class="inventory-eyebrow">{{ $attentionItems->isNotEmpty() ? '03' : '02' }} · Catalog management</span>
-                    <h5>Tier catalogs</h5>
+                    <h5>Stock catalog</h5>
                     <p>Out-of-stock and low-stock items always appear at the top of each list.</p>
                 </div>
                 <form id="inventoryFilters" class="inventory-filters" method="GET" action="{{ route('inventory.index') }}#inventory-results" data-dynamic-search data-filter-target="#inventory-results">
                     <input type="hidden" name="forecast_period" value="{{ $forecast['period'] }}">
-                    <input type="hidden" name="tier" value="{{ request('tier', 'minor') }}">
                     <div class="inventory-search"><i data-lucide="search"></i><input type="search" name="search" maxlength="100" value="{{ request('search') }}" placeholder="Search item, brand, model, category, or specifications…" aria-label="Search inventory"></div>
                     <select name="stock" aria-label="Filter by stock status">@foreach(['all' => 'All stock', 'attention' => 'Needs attention', 'out' => 'Out of stock', 'low' => 'Low stock', 'healthy' => 'Healthy stock'] as $key => $label)<option value="{{ $key }}" @selected(request('stock', 'all') === $key)>{{ $label }}</option>@endforeach</select>
                     <a href="{{ route('inventory.index', ['forecast_period' => $forecast['period']]) }}#inventory-results" data-filter-link data-filter-region="reset" data-filter-target="#inventory-results" class="btn btn-light border">Clear</a>
@@ -176,17 +173,20 @@
             </div>
 
             <div id="inventory-results" data-filter-results data-filter-region="catalog" data-filter-catalog="{{ $catalogSelectionData->whereIn('id', $catalogSupplies->pluck('id'))->values()->toJson() }}" data-result-count="{{ $catalogSupplies->count() }}" tabindex="-1" aria-label="Matching catalog items">
-            <div class="tier-tabs" data-filter-links>
-                @foreach(['minor' => ['shopping-basket', 'Everyday supplies', 'Minor catalog'], 'major' => ['monitor-up', 'Equipment & assets', 'Major catalog']] as $tier => [$icon, $description, $label])
-                    <a class="{{ request('tier', 'minor') === $tier ? 'active' : '' }}" href="{{ route('inventory.index', [...request()->only('search', 'stock', 'forecast_period'), 'tier' => $tier]) }}#inventory-results" data-filter-target="#inventory-results" @if(request('tier', 'minor') === $tier) aria-current="page" @endif><span class="tab-icon {{ $tier }}"><i data-lucide="{{ $icon }}"></i></span><span><small>{{ $description }}</small><strong>{{ $label }}</strong></span><em>{{ $catalogSupplies->where('requisition_tier', $tier)->count() }}</em></a>
-                @endforeach
+            <div class="inventory-display-bar">
+                <label class="inventory-select-all"><input type="checkbox" class="inventory-select" :checked="allMatchingSelected()" :indeterminate="someMatchingSelected()" @change="toggleMatching()"> Select all matching items</label>
+                <span class="inventory-result-count">{{ $catalogSupplies->count() }} items</span>
+                <div class="inventory-layout-toggle" role="group" aria-label="Catalog layout">
+                    <button type="button" :class="{ active: catalogLayout === 'tiles' }" :aria-pressed="catalogLayout === 'tiles'" @click="setCatalogLayout('tiles')"><i data-lucide="layout-grid" aria-hidden="true"></i> Tiles</button>
+                    <button type="button" :class="{ active: catalogLayout === 'list' }" :aria-pressed="catalogLayout === 'list'" @click="setCatalogLayout('list')"><i data-lucide="list" aria-hidden="true"></i> List</button>
+                </div>
             </div>
 
             <div class="inventory-bulk-bar" x-cloak x-show="selected.length > 0" x-transition>
                 <div>
                     <span class="bulk-count" x-text="selected.length"></span>
                     <strong x-text="selected.length === 1 ? 'item selected' : 'items selected'"></strong>
-                    <small>Selection is kept when switching tiers or changing filters.</small>
+                    <small>Selection is kept when changing views or filters.</small>
                 </div>
                 <div class="inventory-bulk-actions">
                     <button type="button" class="btn bulk-clear" @click="clearSelection()">Clear selection</button>
@@ -194,13 +194,8 @@
                 </div>
             </div>
 
-            <div class="tab-content inventory-tab-content">
-                <div class="tab-pane fade {{ request('tier', 'minor') === 'minor' ? 'show active' : '' }}" id="minorInventory">
-                    @include('inventory.partials.tier-table', ['items' => $catalogSupplies->where('requisition_tier', 'minor'), 'tier' => 'minor'])
-                </div>
-                <div class="tab-pane fade {{ request('tier', 'minor') === 'major' ? 'show active' : '' }}" id="majorInventory">
-                    @include('inventory.partials.tier-table', ['items' => $catalogSupplies->where('requisition_tier', 'major'), 'tier' => 'major'])
-                </div>
+            <div class="inventory-catalog" :class="{ 'is-tiles': catalogLayout === 'tiles' }">
+                @include('inventory.partials.catalog-table', ['items' => $catalogSupplies])
             </div>
             </div>
         </section>
@@ -258,10 +253,9 @@
         .inventory-metrics p { margin: var(--space-12) 0 .1rem; color: #738078; font-size: var(--text-secondary); font-weight: 800; letter-spacing: var(--tracking-label); text-transform: uppercase; }
         .inventory-metrics strong { display: block; color: #1f3026; font-size: var(--text-heading-sm); line-height: var(--line-heading); }
         .inventory-metrics small { color: #96a199; font-size: var(--text-caption); }
-        .metric-icon, .section-icon, .tab-icon { display: grid; place-items: center; border-radius: 10px; }
         .metric-icon { width: 34px; height: 34px; }
         .metric-icon svg { width: 17px; }
-        .metric-icon.total { color: #355da8; background: #eaf0fb; }.metric-icon.minor { color: #17643d; background: #e6f5ec; }.metric-icon.major { color: #95610a; background: #fff3d9; }.metric-icon.warning { color: #b52d35; background: #fdebec; }.metric-icon.value { color: #6a45a5; background: #f1eafa; }
+        .metric-icon.total { color: #355da8; background: #eaf0fb; }.metric-icon.healthy { color: #17643d; background: #e6f5ec; }.metric-icon.low { color: #95610a; background: #fff3d9; }.metric-icon.warning { color: #b52d35; background: #fdebec; }.metric-icon.value { color: #6a45a5; background: #f1eafa; }
         .forecast-section { order: 3; margin-bottom: var(--space-24); border: 1px solid #dce8e0; border-radius: 18px; background: linear-gradient(145deg, #f5faf7, #fff 55%); box-shadow: 0 8px 24px rgba(24, 55, 36, .06); overflow: hidden; scroll-margin-top: 1rem; }
         .forecast-header { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-24); padding: var(--space-24) var(--space-24) var(--space-16); }
         .forecast-heading { display: flex; align-items: center; gap: var(--space-12); }.forecast-heading h5 { margin: .15rem 0 var(--space-4); color: #20352a; font-weight: 800; }.forecast-heading p { margin: 0; color: #7b8981; font-size: var(--text-secondary); }
@@ -298,9 +292,8 @@
         .restock-more-bar svg.is-open { transform: rotate(180deg); }
         .catalog-controls { border-bottom: 1px solid #edf1ef; }
         .inventory-filters { display: flex; flex-wrap: wrap; gap: var(--space-8); }.inventory-search { width: 280px; max-width: 100%; display: flex; align-items: center; gap: var(--space-8); padding: 0 var(--space-12); border: 1px solid #dce4df; border-radius: 10px; background: #f9fbfa; }.inventory-search svg { width: 15px; color: #8b9991; }.inventory-search input { width: 100%; padding: var(--space-12) 0; border: 0; outline: 0; background: transparent; font-size: var(--text-body); }.inventory-filters select { padding: var(--space-8) var(--space-32) var(--space-8) var(--space-12); border: 1px solid #dce4df; border-radius: 10px; color: #58675f; background-color: #fff; font-size: var(--text-body); }
-        .tier-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-12); padding: var(--space-16) var(--space-24); background: #f8faf9; }.tier-tabs :is(button,a) { display: flex; align-items: center; gap: var(--space-12); padding: var(--space-12) var(--space-16); border: 1px solid #dfe7e2; border-radius: 12px; background: #fff; text-align: left; text-decoration: none; color: #65736b; }.tier-tabs :is(button,a).active { border-color: var(--htc-green); box-shadow: inset 0 0 0 1px var(--htc-green); }.tab-icon { width: 38px; height: 38px; }.tab-icon svg { width: 18px; }.tab-icon.minor { color: #17643d; background: #e6f5ec; }.tab-icon.major { color: #95610a; background: #fff3d9; }.tier-tabs :is(button,a) > span:nth-child(2) { display: flex; flex-direction: column; }.tier-tabs small { font-size: var(--text-caption); text-transform: uppercase; }.tier-tabs strong { color: #26372e; }.tier-tabs em { margin-left: auto; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; background: #eef2ef; font-size: var(--text-caption); font-style: normal; font-weight: 800; }
         .inventory-table thead th { padding-top: var(--space-12); padding-bottom: var(--space-12); border-bottom: 1px solid #e8eeea; background: #fff; color: #8a978f; font-size: var(--text-caption); letter-spacing: var(--tracking-label); text-transform: uppercase; }.inventory-table td { padding-top: var(--space-16); padding-bottom: var(--space-16); border-color: #edf1ef; }.inventory-row:hover { background: #fafcfb; }.stock-out-row { background: #fffafa; }.stock-low-row { background: #fffdf8; }
-        .inventory-item-icon { width: 40px; height: 40px; flex: 0 0 40px; display: grid; place-items: center; border-radius: 11px; }.inventory-item-icon svg { width: 19px; }.inventory-item-icon.minor { color: #17643d; background: #e8f5ed; }.inventory-item-icon.major { color: #95610a; background: #fff3da; }.item-specification { max-width: 280px; margin-top: var(--space-4); color: #8a958f; font-size: var(--text-caption); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .inventory-item-icon { width: 40px; height: 40px; flex: 0 0 40px; display: grid; place-items: center; border-radius: 11px; }.inventory-item-icon svg { width: 19px; }.inventory-item-icon { color: #17643d; background: #e8f5ed; }.item-specification { max-width: 280px; margin-top: var(--space-4); color: #8a958f; font-size: var(--text-caption); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .inventory-category { display: inline-block; padding: var(--space-4) var(--space-8); border-radius: 999px; background: #f0f3f1; color: #536159; font-size: var(--text-caption); font-weight: 700; }.option-preview { display: flex; flex-direction: column; gap: .15rem; margin-top: var(--space-8); color: #859189; font-size: var(--text-caption); }
         .inventory-select-cell { width: 44px; text-align: center; }.inventory-select { width: 17px; height: 17px; cursor: pointer; accent-color: var(--htc-green); }.inventory-row.is-selected { background: #f0f8f3; box-shadow: inset 3px 0 #237149; }
         .inventory-bulk-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-16); padding: var(--space-12) var(--space-24); border-top: 1px solid #d8e7dd; border-bottom: 1px solid #d8e7dd; background: #f1f8f4; }.inventory-bulk-bar > div:first-child { display: flex; align-items: center; gap: var(--space-8); }.inventory-bulk-bar strong { color: #294638; font-size: var(--text-caption); }.inventory-bulk-bar small { margin-left: var(--space-4); color: #78877f; font-size: var(--text-caption); }.bulk-count { min-width: 27px; height: 27px; display: inline-grid; place-items: center; padding: 0 var(--space-8); border-radius: 999px; background: var(--htc-green); color: #fff; font-size: var(--text-caption); font-weight: 900; }.inventory-bulk-actions { display: flex; gap: var(--space-8); }.inventory-bulk-actions .btn { min-height: 34px; padding: var(--space-8) var(--space-12); border-radius: 8px; font-size: var(--text-caption); font-weight: 800; }.bulk-clear { border: 1px solid #ccdbd1; color: #52675a; background: #fff; }.bulk-delete { display: inline-flex; align-items: center; gap: var(--space-4); color: #fff; background: #b82f38; }.bulk-delete:hover { color: #fff; background: #9f222b; }.bulk-delete svg { width: 13px; }
@@ -353,43 +346,6 @@
             .inventory-search { width: 100%; min-height: 44px; }
             .inventory-filters select { min-height: 44px; }
             .inventory-bulk-bar { align-items: stretch; flex-direction: column; padding: var(--space-12) var(--space-16); }.inventory-bulk-bar > div:first-child { flex-wrap: wrap; }.inventory-bulk-bar small { flex-basis: 100%; margin-left: 0; }.inventory-bulk-actions { display: grid; grid-template-columns: 1fr 1fr; }.inventory-bulk-actions .btn { min-height: 42px; justify-content: center; }
-            .tier-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-8); padding: var(--space-12); }
-            .tier-tabs :is(button,a) { min-width: 0; padding: var(--space-12); }
-            .tier-tabs :is(button,a) > span:nth-child(2) { min-width: 0; }
-            .tier-tabs small { display: none; }
-            .tier-tabs strong { font-size: var(--text-caption); }
-            .tier-tabs em { width: 24px; height: 24px; flex: 0 0 24px; }
-            .tab-icon { width: 34px; height: 34px; flex: 0 0 34px; }
-
-            .inventory-tab-content .table-responsive { overflow: visible; }
-            .inventory-table { display: block; min-width: 0 !important; background: #f5f8f6; }
-            .inventory-table thead { display: none; }
-            .inventory-table tbody { display: grid; gap: var(--space-12); padding: var(--space-12); }
-            .inventory-table tbody tr { display: block; overflow: hidden; border: 1px solid #e0e8e3; border-radius: 14px; background: #fff; box-shadow: 0 3px 12px rgba(24, 58, 37, .05); }
-            .inventory-table tbody tr.stock-out-row { border-left: 4px solid #dc3545; }
-            .inventory-table tbody tr.stock-low-row { border-left: 4px solid #e4a11b; }
-            .inventory-table tbody td {
-                display: grid;
-                grid-template-columns: minmax(88px, 34%) minmax(0, 1fr);
-                align-items: center;
-                gap: var(--space-12);
-                width: 100%;
-                padding: var(--space-12) var(--space-12) !important;
-                text-align: right !important;
-                overflow-wrap: anywhere;
-            }
-            .inventory-table tbody td::before { content: attr(data-label); color: #7b8981; font-size: var(--text-caption); font-weight: 800; text-align: left; text-transform: uppercase; }
-            .inventory-table tbody td > * { justify-self: end; max-width: 100%; }
-            .inventory-table tbody td.inventory-primary { display: block; text-align: left !important; }
-            .inventory-table tbody td.inventory-primary::before { display: none; }
-            .inventory-table tbody td.inventory-primary > * { justify-self: auto; }
-            .inventory-table tbody td[colspan] { display: block; }
-            .inventory-table tbody td[colspan]::before { display: none; }
-            .inventory-table tbody td.inventory-select-cell { display: flex; justify-content: flex-end; width: 100%; }.inventory-table tbody td.inventory-select-cell::before { content: 'Select item'; margin-right: auto; }.inventory-table tbody td.inventory-select-cell .inventory-select { justify-self: auto; }
-            .item-specification { max-width: 100%; white-space: normal; }
-            .option-preview { align-items: flex-end; }
-            .inventory-row-actions { justify-content: flex-end; }
-            .inventory-action { width: 40px; height: 40px; }
         }
 
         @media(max-width: 420px) {
@@ -397,8 +353,57 @@
             .inventory-section-nav > a > svg { display: none; }
             .inventory-metrics p { margin-top: var(--space-8); }
             .inventory-metrics strong { font-size: var(--text-heading-sm); }
-            .tier-tabs :is(button,a) { gap: var(--space-8); }
-            .tab-icon { display: none; }
+        }
+
+        .metric-icon, .section-icon { display: grid; place-items: center; border-radius: 10px; }
+        .inventory-display-bar { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-16); padding: var(--space-16) var(--space-24); background: #f8faf9; border-bottom: 1px solid #e8eeea; }
+        .inventory-select-all { display: inline-flex; align-items: center; gap: var(--space-8); color: #405248; font-size: var(--text-caption); cursor: pointer; }
+        .inventory-result-count { margin-left: auto; color: #738078; font-size: var(--text-caption); }
+        .inventory-layout-toggle { display: inline-flex; gap: var(--space-4); padding: var(--space-4); border: 1px solid #dce4df; border-radius: 10px; background: #fff; }
+        .inventory-layout-toggle button { display: inline-flex; align-items: center; gap: var(--space-8); min-height: 36px; padding: var(--space-8) var(--space-12); border: 0; border-radius: 7px; color: #58675f; background: transparent; font-size: var(--text-caption); font-weight: 700; }
+        .inventory-layout-toggle button.active { background: var(--htc-green); color: #fff; }
+        .inventory-layout-toggle button:focus-visible { outline: 3px solid #8eb39c; outline-offset: 2px; }
+        .inventory-layout-toggle svg { width: 16px; height: 16px; }
+        .inventory-catalog .inventory-table { min-width: 850px; }
+        .inventory-catalog.is-tiles .inventory-table { display: block; min-width: 0 !important; background: #f5f8f6; }
+        .inventory-catalog.is-tiles .inventory-table thead { display: none; }
+        .inventory-catalog.is-tiles .inventory-table tbody { display: grid; gap: var(--space-12); padding: var(--space-12); }
+        .inventory-catalog.is-tiles .inventory-table tbody tr { display: block; overflow: hidden; border: 1px solid #e0e8e3; border-radius: 14px; background: #fff; box-shadow: 0 3px 12px rgba(24, 58, 37, .05); }
+        .inventory-catalog.is-tiles .inventory-table tbody tr.stock-out-row { border-left: 4px solid #dc3545; }
+        .inventory-catalog.is-tiles .inventory-table tbody tr.stock-low-row { border-left: 4px solid #e4a11b; }
+        .inventory-catalog.is-tiles .inventory-table tbody td {
+            display: grid;
+            grid-template-columns: minmax(88px, 34%) minmax(0, 1fr);
+            align-items: center;
+            gap: var(--space-12);
+            width: 100%;
+            padding: var(--space-12) var(--space-12) !important;
+            text-align: right !important;
+            overflow-wrap: anywhere;
+        }
+        .inventory-catalog.is-tiles .inventory-table tbody td::before { content: attr(data-label); color: #7b8981; font-size: var(--text-caption); font-weight: 800; text-align: left; text-transform: uppercase; }
+        .inventory-catalog.is-tiles .inventory-table tbody td > * { justify-self: end; max-width: 100%; }
+        .inventory-catalog.is-tiles .inventory-table tbody td.inventory-primary { display: block; text-align: left !important; }
+        .inventory-catalog.is-tiles .inventory-table tbody td.inventory-primary::before { display: none; }
+        .inventory-catalog.is-tiles .inventory-table tbody td.inventory-primary > * { justify-self: auto; }
+        .inventory-catalog.is-tiles .inventory-table tbody td[colspan] { display: block; }
+        .inventory-catalog.is-tiles .inventory-table tbody td[colspan]::before { display: none; }
+        .inventory-catalog.is-tiles .inventory-table tbody td.inventory-select-cell { display: flex; justify-content: flex-end; width: 100%; }.inventory-catalog.is-tiles .inventory-table tbody td.inventory-select-cell::before { content: 'Select item'; margin-right: auto; }.inventory-catalog.is-tiles .inventory-table tbody td.inventory-select-cell .inventory-select { justify-self: auto; }
+        .inventory-catalog.is-tiles .item-specification { max-width: 100%; white-space: normal; }
+        .inventory-catalog.is-tiles .option-preview { align-items: flex-end; }
+        .inventory-catalog.is-tiles .inventory-row-actions { justify-content: flex-end; }
+        .inventory-catalog.is-tiles .inventory-action { width: 40px; height: 40px; }
+        .inventory-catalog.is-tiles .inventory-table tbody { grid-template-columns: repeat(auto-fit, minmax(min(100%, 290px), 1fr)); }
+        .inventory-catalog.is-tiles .inventory-table tbody tr:has(td[colspan]) { grid-column: 1 / -1; }
+        .inventory-catalog.is-tiles .inventory-table tbody td { border: 0; }
+        .inventory-catalog.is-tiles .inventory-table tbody tr { display: flex; flex-direction: column; min-width: 0; }
+        .inventory-catalog.is-tiles .inventory-table tbody td:last-child { margin-top: auto; }
+        .inventory-catalog.is-tiles .inventory-table tbody td.inventory-primary > div > div:last-child { min-width: 0; }
+        .inventory-catalog.is-tiles .inventory-table tbody td.inventory-primary .fw-bold { overflow-wrap: anywhere; }
+        @media(max-width: 767px) {
+            .inventory-display-bar { padding: var(--space-12); gap: var(--space-12); }
+            .inventory-layout-toggle { margin-left: auto; }
+            .inventory-catalog.is-tiles .inventory-table tbody { grid-template-columns: 1fr; }
         }
     </style>
     @endPushOnce
@@ -411,6 +416,18 @@
                 catalog,
                 selected: [],
                 showAllRestock: false,
+                catalogLayout: 'list',
+                init() {
+                    try {
+                        const saved = localStorage.getItem('htc-inventory-layout');
+                        if (['tiles', 'list'].includes(saved)) this.catalogLayout = saved;
+                    } catch (_) {}
+                },
+                setCatalogLayout(layout) {
+                    if (!['tiles', 'list'].includes(layout)) return;
+                    this.catalogLayout = layout;
+                    try { localStorage.setItem('htc-inventory-layout', layout); } catch (_) {}
+                },
                 syncFilters(url) {
                     const query = new URL(url).searchParams;
                     this.query = query.get('search') || '';
@@ -424,21 +441,21 @@
                         || this.stockFilter === status;
                     return matchesSearch && matchesStatus;
                 },
-                matchingIds(tier) {
+                matchingIds() {
                     return this.catalog
-                        .filter(item => item.tier === tier && this.matches(item.text, item.status))
+                        .filter(item => this.matches(item.text, item.status))
                         .map(item => item.id);
                 },
-                allMatchingSelected(tier) {
-                    const ids = this.matchingIds(tier);
+                allMatchingSelected() {
+                    const ids = this.matchingIds();
                     return ids.length > 0 && ids.every(id => this.selected.includes(id));
                 },
-                someMatchingSelected(tier) {
-                    const ids = this.matchingIds(tier);
+                someMatchingSelected() {
+                    const ids = this.matchingIds();
                     return ids.some(id => this.selected.includes(id)) && !ids.every(id => this.selected.includes(id));
                 },
-                toggleMatching(tier) {
-                    const ids = this.matchingIds(tier);
+                toggleMatching() {
+                    const ids = this.matchingIds();
                     if (ids.every(id => this.selected.includes(id))) {
                         this.selected = this.selected.filter(id => !ids.includes(id));
                     } else {

@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class NotificationController extends Controller
@@ -33,11 +34,18 @@ class NotificationController extends Controller
             ->latest('id')
             ->paginate(20)
             ->withQueryString();
-        $unreadCount = Notification::query()->forUser($user)->unread()->count();
         $resolvedActions = $actionResolver->resolve($notes->getCollection(), $user);
-        $categoryCounts = collect(self::CATEGORIES)->mapWithKeys(
-            fn (string $name) => [$name => $this->applyCategory(clone $base, $name)->count()]
+        // Preserve the shared category predicates while collecting the badge
+        // counts in one database round trip instead of six.
+        $countQuery = DB::query()->selectSub(
+            (clone $base)->unread()->selectRaw('COUNT(*)'), 'unread_count',
         );
+        foreach (self::CATEGORIES as $name) {
+            $countQuery->selectSub($this->applyCategory(clone $base, $name)->selectRaw('COUNT(*)'), $name.'_count');
+        }
+        $counts = $countQuery->first();
+        $unreadCount = (int) $counts->unread_count;
+        $categoryCounts = collect(self::CATEGORIES)->mapWithKeys(fn (string $name) => [$name => (int) $counts->{$name.'_count'}]);
 
         if ($request->expectsJson()) {
             return response()->json([
@@ -62,10 +70,17 @@ class NotificationController extends Controller
                 ->orderBy('quantity')
                 ->get()
             : collect();
+        $fulfilledPlaceholders = implode(',', array_fill(0, count(Requisition::FULFILLED_STATUSES), '?'));
+        $personalCounts = Requisition::where('user_id', $user->id)->selectRaw(
+            "COUNT(*) as total,
+             COALESCE(SUM(CASE WHEN status = ? THEN 1 ELSE 0 END), 0) as pending,
+             COALESCE(SUM(CASE WHEN status IN ($fulfilledPlaceholders) THEN 1 ELSE 0 END), 0) as released",
+            ['pending', ...Requisition::FULFILLED_STATUSES],
+        )->first();
         $personalStats = [
-            'total' => Requisition::where('user_id', $user->id)->count(),
-            'pending' => Requisition::where('user_id', $user->id)->where('status', 'pending')->count(),
-            'released' => Requisition::where('user_id', $user->id)->whereIn('status', Requisition::FULFILLED_STATUSES)->count(),
+            'total' => (int) $personalCounts->total,
+            'pending' => (int) $personalCounts->pending,
+            'released' => (int) $personalCounts->released,
         ];
 
         return view('notifications', compact(

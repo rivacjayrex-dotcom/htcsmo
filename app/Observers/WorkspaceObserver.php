@@ -14,6 +14,8 @@ use App\Models\SupplyUnit;
 use App\Services\WorkspaceVersionService;
 use Illuminate\Contracts\Events\ShouldHandleEventsAfterCommit;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class WorkspaceObserver implements ShouldHandleEventsAfterCommit
 {
@@ -46,6 +48,17 @@ class WorkspaceObserver implements ShouldHandleEventsAfterCommit
             $model instanceof SupplyCategory, $model instanceof SupplyUnit => 'inventory',
             default => 'accounts',
         };
-        app(WorkspaceVersionService::class)->touch($domain);
+        // The data is already committed. A refresh-cache failure must not turn
+        // a successful write into a 500 or stop the remaining commit callbacks.
+        try {
+            app(WorkspaceVersionService::class)->touch($domain);
+        } catch (Throwable $exception) {
+            Log::warning('Workspace refresh marker failed after a committed change.', [
+                'domain' => $domain,
+                'model' => $model::class,
+                'model_id' => $model->getKey(),
+                'exception' => $exception,
+            ]);
+        }
     }
 }

@@ -28,13 +28,26 @@ class NotificationActionResolver
         $requisitions = $requisitionIds->isEmpty()
             ? collect()
             : Requisition::query()
-                ->with(['user.academicDepartment', 'logs'])
+                ->select(['id', 'user_id', 'status', 'request_type'])
                 ->whereIn('id', $requisitionIds)
                 ->get()
                 ->keyBy('id');
+
+        // Personal view links only need ownership. Review links need an owner
+        // for department checks and clarification history for the current role.
+        $reviewIds = $notifications->where('action_type', 'approval_queue')->pluck('action_id');
+        $reviewTargets = $requisitions->whereIn('id', $reviewIds);
+        if ($reviewTargets->isNotEmpty()) {
+            if ($user->role === 'dept_head') {
+                $reviewTargets->load('user:id,department_id');
+            }
+            $reviewTargets->where('status', 'for_clarification')
+                ->load(['logs' => fn ($query) => $query->where('action', 'like', '%Clarification%')]);
+        }
+
         $supplies = $supplyIds->isEmpty()
             ? collect()
-            : Supply::query()->whereIn('id', $supplyIds)->get()->keyBy('id');
+            : Supply::query()->select('id')->whereIn('id', $supplyIds)->get()->keyBy('id');
 
         return $notifications->mapWithKeys(function (Notification $notification) use ($user, $requisitions, $supplies) {
             $target = match ($notification->action_type) {

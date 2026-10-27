@@ -16,9 +16,12 @@ class WorkspaceVersionService
 
     public function versions(): array
     {
+        $domains = ['requisitions', 'inventory', 'accounts'];
+        $cached = Cache::many(array_map(fn (string $domain) => 'workspace-version:'.$domain, $domains));
         $versions = [];
-        foreach (['requisitions', 'inventory', 'accounts'] as $domain) {
-            $versions[$domain] = Cache::rememberForever('workspace-version:'.$domain, fn () => (string) Str::uuid());
+        foreach ($domains as $domain) {
+            $key = 'workspace-version:'.$domain;
+            $versions[$domain] = $cached[$key] ?? Cache::rememberForever($key, fn () => (string) Str::uuid());
         }
         $requests = hash('sha256', $versions['requisitions'].':'.$versions['accounts']);
 

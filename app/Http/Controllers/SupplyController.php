@@ -46,7 +46,6 @@ class SupplyController extends Controller
         $filters = $request->validate([
             'search' => ['nullable', 'string', 'max:100'],
             'stock' => ['nullable', 'in:all,attention,out,low,healthy'],
-            'tier' => ['nullable', 'in:minor,major'],
             'forecast_period' => ['nullable', 'in:monthly,quarterly'],
         ]);
         $period = in_array($request->query('forecast_period'), ['monthly', 'quarterly'], true)

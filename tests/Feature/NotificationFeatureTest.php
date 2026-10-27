@@ -201,6 +201,35 @@ class NotificationFeatureTest extends TestCase
                 || str_contains(strtolower($query['query']), 'from `requisitions`')
         );
         $this->assertCount(1, $requisitionQueries);
+        $this->assertCount(4, $queries, 'The feed should batch its counts and avoid loading unused relationships.');
+    }
+
+    public function test_batched_counts_preserve_legacy_categories_and_exclude_other_accounts(): void
+    {
+        $user = User::factory()->create(['role' => 'smo']);
+        $other = User::factory()->create();
+        foreach ([
+            ['event_type' => 'requisition.approved', 'type' => 'info'],
+            ['event_type' => null, 'type' => 'success'],
+            ['event_type' => 'deadline.overdue', 'type' => 'info'],
+            ['event_type' => null, 'type' => 'danger', 'icon' => 'package-x'],
+            ['event_type' => 'account.updated', 'type' => 'info'],
+            ['event_type' => null, 'type' => 'info', 'icon' => 'user-plus'],
+        ] as $attributes) {
+            Notification::create([
+                'user_id' => $user->id, 'title' => 'Category fixture', 'message' => 'Category',
+                'is_read' => false, ...$attributes,
+            ]);
+        }
+        Notification::create([
+            'user_id' => $other->id, 'title' => 'Other account', 'message' => 'Private',
+            'event_type' => 'requisition.approved', 'is_read' => false,
+        ]);
+
+        $this->actingAs($user)->getJson(route('notifications'))->assertOk()
+            ->assertJsonPath('unread_count', 6)->assertJsonPath('category_counts', [
+                'all' => 6, 'approvals' => 2, 'deadlines' => 1, 'inventory' => 1, 'accounts' => 2,
+            ]);
     }
 
     public function test_deadline_sidebar_limits_the_preview_and_keeps_the_total_count(): void
