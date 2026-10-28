@@ -70,21 +70,8 @@ class NotificationController extends Controller
                 ->orderBy('quantity')
                 ->get()
             : collect();
-        $fulfilledPlaceholders = implode(',', array_fill(0, count(Requisition::FULFILLED_STATUSES), '?'));
-        $personalCounts = Requisition::where('user_id', $user->id)->selectRaw(
-            "COUNT(*) as total,
-             COALESCE(SUM(CASE WHEN status = ? THEN 1 ELSE 0 END), 0) as pending,
-             COALESCE(SUM(CASE WHEN status IN ($fulfilledPlaceholders) THEN 1 ELSE 0 END), 0) as released",
-            ['pending', ...Requisition::FULFILLED_STATUSES],
-        )->first();
-        $personalStats = [
-            'total' => (int) $personalCounts->total,
-            'pending' => (int) $personalCounts->pending,
-            'released' => (int) $personalCounts->released,
-        ];
-
         return view('notifications', compact(
-            'notes', 'resolvedActions', 'category', 'categoryCounts', 'unreadCount', 'criticalRequests', 'criticalRequestCount', 'lowStockSupplies', 'personalStats'
+            'notes', 'resolvedActions', 'category', 'categoryCounts', 'unreadCount', 'criticalRequests', 'criticalRequestCount', 'lowStockSupplies'
         ));
     }
 

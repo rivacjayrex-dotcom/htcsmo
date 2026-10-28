@@ -12,24 +12,10 @@
     @endphp
 
     <div class="container-fluid notification-center-page" data-filter-workspace="notifications" data-notification-center data-notification-endpoint="{{ route('notifications') }}" data-notification-account="{{ Auth::id() }}">
-        <div class="notification-center-grid">
+        <div class="notification-center-grid {{ Auth::user()->role === 'smo' ? 'has-insights' : '' }}">
             <main class="notification-activity-panel" id="notification-results" data-filter-results data-filter-region="results" data-result-count="{{ $notes->total() }}" tabindex="-1" aria-label="Matching notifications">
                 <div class="notification-panel-heading">
-                    <div><span>Activity feed</span><h2 data-current-category>{{ $categoryLabels[$category] }}</h2></div>
-                    <div class="notification-toolbar-actions">
-                        <span class="notification-live-label" role="img" aria-label="Live updates" title="Live updates"><i data-lucide="radio" aria-hidden="true"></i></span>
-                        <div class="notification-unread-count" title="Unread notifications">
-                            <i data-lucide="mail" aria-hidden="true"></i>
-                            <span class="visually-hidden">Unread notifications:</span>
-                            <strong data-unread-count aria-live="polite" aria-atomic="true">{{ $unreadCount }}</strong>
-                        </div>
-                        <form method="POST" action="{{ route('notifications.read-all') }}" data-mark-all-read-form @if($unreadCount < 1) hidden @endif>
-                            @csrf
-                            <button type="submit" class="notification-icon-control" aria-label="Mark all read" title="Mark all read"><i data-lucide="check-check" aria-hidden="true"></i></button>
-                        </form>
-                    </div>
-                </div>
-                <div class="notification-toolbar">
+                    <div class="notification-panel-title"><span>Activity feed</span><h2 data-current-category>{{ $categoryLabels[$category] }}</h2></div>
                     <nav class="notification-category-nav" aria-label="Notification categories" data-filter-links>
                         @foreach(['all', 'approvals', 'deadlines', 'accounts'] as $key)
                             <a href="{{ route('notifications', ['category' => $key]) }}#notification-results"
@@ -54,14 +40,26 @@
                             </a>
                         @endif
                     </nav>
+                    <div class="notification-toolbar-actions">
+                        <span class="notification-live-label" role="img" aria-label="Live updates" title="Live updates"><i data-lucide="radio" aria-hidden="true"></i></span>
+                        <div class="notification-unread-count" title="Unread notifications">
+                            <i data-lucide="mail" aria-hidden="true"></i>
+                            <span class="visually-hidden">Unread notifications:</span>
+                            <strong data-unread-count aria-live="polite" aria-atomic="true">{{ $unreadCount }}</strong>
+                        </div>
+                        <form method="POST" action="{{ route('notifications.read-all') }}" data-mark-all-read-form @if($unreadCount < 1) hidden @endif>
+                            @csrf
+                            <button type="submit" class="notification-icon-control" aria-label="Mark all read" title="Mark all read"><i data-lucide="check-check" aria-hidden="true"></i></button>
+                        </form>
+                    </div>
                 </div>
                 <div class="notification-feed-container" data-notification-feed aria-live="polite">
                     @include('notifications.feed', ['notes' => $notes, 'resolvedActions' => $resolvedActions])
                 </div>
             </main>
 
-            <aside class="notification-insights-column">
-                @if(Auth::user()->role === 'smo')
+            @if(Auth::user()->role === 'smo')
+                <aside class="notification-insights-column">
                     <section class="notification-insight-card inventory-health {{ $lowStockSupplies->isNotEmpty() ? 'has-alerts' : '' }}">
                         <div class="notification-insight-heading">
                             <div><span>Inventory health</span><h2>{{ $lowStockSupplies->count() }} {{ Str::plural('item', $lowStockSupplies->count()) }} need attention</h2></div>
@@ -105,35 +103,15 @@
                             <a href="{{ route('requests.index', ['status' => 'deadline']) }}" class="notification-insight-link">View all {{ $criticalRequestCount }} deadline risks <i data-lucide="arrow-right" aria-hidden="true"></i></a>
                         @endif
                     </section>
-                @else
-                    <section class="notification-insight-card personal-summary">
-                        <div class="notification-insight-heading"><div><span>Your requisitions</span><h2>Request summary</h2></div><i data-lucide="chart-no-axes-column"></i></div>
-                        <div class="notification-stat-grid">
-                            <div><strong>{{ $personalStats['total'] }}</strong><span>Total</span></div>
-                            <div><strong>{{ $personalStats['pending'] }}</strong><span>Pending</span></div>
-                            <div><strong>{{ $personalStats['released'] }}</strong><span>Completed</span></div>
-                        </div>
-                    </section>
-                    <section class="notification-guide-card">
-                        <span class="notification-guide-icon"><i data-lucide="route"></i></span>
-                        <span class="notification-eyebrow">Procurement guide</span>
-                        <h2>Know what happens next</h2>
-                        <ul>
-                            <li><i data-lucide="check-circle"></i><span><strong>Minor:</strong> Department Head and VP Finance approval.</span></li>
-                            <li><i data-lucide="check-circle"></i><span><strong>Major:</strong> VP Admin, Provost, and President approval.</span></li>
-                            <li><i data-lucide="package-check"></i><span><strong>Fulfillment:</strong> Visit SMO only after the request is marked ready for pickup.</span></li>
-                        </ul>
-                    </section>
-                @endif
-            </aside>
+                </aside>
+            @endif
         </div>
     </div>
 
     @pushOnce('styles', 'page-styles:notifications.blade.php')
     <style>
         .notification-center-page { --note-ink:#173226; --note-muted:#708178; --note-line:#dfe8e2; padding:var(--space-12) 0 var(--space-24); }
-        .notification-toolbar { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:var(--space-8); padding:var(--space-12) var(--space-16); border-bottom:1px solid var(--note-line); background:#fff; }
-        .notification-toolbar-actions { display:flex; align-items:center; gap:var(--space-8); margin-left:auto; }
+        .notification-toolbar-actions { display:flex; flex:0 0 auto; align-items:center; gap:var(--space-8); margin-left:auto; }
         .notification-toolbar-actions form { margin:0; }
         .notification-unread-count { min-height:44px; display:inline-flex; align-items:center; gap:var(--space-8); padding:var(--space-8) var(--space-12); border-radius:10px; background:#edf7f1; color:#155936; }
         .notification-unread-count svg { width:18px; height:18px; }
@@ -143,18 +121,19 @@
         .notification-icon-control:disabled { opacity:.5; cursor:wait; }
         .notification-icon-control svg { width:18px; height:18px; }
         .notification-icon-control:focus-visible,.notification-category-link:focus-visible,.notification-insight-link:focus-visible { outline:2px solid var(--htc-green); outline-offset:2px; }
-        .notification-eyebrow { color:#a9e8bf; font-size:var(--text-caption); font-weight:800; letter-spacing:var(--tracking-label); text-transform:uppercase; }
-        .notification-category-nav { display:flex; flex:1 1 auto; flex-wrap:wrap; min-width:0; gap:var(--space-4); }
-        .notification-category-link { min-height:44px; display:inline-flex; align-items:center; gap:var(--space-8); padding:var(--space-8) var(--space-12); border-radius:10px; color:#677970; font-size:var(--text-caption); font-weight:800; text-decoration:none; white-space:nowrap; transition:.18s ease; }
+        .notification-category-nav { display:flex; flex:1 1 auto; flex-wrap:nowrap; min-width:0; gap:var(--space-4); overflow-x:auto; padding:var(--space-4); }
+        .notification-category-link { flex:0 0 auto; min-height:44px; display:inline-flex; align-items:center; gap:var(--space-8); padding:var(--space-8) var(--space-12); border-radius:10px; color:#677970; font-size:var(--text-caption); font-weight:800; text-decoration:none; white-space:nowrap; transition:.18s ease; }
         .notification-category-link:hover { background:#f0f6f2; color:var(--htc-green); }
         .notification-category-link.is-active { background:var(--htc-green); color:#fff; box-shadow:0 5px 13px rgba(24,91,59,.2); }
         .notification-category-link svg { width:18px; height:18px; }
         .notification-category-link b { min-width:21px; padding:.15rem var(--space-4); border-radius:999px; background:#eef3f0; color:#5e7166; font-size:var(--text-caption); text-align:center; }
         .notification-category-link.is-active b { background:rgba(255,255,255,.18); color:#fff; }
-        .notification-center-grid { display:grid; grid-template-columns:minmax(0,1.8fr) minmax(280px,.72fr); gap:var(--space-16); align-items:start; }
+        .notification-center-grid { display:grid; grid-template-columns:minmax(0,1fr); gap:var(--space-16); align-items:start; }
+        .notification-center-grid.has-insights { grid-template-columns:minmax(0,1.8fr) minmax(280px,.72fr); }
         .notification-activity-panel,.notification-insight-card { overflow:hidden; border:1px solid var(--note-line); border-radius:16px; background:#fff; box-shadow:0 7px 20px rgba(24,70,43,.05); }
         .notification-panel-heading,.notification-insight-heading { display:flex; align-items:center; justify-content:space-between; gap:var(--space-16); }
-        .notification-panel-heading { padding:var(--space-16) var(--space-16); border-bottom:1px solid #e7eee9; background:linear-gradient(135deg,#fbfdfc,#f4f8f5); }
+        .notification-panel-heading { flex-wrap:nowrap; gap:var(--space-8); padding:var(--space-16); border-bottom:1px solid #e7eee9; background:linear-gradient(135deg,#fbfdfc,#f4f8f5); }
+        .notification-panel-title { flex:0 0 auto; white-space:nowrap; }
         .notification-panel-heading > div > span,.notification-insight-heading > div > span { color:#87978e; font-size:var(--text-caption); font-weight:800; letter-spacing:var(--tracking-label); text-transform:uppercase; }
         .notification-panel-heading h2,.notification-insight-heading h2 { margin:.12rem 0 0; color:var(--note-ink); font-size:var(--text-heading-sm); font-weight:800; }
         .notification-live-label { display:inline-flex; align-items:center; gap:var(--space-4); color:#3c7655; font-size:var(--text-secondary); font-weight:800; text-transform:uppercase; }
@@ -223,20 +202,8 @@
         .notification-deadline-item p:last-child { margin-bottom:0; }
         .notification-insight-empty { min-height:90px; display:flex; align-items:center; justify-content:center; gap:var(--space-8); color:#7b8b82; font-size:var(--text-caption); text-align:center; }
         .notification-insight-empty svg { width:18px; color:#45815e; }
-        .notification-stat-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:var(--space-8); }
-        .notification-stat-grid div { padding:var(--space-12) var(--space-8); border-radius:10px; background:#f3f7f4; text-align:center; }
-        .notification-stat-grid strong,.notification-stat-grid span { display:block; }
-        .notification-stat-grid strong { color:var(--note-ink); font-size:var(--text-body); }
-        .notification-stat-grid span { color:#829087; font-size:var(--text-caption); font-weight:800; text-transform:uppercase; }
-        .notification-guide-card { padding:var(--space-16); border-radius:16px; background:linear-gradient(145deg,#103f29,#1b7147); color:#fff; box-shadow:0 10px 24px rgba(14,67,39,.14); }
-        .notification-guide-icon { width:38px; height:38px; display:grid; place-items:center; margin-bottom:var(--space-12); border-radius:11px; background:rgba(255,255,255,.12); }
-        .notification-guide-icon svg { width:18px; }
-        .notification-guide-card h2 { margin:.15rem 0 var(--space-12); color:#fff; font-size:var(--text-heading-sm); }
-        .notification-guide-card ul { display:grid; gap:var(--space-12); margin:0; padding:0; list-style:none; }
-        .notification-guide-card li { display:grid; grid-template-columns:15px minmax(0,1fr); gap:var(--space-8); color:#d4ebdc; font-size:var(--text-secondary); line-height:var(--line-body); }
-        .notification-guide-card li svg { width:14px; height:14px; color:#8fe0ab; }
-        @media(max-width:991.98px){.notification-center-grid{grid-template-columns:1fr}.notification-insights-column{grid-template-columns:repeat(2,minmax(0,1fr))}}
-        @media(max-width:575.98px){.notification-center-page{padding-top:var(--space-4)}.notification-toolbar{gap:var(--space-8);padding:var(--space-12)}.notification-category-nav{gap:var(--space-4)}.notification-category-link{padding:var(--space-8)}.notification-center-grid{gap:var(--space-12)}.notification-insights-column{grid-template-columns:1fr}.notification-feed-item{grid-template-columns:36px minmax(0,1fr);padding:var(--space-12)}.notification-feed-icon{width:36px;height:36px}.notification-feed-meta{align-items:flex-start;flex-direction:column;gap:.1rem}.notification-panel-heading{padding:var(--space-12)}.notification-live-label{display:none}}
+        @media(max-width:991.98px){.notification-center-grid.has-insights{grid-template-columns:1fr}.notification-insights-column{grid-template-columns:repeat(2,minmax(0,1fr))}}
+        @media(max-width:575.98px){.notification-center-page{padding-top:var(--space-4)}.notification-category-nav{gap:var(--space-4)}.notification-category-link{padding:var(--space-8)}.notification-center-grid{gap:var(--space-12)}.notification-insights-column{grid-template-columns:1fr}.notification-feed-item{grid-template-columns:36px minmax(0,1fr);padding:var(--space-12)}.notification-feed-icon{width:36px;height:36px}.notification-feed-meta{align-items:flex-start;flex-direction:column;gap:.1rem}.notification-panel-heading{padding:var(--space-12)}.notification-live-label{display:none}}
         @media(prefers-reduced-motion:reduce){.notification-feed-item,.notification-feed-container{transition:none}}
     </style>
     @endPushOnce
