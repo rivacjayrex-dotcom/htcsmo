@@ -3,11 +3,15 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use InvalidArgumentException;
+use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 
 class PasswordResetLinkController extends Controller
 {
@@ -30,7 +34,22 @@ class PasswordResetLinkController extends Controller
             'email' => ['required', 'email'],
         ]);
 
-        Password::sendResetLink($request->only('email'));
+        try {
+            Password::sendResetLink($request->only('email'));
+        } catch (TransportExceptionInterface|InvalidArgumentException $exception) {
+            // Do not leave a failed send throttling the user's next attempt.
+            if ($user = User::where('email', $request->input('email'))->first()) {
+                Password::deleteToken($user);
+            }
+
+            Log::error('Password reset email could not be sent.', [
+                'mailer' => config('mail.default'), 'exception_type' => $exception::class,
+            ]);
+
+            return back()->withInput($request->only('email'))->withErrors([
+                'email' => 'Password reset email is temporarily unavailable. Please try again later or contact the SMO.',
+            ]);
+        }
 
         return back()
             ->withInput($request->only('email'))

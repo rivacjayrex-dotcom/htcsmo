@@ -62,7 +62,7 @@
             </table>
 
             <div style="text-align: center;">
-                <a href="{{ url('/requests/' . $requisition->id) }}" class="btn-action">
+                <a href="{{ $actionUrl }}" class="btn-action">
                     View Live Requisition in System →
                 </a>
             </div>

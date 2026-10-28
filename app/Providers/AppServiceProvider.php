@@ -20,8 +20,12 @@ use Illuminate\Database\Events\TransactionRolledBack;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Symfony\Component\HttpClient\HttpClient;
+use Symfony\Component\Mailer\Bridge\Brevo\Transport\BrevoApiTransport;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -31,6 +35,10 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->scoped(BusinessDaySlaService::class);
+        $this->app->bind(HttpClientInterface::class, fn () => HttpClient::create([
+            'timeout' => config('mail.mailers.brevo.timeout', 15),
+            'max_duration' => 20,
+        ]));
     }
 
     /**
@@ -38,6 +46,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Mail::extend('brevo', function (array $config) {
+            if (blank($config['key'] ?? null)) {
+                throw new \InvalidArgumentException('BREVO_API_KEY is missing. Configure a Brevo API key before sending email.');
+            }
+
+            return new BrevoApiTransport($config['key'], $this->app->make(HttpClientInterface::class));
+        });
+
         Event::listen(TransactionRolledBack::class, fn () => app(BusinessDaySlaService::class)->clearHolidayCache());
 
         // A visible tab polls 20 times/minute. Allow navigation, retries, and

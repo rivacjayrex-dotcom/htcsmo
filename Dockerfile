@@ -9,6 +9,7 @@ RUN npm run build
 FROM php:8.3-apache
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
+        git \
         libfreetype6-dev \
         libjpeg62-turbo-dev \
         libonig-dev \
@@ -29,7 +30,10 @@ COPY --from=frontend /app/public/build ./public/build
 COPY docker/apache-vhost.conf /etc/apache2/sites-available/000-default.conf
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint
 
-RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader \
+# Avoid the failing GitHub archive endpoint for php-cors; keep its locked Git reference.
+# Composer uses dist archives for the remaining packages.
+RUN composer config --global preferred-install.fruitcake/php-cors source \
+    && composer install --no-dev --no-interaction --optimize-autoloader \
     && chmod +x /usr/local/bin/entrypoint \
     && chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R ug+rwX storage bootstrap/cache

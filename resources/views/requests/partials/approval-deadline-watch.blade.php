@@ -20,7 +20,6 @@
 
     <div class="approval-deadline-heading">
         <div>
-            <span class="approval-deadline-eyebrow">Approval deadline watch</span>
             <h3 id="approvalDeadlineHeading">
                 {{ $isSmoDeadlineView ? 'Approvals needing follow-up' : 'Requests requiring your attention' }}
                 <em>{{ $approvalDeadlineCount ?? $approvalDeadlineRequests->count() }}</em>
@@ -31,7 +30,7 @@
         </div>
         <div class="approval-deadline-heading__actions">
             <a href="{{ $isSmoDeadlineView ? route('requests.index', ['status' => 'deadline']) : route('admin.approvals') }}">
-                See all deadline requests <i data-lucide="arrow-up-right"></i>
+                See All <i data-lucide="arrow-up-right"></i>
             </a>
             <span class="approval-deadline-heading__icon"><i data-lucide="alarm-clock"></i></span>
         </div>

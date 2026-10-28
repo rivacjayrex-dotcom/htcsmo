@@ -27,9 +27,7 @@
 
         <div class="inventory-page-header">
             <div>
-                <span class="inventory-eyebrow">SMO Inventory Control</span>
                 <h3>Manage institutional stock</h3>
-                <p>Monitor availability, browse the catalog, and prioritize items that need restocking.</p>
             </div>
             <a href="{{ route('inventory.create') }}" class="btn btn-htc inventory-add-btn"><i data-lucide="plus"></i> Register new item</a>
         </div>

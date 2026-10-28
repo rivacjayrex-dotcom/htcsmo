@@ -26,6 +26,7 @@ class SendRequisitionEmail implements ShouldQueue
         public string $headline,
         public string $message,
         public string $accentColor,
+        public ?string $actionUrl = null,
     ) {
         $this->afterCommit();
         $this->onQueue('mail');
@@ -40,7 +41,7 @@ class SendRequisitionEmail implements ShouldQueue
     {
         $requisition = Requisition::findOrFail($this->requisitionId);
         Mail::to($this->recipientEmail)->send(new RequisitionAlertMail(
-            $requisition, $this->subject, $this->headline, $this->message, $this->accentColor,
+            $requisition, $this->subject, $this->headline, $this->message, $this->accentColor, $this->actionUrl ?? null,
         ));
         $this->log('sent');
     }

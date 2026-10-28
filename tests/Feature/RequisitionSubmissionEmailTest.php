@@ -35,28 +35,37 @@ class RequisitionSubmissionEmailTest extends TestCase
     }
 
     #[DataProvider('submissionRolesAndTiers')]
-    public function test_submission_queues_email_for_requestor_and_all_active_smo_only(string $role, string $tier): void
+    public function test_submission_queues_email_for_requestor_active_smo_and_assigned_reviewers(string $role, string $tier): void
     {
         Queue::fake();
         $requestor = User::factory()->create(['role' => $role]);
         $smo = User::factory()->count(2)->create(['role' => 'smo']);
         User::factory()->create(['role' => 'smo', 'account_status' => User::ACCOUNT_PENDING]);
         User::factory()->create(['role' => 'smo', 'account_status' => User::ACCOUNT_SUSPENDED]);
-        User::factory()->create(['role' => 'dept_head', 'department_id' => $requestor->department_id]);
+        $head = User::factory()->create(['role' => 'dept_head', 'department_id' => $requestor->department_id]);
+        User::factory()->create(['role' => 'dept_head', 'department_id' => $requestor->department_id, 'account_status' => User::ACCOUNT_SUSPENDED]);
+        User::factory()->create(['role' => 'dept_head', 'department' => $requestor->department === 'CETE' ? 'CTE' : 'CETE']);
         User::factory()->create(['role' => 'employee']);
 
         $this->submit($requestor, $this->supply($tier))->assertRedirect(route('dashboard'));
 
         $requisition = Requisition::firstOrFail();
         $expectedRecipients = $smo->prepend($requestor)->pluck('email')->sort()->values()->all();
+        if ($requisition->status === 'pending') {
+            $expectedRecipients[] = $head->email;
+            sort($expectedRecipients);
+        }
         $jobs = Queue::pushed(SendRequisitionEmail::class);
-        Queue::assertPushed(SendRequisitionEmail::class, 3);
+        Queue::assertPushed(SendRequisitionEmail::class, count($expectedRecipients));
         $this->assertSame($expectedRecipients, $jobs->pluck('recipientEmail')->sort()->values()->all());
         $this->assertTrue($jobs->every(fn ($job) => $job->queue === 'mail'
             && $job->afterCommit === true && $job->requisitionId === $requisition->id));
         $ownerJob = $jobs->firstWhere('userId', $requestor->id);
         $this->assertSame('Requisition Submitted', $ownerJob->subject);
         $this->assertStringContainsString($requisition->tracking_code, $ownerJob->message);
+        if ($requisition->status === 'pending') {
+            $this->assertSame(route('admin.approvals', ['request' => $requisition->id]), $jobs->firstWhere('userId', $head->id)->actionUrl);
+        }
         $this->assertTrue($jobs->where('userId', '!=', $requestor->id)->every(
             fn ($job) => $job->subject === 'New Requisition Submitted'
                 && str_contains($job->message, $requestor->name)

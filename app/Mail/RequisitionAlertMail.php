@@ -14,21 +14,28 @@ class RequisitionAlertMail extends Mailable
     use Queueable, SerializesModels;
 
     public $requisition;
+
     public $emailSubject;
+
     public $headline;
+
     public $actionMessage;
+
     public $accentColor;
+
+    public string $actionUrl;
 
     /**
      * Create a new message instance.
      */
-    public function __construct(Requisition $requisition, string $emailSubject, string $headline, string $actionMessage, string $accentColor = '#185b3b')
+    public function __construct(Requisition $requisition, string $emailSubject, string $headline, string $actionMessage, string $accentColor = '#185b3b', ?string $actionUrl = null)
     {
         $this->requisition = $requisition;
         $this->emailSubject = $emailSubject;
         $this->headline = $headline;
         $this->actionMessage = $actionMessage;
         $this->accentColor = $accentColor;
+        $this->actionUrl = $actionUrl ?? route('requests.show', $requisition->id);
     }
 
     /**

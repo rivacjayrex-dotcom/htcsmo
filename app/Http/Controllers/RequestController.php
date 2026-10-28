@@ -19,6 +19,7 @@ use App\Services\FulfillmentInventoryService;
 use App\Services\InventoryAlertService;
 use App\Services\NotificationActionResolver;
 use App\Services\NotificationService;
+use App\Services\RequisitionEmailService;
 use App\Services\WorkspaceVersionService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
@@ -532,6 +533,10 @@ class RequestController extends Controller
             $accent
         );
 
+        if ($request->status === 'approved') {
+            app(RequisitionEmailService::class)->notifyReviewers($sr);
+        }
+
         return $this->approvalQueueRedirect($request)->with('success', "Requisition #{$sr->id} status updated.");
     }
 
@@ -581,7 +586,14 @@ class RequestController extends Controller
             return back()->with('error', $outcome['error']);
         }
 
-        return $this->approvalQueueRedirect($request)->with('success', "Requisition #{$outcome['requisition']->id} is now being processed.");
+        $requisition = $outcome['requisition'];
+        $this->sendEmailNotification(
+            $requisition->user->email, $requisition->user, $requisition,
+            'SMO Processing Started', 'Your Requisition Is Being Processed',
+            "The SMO has started preparing the supplies for requisition {$requisition->tracking_code}.",
+        );
+
+        return $this->approvalQueueRedirect($request)->with('success', "Requisition #{$requisition->id} is now being processed.");
     }
 
     /**
@@ -741,7 +753,14 @@ class RequestController extends Controller
             return back()->with('error', $outcome['error']);
         }
 
-        return $this->approvalQueueRedirect($request)->with('success', "Requisition #{$outcome['requisition']->id} has been completed.");
+        $requisition = $outcome['requisition'];
+        $this->sendEmailNotification(
+            $requisition->user->email, $requisition->user, $requisition,
+            'Requisition Completed', 'Your Requisition Has Been Completed',
+            "The supplies for requisition {$requisition->tracking_code} have been released and the request is complete.",
+        );
+
+        return $this->approvalQueueRedirect($request)->with('success', "Requisition #{$requisition->id} has been completed.");
     }
 
     public function show(Request $httpRequest, int $id)

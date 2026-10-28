@@ -133,7 +133,9 @@ class RequisitionSubmissionService
             ->where('account_status', User::ACCOUNT_ACTIVE)
             ->where('id', '!=', $requestor->id)
             ->get()
-            ->prepend($requestor);
+            ->prepend($requestor)
+            ->merge(app(RequisitionEmailService::class)->reviewers($requisition))
+            ->unique('id');
 
         $queued = true;
         foreach ($recipients as $recipient) {
@@ -150,6 +152,8 @@ class RequisitionSubmissionService
                         ? "Your requisition {$requisition->tracking_code} has been submitted successfully. You can view its current status in the system."
                         : "{$requestor->name} has submitted requisition {$requisition->tracking_code}. You can view its details and current approval status in the system.",
                     '#185b3b',
+                    ! $isRequestor && $recipient->role !== 'smo'
+                        ? route('admin.approvals', ['request' => $requisition->id]) : null,
                 );
             } catch (\Throwable $exception) {
                 $queued = false;

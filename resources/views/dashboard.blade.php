@@ -181,7 +181,7 @@
 
                 <aside class="dashboard-panel activity-panel">
                     <div class="panel-heading compact">
-                        <div><span class="panel-eyebrow">Live updates</span><h3>Alerts and activity</h3></div>
+                        <div><h3>Alerts and activity</h3></div>
                         <a href="{{ route('notifications') }}" class="icon-link" aria-label="View all notifications"><i data-lucide="arrow-up-right"></i></a>
                     </div>
                     <div class="activity-list">

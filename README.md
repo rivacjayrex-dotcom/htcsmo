@@ -178,20 +178,28 @@ Adjust the database username and password for your local environment.
 
 ### 5. Configure email
 
-The default `.env.example` writes email to the application log. To deliver email through an SMTP provider, replace the mail values in `.env`, for example:
+Use Brevo's free transactional email service. Render free hosting blocks standard SMTP ports, so the default `.env.example` uses Brevo's HTTPS API through Laravel Mail:
 
 ```dotenv
-MAIL_MAILER=smtp
-MAIL_SCHEME=null
-MAIL_HOST=your-smtp-host
-MAIL_PORT=587
-MAIL_USERNAME=your-smtp-username
-MAIL_PASSWORD=your-smtp-password
-MAIL_FROM_ADDRESS="smo-notifications@online.htcgsc.edu.ph"
+MAIL_MAILER=brevo
+BREVO_API_KEY=your-private-brevo-api-key
+MAIL_FROM_ADDRESS="your-verified-sender@your-domain.com"
 MAIL_FROM_NAME="${APP_NAME}"
+QUEUE_CONNECTION=database
 ```
 
-Do not commit real SMTP credentials to the repository.
+Add these values to Render's Environment settings and redeploy; changing your local `.env` does not change Render. Verify the sender in Brevo first. Use an API key, not an SMTP key, for `BREVO_API_KEY`. Do not commit credentials. See the [Brevo setup and panel demonstration guide](docs/BREVO_EMAIL_SETUP.md) for account setup, optional SMTP settings, delivery tests, and troubleshooting.
+
+After changing local configuration:
+
+```bash
+php artisan config:clear
+php artisan queue:restart
+php artisan mail:test --check
+php artisan mail:test your-real-inbox@example.com
+```
+
+Password-reset emails send immediately. Requisition emails use the `mail` queue; run `php artisan queue:work --queue=mail,default --tries=3 --timeout=30` locally (or `powershell -File tools/start-mail-worker.ps1`). The Render Docker entrypoint already starts this worker.
 
 ### 6. Create the database tables and seed reference data
 
