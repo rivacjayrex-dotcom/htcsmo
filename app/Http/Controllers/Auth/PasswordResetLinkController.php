@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\MailFailure;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -42,9 +43,7 @@ class PasswordResetLinkController extends Controller
                 Password::deleteToken($user);
             }
 
-            Log::error('Password reset email could not be sent.', [
-                'mailer' => config('mail.default'), 'exception_type' => $exception::class,
-            ]);
+            Log::error('Password reset email could not be sent.', MailFailure::context($exception));
 
             return back()->withInput($request->only('email'))->withErrors([
                 'email' => 'Password reset email is temporarily unavailable. Please try again later or contact the SMO.',

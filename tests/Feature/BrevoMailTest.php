@@ -5,12 +5,16 @@ namespace Tests\Feature;
 use App\Jobs\SendRequisitionEmail;
 use App\Models\Requisition;
 use App\Models\User;
+use App\Support\MailFailure;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Password;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
+use Symfony\Component\Mailer\Exception\HttpTransportException;
 use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Tests\TestCase;
@@ -113,6 +117,7 @@ class BrevoMailTest extends TestCase
             $job->handle();
             $this->fail('Provider rejection must fail the queued job so it can retry.');
         } catch (TransportExceptionInterface $exception) {
+            $this->assertInstanceOf(HttpTransportException::class, $exception, $exception->getMessage());
             $this->assertDatabaseCount('email_logs', 0);
             $job->failed($exception);
             $this->assertDatabaseHas('email_logs', ['user_id' => $owner->id, 'status' => 'failed']);
@@ -135,5 +140,63 @@ class BrevoMailTest extends TestCase
         $this->artisan('mail:test panelist@example.test')->assertSuccessful();
         $this->assertCount(1, $this->requests);
         $this->assertSame('panelist@example.test', $this->requests[0]['to'][0]['email']);
+    }
+
+    public static function providerFailures(): array
+    {
+        return [
+            [401, 'unauthorized', 'Key not found', 'api_authentication_failed'],
+            [403, 'permission_denied', 'Access denied for resource transactional email', 'api_access_denied'],
+            [401, 'unauthorized', 'We have detected you are using an unrecognised IP address', 'ip_authorization_required'],
+            [400, 'invalid_parameter', 'Sender is not valid', 'sender_configuration_rejected'],
+            [400, 'account_under_validation', 'Account is pending validation', 'account_under_validation'],
+            [402, 'not_enough_credits', 'Not enough credits', 'credits_or_activation_required'],
+            [429, 'unknown', 'Rate limit exceeded', 'provider_rate_limited'],
+        ];
+    }
+
+    #[DataProvider('providerFailures')]
+    public function test_password_reset_logs_safe_provider_diagnostics(int $status, string $code, string $message, string $reason): void
+    {
+        $this->configureBrevo($status, ['code' => $code, 'message' => $message.' test-private-api-key private-reset-token']);
+        Log::spy();
+        $user = User::factory()->create();
+
+        $this->post('/forgot-password', ['email' => $user->email])->assertSessionHasErrors('email');
+
+        Log::shouldHaveReceived('error')->once()->with('Password reset email could not be sent.', \Mockery::on(function ($context) use ($status, $reason, $user) {
+            $serialized = json_encode($context);
+            $this->assertStringNotContainsString('test-private-api-key', $serialized);
+            $this->assertStringNotContainsString('private-reset-token', $serialized);
+            $this->assertStringNotContainsString($user->email, $serialized);
+
+            $this->assertSame($reason, $context['reason']);
+            $this->assertSame($status, $context['http_status'] ?? null);
+
+            return true;
+        }));
+    }
+
+    public function test_missing_key_is_distinguished_from_a_provider_rejection(): void
+    {
+        $this->configureBrevo();
+        config(['mail.mailers.brevo.key' => '']);
+        $context = MailFailure::context(new \InvalidArgumentException('private configuration'));
+        $this->assertSame('missing_brevo_api_key', $context['reason']);
+        $this->assertArrayNotHasKey('http_status', $context);
+    }
+
+    public function test_reset_notification_failure_is_diagnosed_after_laravel_flattens_the_exception(): void
+    {
+        $this->configureBrevo(401, ['code' => 'unauthorized', 'message' => 'Invalid API key']);
+        $user = User::factory()->create();
+        try {
+            $user->sendPasswordResetNotification('test-private-token');
+            $this->fail('The provider should reject this request.');
+        } catch (TransportExceptionInterface $exception) {
+            $context = MailFailure::context($exception);
+            $this->assertSame('api_authentication_failed', $context['reason']);
+            $this->assertSame(401, $context['http_status']);
+        }
     }
 }

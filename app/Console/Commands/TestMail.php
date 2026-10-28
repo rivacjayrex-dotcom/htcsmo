@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Support\MailFailure;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -59,7 +60,9 @@ class TestMail extends Command
             Mail::raw('This is a delivery test from the HTC Supply Management Office. Application: '.config('app.url'),
                 fn ($message) => $message->to($recipient)->subject('HTC SMO Email Delivery Test'));
         } catch (Throwable $exception) {
-            Log::error('Mail delivery test failed.', ['mailer' => $mailer, 'exception_type' => $exception::class]);
+            $context = MailFailure::context($exception);
+            Log::error('Mail delivery test failed.', $context);
+            $this->error('Mail failure reason: '.$context['reason'].(isset($context['http_status']) ? ' (HTTP '.$context['http_status'].')' : ''));
             $this->error('Email could not be sent. Check the key, verified sender, Brevo transactional access, daily quota, and network connection.');
 
             return self::FAILURE;
