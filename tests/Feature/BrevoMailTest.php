@@ -2,7 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\SendAccountApprovedEmail;
 use App\Jobs\SendRequisitionEmail;
+use App\Mail\AccountApprovedMail;
 use App\Models\Requisition;
 use App\Models\User;
 use App\Support\MailFailure;
@@ -103,6 +105,20 @@ class BrevoMailTest extends TestCase
         $this->assertStringContainsString($requisition->tracking_code, $this->requests[0]['subject']);
         $this->assertStringContainsString(route('requests.show', $requisition->id), $this->requests[0]['htmlContent']);
         $this->assertDatabaseHas('email_logs', ['user_id' => $owner->id, 'status' => 'sent']);
+    }
+
+    public function test_account_approval_email_uses_brevo_and_contains_the_sign_in_link(): void
+    {
+        $this->configureBrevo();
+        $user = User::factory()->create();
+        (new SendAccountApprovedEmail($user->id))->handle();
+
+        $this->assertCount(1, $this->requests);
+        $this->assertSame($user->email, $this->requests[0]['to'][0]['email']);
+        $this->assertSame(AccountApprovedMail::SUBJECT, $this->requests[0]['subject']);
+        $this->assertStringContainsString(route('login'), $this->requests[0]['htmlContent']);
+        $this->assertStringContainsString(route('password.request'), $this->requests[0]['htmlContent']);
+        $this->assertDatabaseHas('email_logs', ['user_id' => $user->id, 'status' => 'sent']);
     }
 
     public function test_brevo_rejection_does_not_record_a_successful_requisition_email(): void

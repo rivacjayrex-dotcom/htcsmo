@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Jobs\SendAccountApprovedEmail;
 use App\Models\Department;
 use App\Models\User;
 use App\Models\UserActivityLog;
 use App\Services\NotificationService;
+use App\Support\MailFailure;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -16,6 +18,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Throwable;
 
 class ProfileController extends Controller
 {
@@ -40,7 +43,7 @@ class ProfileController extends Controller
             if ($request->hasFile('profile_photo')) {
                 try {
                     $newPhoto = $request->file('profile_photo')->store('profile-photos', 'public');
-                } catch (\Throwable $exception) {
+                } catch (Throwable $exception) {
                     Log::warning('Profile photo upload failed.', ['exception' => $exception->getMessage()]);
                     throw ValidationException::withMessages(['profile_photo' => 'The photo could not be uploaded. Please try again.']);
                 }
@@ -62,7 +65,7 @@ class ProfileController extends Controller
                     $this->recordAccountAudit($user, $request, 'Updated own profile: '.implode(', ', $changed));
                 }
             });
-        } catch (\Throwable $exception) {
+        } catch (Throwable $exception) {
             if ($newPhoto) {
                 $this->deleteProfilePhoto($newPhoto);
             }
@@ -86,7 +89,7 @@ class ProfileController extends Controller
             if (! Storage::disk('public')->delete($path)) {
                 Log::warning('Could not remove an unused profile photo.');
             }
-        } catch (\Throwable $exception) {
+        } catch (Throwable $exception) {
             Log::warning('Could not remove an unused profile photo.', ['exception' => $exception->getMessage()]);
         }
     }
@@ -149,13 +152,35 @@ class ProfileController extends Controller
             return $user;
         }, 3);
 
-        $notifications->send($user, 'account.activated', 'Account Activated',
-            'Your account has been verified as employee. You now have system access.', [
-                'icon' => 'shield-check', 'type' => 'success', 'action_type' => 'profile',
-                'action_id' => $user->id, 'dedupe_key' => "account:{$user->id}:activated",
-            ]);
+        $notificationFailed = false;
+        foreach ([
+            'in_app' => fn () => $notifications->send($user, 'account.activated', 'Account Approved',
+                'The SMO has approved your account. You can now submit requisitions and track your requests.', [
+                    'icon' => 'shield-check', 'type' => 'success', 'action_type' => 'profile',
+                    'action_id' => $user->id, 'dedupe_key' => "account:{$user->id}:activated",
+                ]),
+            'email' => function () use ($user): void {
+                SendAccountApprovedEmail::dispatch($user->id);
+            },
+        ] as $channel => $send) {
+            try {
+                $result = $send();
+                if ($channel === 'in_app' && $result === null) {
+                    $notificationFailed = true;
+                }
+            } catch (Throwable $exception) {
+                $notificationFailed = true;
+                Log::error('Account approved but notification failed.', [
+                    'user_id' => $user->id, 'channel' => $channel, ...MailFailure::context($exception),
+                ]);
+            }
+        }
 
-        return back()->with('success', "Access granted to {$user->name} as Faculty / Staff.");
+        $message = "Access granted to {$user->name} as Faculty / Staff.";
+
+        return back()->with('success', $notificationFailed
+            ? $message.' Some approval notifications could not be created. Please contact the SMO administrator.'
+            : $message);
     }
 
     public function manageUsers(Request $request)

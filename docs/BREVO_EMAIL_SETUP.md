@@ -67,16 +67,16 @@ Alternatively, `powershell -File tools/start-mail-worker.ps1` starts the local m
 
 Use real inbox addresses on the demonstration accounts; seeded/example addresses will not receive mail. Each recipient consumes an email send, so avoid creating many active approvers/SMO accounts just for the demonstration.
 
-| Action | Email recipients |
-| --- | --- |
-| Forgot password | The registered account's email address |
-| New requisition | Requestor, active SMO users, and the assigned active initial reviewer(s), with duplicate users removed |
-| Approval/endorsement | Requestor and the active next reviewer(s); final approval alerts SMO |
-| Rejection | Requestor, with the rejection reason |
-| Office clarification | Requestor, with the consultation instructions and remarks |
-| SMO processing started | Requestor |
-| Ready for pickup | Requestor |
-| Completed/released | Requestor |
+| Action                 | Email recipients                                                                                       |
+| ---------------------- | ------------------------------------------------------------------------------------------------------ |
+| Forgot password        | The registered account's email address                                                                 |
+| New requisition        | Requestor, active SMO users, and the assigned active initial reviewer(s), with duplicate users removed |
+| Approval/endorsement   | Requestor and the active next reviewer(s); final approval alerts SMO                                   |
+| Rejection              | Requestor, with the rejection reason                                                                   |
+| Office clarification   | Requestor, with the consultation instructions and remarks                                              |
+| SMO processing started | Requestor                                                                                              |
+| Ready for pickup       | Requestor                                                                                              |
+| Completed/released     | Requestor                                                                                              |
 
 1. Open **Forgot password**, enter a real registered email, and open the received reset link. Set a new password and sign in. Reset links expire after 60 minutes and cannot be reused after success. Unknown addresses receive the same generic confirmation without an email.
 2. Submit a requisition. Show the requestor confirmation, SMO email, and assigned reviewer email.
