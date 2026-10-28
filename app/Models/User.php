@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
@@ -23,7 +24,7 @@ class User extends Authenticatable
     public const ROLES = ['employee', 'dept_head', 'vp_finance', 'vp_admin', 'provost', 'president', 'smo'];
 
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -96,6 +97,14 @@ class User extends Authenticatable
 
     protected static function booted(): void
     {
+        static::updated(function (User $user) {
+            if ($user->wasChanged(['password', 'account_status', 'role', 'department_id'])) {
+                $user->tokens()->delete();
+            }
+        });
+
+        static::deleted(fn (User $user) => $user->tokens()->delete());
+
         static::saving(function (User $user) {
             $user->account_version ??= 0;
 

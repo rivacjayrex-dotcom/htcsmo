@@ -118,6 +118,8 @@ For Windows development, XAMPP can provide Apache, PHP, and MariaDB. Make sure t
 
 ## Installation
 
+The system also provides a versioned REST API for token login, supplies, and requisitions. See the [REST API guide](docs/REST_API.md) for setup, permissions, request examples, and the importable OpenAPI specification.
+
 ### 1. Clone the repository
 
 ```bash

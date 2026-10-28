@@ -19,3 +19,5 @@ Schedule::command('notifications:prune --days=365')
     ->timezone(config('app.timezone'))
     ->withoutOverlapping()
     ->onOneServer();
+
+Schedule::command('sanctum:prune-expired --hours=24')->daily()->withoutOverlapping()->onOneServer();

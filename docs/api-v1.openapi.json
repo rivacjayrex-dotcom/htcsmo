@@ -1,0 +1,1579 @@
+{
+    "openapi": "3.0.3",
+    "info": {
+        "title": "HTC Supply Management System API",
+        "version": "1.0.0",
+        "description": "Bearer-token API for active system accounts. SMO may read all requisitions; other users may read their own. Limits: 60 authenticated requests/minute/user, 10 submissions/minute/user, and login limits of 5/minute/login and 20/minute/IP. Tokens expire after 24 hours by default. Monetary values are PHP decimal strings. See REST_API.md for workflow details."
+    },
+    "servers": [
+        {
+            "url": "http://127.0.0.1:8000/api/v1",
+            "description": "Local Artisan server; change for your deployment."
+        }
+    ],
+    "security": [
+        {
+            "BearerAuth": []
+        }
+    ],
+    "tags": [
+        {
+            "name": "Authentication"
+        },
+        {
+            "name": "Supplies"
+        },
+        {
+            "name": "Requisitions"
+        }
+    ],
+    "paths": {
+        "/auth/tokens": {
+            "post": {
+                "summary": "Sign in and issue a token",
+                "tags": [
+                    "Authentication"
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TokenResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Request failed; validation errors include field-keyed errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Request failed; validation errors include field-keyed errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Request failed; validation errors include field-keyed errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Request failed; validation errors include field-keyed errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Request failed; validation errors include field-keyed errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds until retry.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TokenRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/token": {
+            "delete": {
+                "summary": "Revoke the current token",
+                "tags": [
+                    "Authentication"
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Token revoked; empty body."
+                    },
+                    "401": {
+                        "description": "Request failed; validation errors include field-keyed errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Request failed; validation errors include field-keyed errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Request failed; validation errors include field-keyed errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Request failed; validation errors include field-keyed errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Request failed; validation errors include field-keyed errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds until retry.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/me": {
+            "get": {
+                "summary": "Read your profile",
+                "tags": [
+                    "Authentication"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/User"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Request failed; validation errors include field-keyed errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Request failed; validation errors include field-keyed errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Request failed; validation errors include field-keyed errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Request failed; validation errors include field-keyed errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Request failed; validation errors include field-keyed errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds until retry.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/supplies": {
+            "get": {
+                "summary": "List catalog supplies",
+                "tags": [
+                    "Supplies"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Supply"
+                                            }
+                                        },
+                                        "links": {
+                                            "type": "object",
+                                            "properties": {
+                                                "first": {
+                                                    "type": "string",
+                                                    "nullable": true
+                                                },
+                                                "last": {
+                                                    "type": "string",
+                                                    "nullable": true
+                                                },
+                                                "prev": {
+                                                    "type": "string",
+                                                    "nullable": true
+                                                },
+                                                "next": {
+                                                    "type": "string",
+                                                    "nullable": true
+                                                }
+                                            }
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "properties": {
+                                                "current_page": {
+                                                    "type": "integer"
+                                                },
+                                                "last_page": {
+                                                    "type": "integer"
+                                                },
+                                                "per_page": {
+                                                    "type": "integer"
+                                                },
+                                                "total": {
+                                                    "type": "integer"
+                                                },
+                                                "from": {
+                                                    "type": "integer",
+                                                    "nullable": true
+                                                },
+                                                "to": {
+                                                    "type": "integer",
+                                                    "nullable": true
+                                                }
+                                            },
+                                            "required": [
+                                                "current_page",
+                                                "last_page",
+                                                "per_page",
+                                                "total"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "links",
+                                        "meta"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Request failed; validation errors include field-keyed errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Request failed; validation errors include field-keyed errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Request failed; validation errors include field-keyed errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Request failed; validation errors include field-keyed errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Request failed; validation errors include field-keyed errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds until retry.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 1000000,
+                            "default": 1
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 100,
+                            "default": 20
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "",
+                        "schema": {
+                            "type": "string",
+                            "maxLength": 100
+                        }
+                    },
+                    {
+                        "name": "requisition_tier",
+                        "in": "query",
+                        "description": "",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "minor",
+                                "major"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "in_stock",
+                        "in": "query",
+                        "description": "",
+                        "schema": {
+                            "type": "integer",
+                            "enum": [
+                                0,
+                                1
+                            ],
+                            "default": 0
+                        }
+                    }
+                ]
+            }
+        },
+        "/supplies/{supply}": {
+            "parameters": [
+                {
+                    "name": "supply",
+                    "in": "path",
+                    "required": true,
+                    "schema": {
+                        "type": "integer",
+                        "minimum": 1
+                    }
+                }
+            ],
+            "get": {
+                "summary": "Read one supply",
+                "tags": [
+                    "Supplies"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/Supply"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Request failed; validation errors include field-keyed errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Request failed; validation errors include field-keyed errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Request failed; validation errors include field-keyed errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Request failed; validation errors include field-keyed errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Request failed; validation errors include field-keyed errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds until retry.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "summary": "Update stock, price, or threshold (SMO only)",
+                "tags": [
+                    "Supplies"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/Supply"
+                                        },
+                                        "notification_warning": {
+                                            "type": "string",
+                                            "nullable": true
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "notification_warning"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Request failed; validation errors include field-keyed errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Request failed; validation errors include field-keyed errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Request failed; validation errors include field-keyed errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Request failed; validation errors include field-keyed errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Request failed; validation errors include field-keyed errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds until retry.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    }
+                },
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SupplyUpdate"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/requisitions": {
+            "get": {
+                "summary": "List permitted requisitions",
+                "tags": [
+                    "Requisitions"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Requisition"
+                                            }
+                                        },
+                                        "links": {
+                                            "type": "object",
+                                            "properties": {
+                                                "first": {
+                                                    "type": "string",
+                                                    "nullable": true
+                                                },
+                                                "last": {
+                                                    "type": "string",
+                                                    "nullable": true
+                                                },
+                                                "prev": {
+                                                    "type": "string",
+                                                    "nullable": true
+                                                },
+                                                "next": {
+                                                    "type": "string",
+                                                    "nullable": true
+                                                }
+                                            }
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "properties": {
+                                                "current_page": {
+                                                    "type": "integer"
+                                                },
+                                                "last_page": {
+                                                    "type": "integer"
+                                                },
+                                                "per_page": {
+                                                    "type": "integer"
+                                                },
+                                                "total": {
+                                                    "type": "integer"
+                                                },
+                                                "from": {
+                                                    "type": "integer",
+                                                    "nullable": true
+                                                },
+                                                "to": {
+                                                    "type": "integer",
+                                                    "nullable": true
+                                                }
+                                            },
+                                            "required": [
+                                                "current_page",
+                                                "last_page",
+                                                "per_page",
+                                                "total"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "links",
+                                        "meta"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Request failed; validation errors include field-keyed errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Request failed; validation errors include field-keyed errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Request failed; validation errors include field-keyed errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Request failed; validation errors include field-keyed errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Request failed; validation errors include field-keyed errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds until retry.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 1000000,
+                            "default": 1
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 100,
+                            "default": 20
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "",
+                        "schema": {
+                            "type": "string",
+                            "maxLength": 100
+                        }
+                    },
+                    {
+                        "name": "request_type",
+                        "in": "query",
+                        "description": "",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "minor",
+                                "major"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "pending",
+                                "approved_dept",
+                                "approved_vp",
+                                "approved_provost",
+                                "approved_president",
+                                "processing",
+                                "ready_for_pickup",
+                                "for_clarification",
+                                "completed",
+                                "released",
+                                "rejected",
+                                "withdrawn"
+                            ]
+                        }
+                    }
+                ]
+            },
+            "post": {
+                "summary": "Submit a requisition",
+                "tags": [
+                    "Requisitions"
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/Requisition"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "notification_warning": {
+                                            "type": "string",
+                                            "nullable": true
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "message",
+                                        "notification_warning"
+                                    ]
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Location": {
+                                "description": "URL of the created requisition.",
+                                "schema": {
+                                    "type": "string",
+                                    "format": "uri"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Request failed; validation errors include field-keyed errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Request failed; validation errors include field-keyed errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Request failed; validation errors include field-keyed errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Request failed; validation errors include field-keyed errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Request failed; validation errors include field-keyed errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds until retry.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    }
+                },
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RequisitionRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/requisitions/{id}": {
+            "parameters": [
+                {
+                    "name": "id",
+                    "in": "path",
+                    "required": true,
+                    "schema": {
+                        "type": "integer",
+                        "minimum": 1
+                    }
+                }
+            ],
+            "get": {
+                "summary": "Read requisition items and approval history",
+                "tags": [
+                    "Requisitions"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/Requisition"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Request failed; validation errors include field-keyed errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Request failed; validation errors include field-keyed errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Request failed; validation errors include field-keyed errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Request failed; validation errors include field-keyed errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Request failed; validation errors include field-keyed errors.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds until retry.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "securitySchemes": {
+            "BearerAuth": {
+                "type": "http",
+                "scheme": "bearer"
+            }
+        },
+        "schemas": {
+            "Error": {
+                "type": "object",
+                "properties": {
+                    "message": {
+                        "type": "string"
+                    },
+                    "errors": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
+                "required": [
+                    "message"
+                ]
+            },
+            "User": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "username": {
+                        "type": "string"
+                    },
+                    "role": {
+                        "type": "string",
+                        "enum": [
+                            "employee",
+                            "dept_head",
+                            "vp_finance",
+                            "vp_admin",
+                            "provost",
+                            "president",
+                            "smo"
+                        ]
+                    },
+                    "department_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "department": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "id",
+                    "name",
+                    "role"
+                ]
+            },
+            "TokenRequest": {
+                "type": "object",
+                "properties": {
+                    "login": {
+                        "type": "string",
+                        "maxLength": 255,
+                        "description": "Existing username or school ID."
+                    },
+                    "password": {
+                        "type": "string",
+                        "format": "password",
+                        "maxLength": 255
+                    },
+                    "device_name": {
+                        "type": "string",
+                        "maxLength": 100
+                    }
+                },
+                "required": [
+                    "login",
+                    "password",
+                    "device_name"
+                ]
+            },
+            "TokenResponse": {
+                "type": "object",
+                "properties": {
+                    "token_type": {
+                        "type": "string",
+                        "enum": [
+                            "Bearer"
+                        ]
+                    },
+                    "access_token": {
+                        "type": "string"
+                    },
+                    "expires_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "abilities": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "user": {
+                        "$ref": "#/components/schemas/User"
+                    }
+                },
+                "required": [
+                    "token_type",
+                    "access_token",
+                    "expires_at",
+                    "abilities",
+                    "user"
+                ]
+            },
+            "Supply": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "item_name": {
+                        "type": "string"
+                    },
+                    "brand": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "category": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "requisition_tier": {
+                        "type": "string",
+                        "enum": [
+                            "minor",
+                            "major"
+                        ]
+                    },
+                    "specifications": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "model_number": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "unit": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "unit_price": {
+                        "type": "string",
+                        "pattern": "^\\d+\\.\\d{2}$",
+                        "example": "100.00"
+                    },
+                    "quantity": {
+                        "type": "integer"
+                    },
+                    "min_stock_level": {
+                        "type": "integer"
+                    },
+                    "options": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "example": {
+                            "Size": [
+                                "A4",
+                                "Legal"
+                            ]
+                        }
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "id",
+                    "item_name",
+                    "requisition_tier",
+                    "unit_price",
+                    "quantity",
+                    "options"
+                ]
+            },
+            "SupplyUpdate": {
+                "type": "object",
+                "properties": {
+                    "quantity": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 2147483647
+                    },
+                    "unit_price": {
+                        "description": "0.01 to 99999999.99; up to two decimal places.",
+                        "oneOf": [
+                            {
+                                "type": "number",
+                                "minimum": 0.01,
+                                "maximum": 99999999.99
+                            },
+                            {
+                                "type": "string",
+                                "pattern": "^\\d+(\\.\\d{1,2})?$"
+                            }
+                        ]
+                    },
+                    "min_stock_level": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 2147483647
+                    }
+                },
+                "minProperties": 1
+            },
+            "RequisitionItemRequest": {
+                "type": "object",
+                "properties": {
+                    "supply_id": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "qty": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "options": {
+                        "type": "object",
+                        "maxProperties": 5,
+                        "additionalProperties": {
+                            "type": "string",
+                            "maxLength": 100
+                        },
+                        "example": {
+                            "Size": "A4"
+                        }
+                    }
+                },
+                "required": [
+                    "supply_id",
+                    "qty"
+                ]
+            },
+            "RequisitionRequest": {
+                "type": "object",
+                "properties": {
+                    "request_type": {
+                        "type": "string",
+                        "enum": [
+                            "minor",
+                            "major"
+                        ]
+                    },
+                    "purpose": {
+                        "type": "string",
+                        "minLength": 10,
+                        "maxLength": 500
+                    },
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/RequisitionItemRequest"
+                        },
+                        "minItems": 1,
+                        "maxItems": 100
+                    }
+                },
+                "required": [
+                    "request_type",
+                    "purpose",
+                    "items"
+                ]
+            },
+            "RequisitionItem": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "supply_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "item_name": {
+                        "type": "string"
+                    },
+                    "specifications": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "quantity": {
+                        "type": "integer"
+                    },
+                    "unit": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "unit_price": {
+                        "type": "string",
+                        "pattern": "^\\d+\\.\\d{2}$",
+                        "example": "100.00"
+                    },
+                    "subtotal": {
+                        "type": "string",
+                        "pattern": "^\\d+\\.\\d{2}$",
+                        "example": "100.00"
+                    }
+                },
+                "required": [
+                    "id",
+                    "item_name",
+                    "quantity",
+                    "unit_price",
+                    "subtotal"
+                ]
+            },
+            "HistoryEntry": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "action": {
+                        "type": "string"
+                    },
+                    "role": {
+                        "type": "string"
+                    },
+                    "actor_name": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "remarks": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "id",
+                    "action",
+                    "role"
+                ]
+            },
+            "Requisition": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "tracking_number": {
+                        "type": "string"
+                    },
+                    "requestor": {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": "integer"
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "department": {
+                                "type": "string",
+                                "nullable": true
+                            }
+                        }
+                    },
+                    "request_type": {
+                        "type": "string",
+                        "enum": [
+                            "minor",
+                            "major"
+                        ]
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "pending",
+                            "approved_dept",
+                            "approved_vp",
+                            "approved_provost",
+                            "approved_president",
+                            "processing",
+                            "ready_for_pickup",
+                            "for_clarification",
+                            "completed",
+                            "released",
+                            "rejected",
+                            "withdrawn"
+                        ]
+                    },
+                    "status_label": {
+                        "type": "string"
+                    },
+                    "next_step": {
+                        "type": "string"
+                    },
+                    "next_reviewer_role": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "purpose": {
+                        "type": "string"
+                    },
+                    "remarks": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "grand_total": {
+                        "type": "string",
+                        "pattern": "^\\d+\\.\\d{2}$",
+                        "example": "100.00"
+                    },
+                    "submitted_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "due_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "closed_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/RequisitionItem"
+                        },
+                        "description": "Included in detail and creation responses."
+                    },
+                    "history": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/HistoryEntry"
+                        },
+                        "description": "Included in detail and creation responses."
+                    }
+                },
+                "required": [
+                    "id",
+                    "tracking_number",
+                    "request_type",
+                    "status",
+                    "grand_total"
+                ]
+            }
+        }
+    }
+}

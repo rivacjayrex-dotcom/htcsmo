@@ -45,6 +45,19 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('runtime-polling', fn (Request $request) => Limit::perMinute(120)
             ->by((string) ($request->user()?->id ?? $request->ip())));
 
+        RateLimiter::for('api-login', function (Request $request) {
+            $login = $request->input('login');
+
+            return [
+                Limit::perMinute(20)->by('ip:'.$request->ip()),
+                Limit::perMinute(5)->by('login:'.hash('sha256', is_string($login) ? mb_strtolower(trim($login)) : '')),
+            ];
+        });
+        RateLimiter::for('api-v1', fn (Request $request) => Limit::perMinute(60)
+            ->by((string) ($request->user()?->id ?? $request->ip())));
+        RateLimiter::for('api-submissions', fn (Request $request) => Limit::perMinute(10)
+            ->by((string) $request->user()->id));
+
         foreach ([
             Requisition::class, RequisitionItem::class,
             ApprovalLog::class, Supply::class,
