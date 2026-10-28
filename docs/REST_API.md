@@ -137,8 +137,6 @@ php artisan test --compact tests/Feature/Api/V1
 
 The feature tests use real bearer tokens against the HTTP routes and an isolated in-memory SQLite database. They cover login, token hashing/expiry/revocation, account and role restrictions, pagination, catalog integrity, submission totals/routing, notifications, inventory audit records, and rate limits.
 
-Implementation verification: all 26 API tests passed. The full suite ran 332 tests with 325 passing and seven UI text assertion failures. A separate checkout of the original source reproduced exactly those seven failures across the affected UI test classes (29 tests checked), confirming that they predate the API change. PHP formatting, Composer metadata, and all OpenAPI schema references were checked.
-
-Composer's production dependency audit reported advisories affecting 12 existing packages, including the framework and PDF dependencies. It reported none for the newly added Sanctum package. Those existing dependency upgrades require separate compatibility testing.
+Verification after maintenance on October 29, 2026: all 367 PHP tests passed, including the 26 API tests, along with 141 frontend tests and the production Vite build. The earlier UI failures were corrected by restoring request guidance and navigation, disclosing the dashboard preview limit, and updating assertions for the current interface. Both Composer and npm report zero known security advisories for the updated lockfiles. See [maintenance verification](MAINTENANCE_VERIFICATION.md) for details and deployment status.
 
 Authentication follows the [Laravel 12 Sanctum documentation](https://laravel.com/docs/12.x/sanctum).

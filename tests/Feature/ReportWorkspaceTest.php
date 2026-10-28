@@ -22,7 +22,8 @@ class ReportWorkspaceTest extends TestCase
             ->get(route('admin.reports.index'))
             ->assertOk()
             ->assertSee('Operational Analytics')
-            ->assertSee('Open Report Center')
+            ->assertSee('Report Center')
+            ->assertSee('href="'.route('admin.reports.builder').'"', false)
             ->assertDontSee('Comprehensive Report Center');
     }
 

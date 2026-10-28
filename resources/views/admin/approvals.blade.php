@@ -212,7 +212,6 @@
 
                         <section class="mb-4" aria-labelledby="recordedHistoryTitle">
                             <h6 id="recordedHistoryTitle" class="fw-bold">Recorded workflow history</h6>
-                            <p class="small text-muted">The route starts after the requestor's own approval office. The entries below show recorded actions and remarks.</p>
                             <p class="small">Submitted: <span x-text="formatTimestamp(selectedReq.submitted_at || selectedReq.created_at)"></span> · Current status: <strong x-text="selectedReq.queue_status"></strong></p>
                             <ol class="small ps-3">
                                 <template x-for="log in sortedLogs()" :key="log.id">

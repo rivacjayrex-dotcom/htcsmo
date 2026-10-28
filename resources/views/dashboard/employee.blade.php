@@ -1,8 +1,8 @@
 <div class="personal-workspace">
     <section class="personal-summary" aria-label="My current request totals">
-        <a href="{{ route('requests.index') }}"><div class="personal-summary-top"><span class="personal-summary-icon"><i data-lucide="layers-3" aria-hidden="true"></i></span><span>Current total</span><i data-lucide="arrow-up-right" aria-hidden="true"></i></div><strong x-data="countUp({{ $activeCount }})" x-text="current">{{ $activeCount }}</strong><h3>My active requisitions</h3><p>Follow every request in progress.</p></a>
-        <a href="{{ route('requests.index', ['status' => 'for_clarification']) }}" class="personal-summary-clarification"><div class="personal-summary-top"><span class="personal-summary-icon"><i data-lucide="message-circle-question" aria-hidden="true"></i></span><span>Needs your response</span><i data-lucide="arrow-up-right" aria-hidden="true"></i></div><strong>{{ $personalCounts->clarification }}</strong><h3>Needs clarification</h3><p>Review the remarks and next steps.</p></a>
-        <a href="{{ route('requests.index', ['status' => 'ready_for_pickup']) }}" class="personal-summary-pickup"><div class="personal-summary-top"><span class="personal-summary-icon"><i data-lucide="package-check" aria-hidden="true"></i></span><span>Pickup status</span><i data-lucide="arrow-up-right" aria-hidden="true"></i></div><strong>{{ $personalCounts->pickup }}</strong><h3>Ready for pickup</h3><p>View requests marked ready by SMO.</p></a>
+        <a href="{{ route('requests.index') }}"><div class="personal-summary-top"><span class="personal-summary-icon"><i data-lucide="layers-3" aria-hidden="true"></i></span><span>Current total</span><i data-lucide="arrow-up-right" aria-hidden="true"></i></div><strong x-data="countUp({{ $activeCount }})" x-text="current">{{ $activeCount }}</strong><h3>My active requisitions</h3></a>
+        <a href="{{ route('requests.index', ['status' => 'for_clarification']) }}" class="personal-summary-clarification"><div class="personal-summary-top"><span class="personal-summary-icon"><i data-lucide="message-circle-question" aria-hidden="true"></i></span><span>Needs your response</span><i data-lucide="arrow-up-right" aria-hidden="true"></i></div><strong>{{ $personalCounts->clarification }}</strong><h3>Needs clarification</h3></a>
+        <a href="{{ route('requests.index', ['status' => 'ready_for_pickup']) }}" class="personal-summary-pickup"><div class="personal-summary-top"><span class="personal-summary-icon"><i data-lucide="package-check" aria-hidden="true"></i></span><span>Pickup status</span><i data-lucide="arrow-up-right" aria-hidden="true"></i></div><strong>{{ $personalCounts->pickup }}</strong><h3>Ready for pickup</h3></a>
     </section>
 
     <div class="personal-columns">
@@ -31,7 +31,7 @@
     </aside>
     <div class="personal-main-stack">
     <section class="personal-panel personal-attention-panel" aria-labelledby="personalActionHeading">
-        <header><div><h2 id="personalActionHeading">Needs your attention <span>{{ $actionCount }}</span></h2><p>A quick look at requests waiting on you.</p></div><a href="{{ route('requests.index', ['status' => 'action_required']) }}">View action requests <i data-lucide="arrow-up-right" aria-hidden="true"></i></a></header>
+        <header><div><h2 id="personalActionHeading">Needs your attention <span>{{ $actionCount }}</span></h2></div><a href="{{ route('requests.index', ['status' => 'action_required']) }}">View action requests <i data-lucide="arrow-up-right" aria-hidden="true"></i></a></header>
         <div class="personal-action-grid">
             @forelse($actionRequests as $requisition)
                 @php($stage = $requisition->requestorStatus())
@@ -54,7 +54,7 @@
     </section>
 
         <section class="personal-panel" aria-labelledby="personalRequestsHeading">
-            <header><div><h2 id="personalRequestsHeading">My procurement activity</h2></div><a href="{{ route('requests.index') }}">View all requests <i data-lucide="arrow-up-right" aria-hidden="true"></i></a></header>
+            <header><div><h2 id="personalRequestsHeading">My procurement activity</h2><p>Showing {{ $recentRequests->count() }} of {{ $activeCount }} active requests.</p></div><a href="{{ route('requests.index') }}">View all requests <i data-lucide="arrow-up-right" aria-hidden="true"></i></a></header>
             <div class="employee-table-wrap">
             <table class="table employee-request-table" aria-labelledby="personalRequestsHeading">
                 <caption class="visually-hidden">Your active requisitions, current status, submission date, requested value, and available actions.</caption>
@@ -83,6 +83,7 @@
                 </tbody>
             </table>
             </div>
+            <p class="small text-muted px-4 pb-3 mb-0">The SLA is a three-working-day processing target, not a guaranteed pickup date. Weekends and institutional holidays are excluded.</p>
         </section>
     </div>
     </div>

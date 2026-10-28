@@ -128,7 +128,8 @@ class DynamicSearchWorkspaceTest extends TestCase
         $response->assertOk()->assertViewHas('catalogSupplies', fn ($items) => $items->pluck('item_name')->all() === ['Matching paper'])
             ->assertViewHas('supplies', fn ($items) => $items->count() === 3)->assertSee('data-result-count="1"', false);
         $this->get(route('inventory.index', ['search' => 'missing']))->assertOk()
-            ->assertViewHas('catalogSupplies', fn ($items) => $items->isEmpty())->assertSee('No matching minor items');
+            ->assertViewHas('catalogSupplies', fn ($items) => $items->isEmpty())
+            ->assertSee('data-result-count="0"', false)->assertSee('No matching items');
         $this->get(route('inventory.index', ['stock' => 'bad']), ['X-Filter-Request' => 'true'])
             ->assertUnprocessable()->assertJsonValidationErrors('stock');
     }

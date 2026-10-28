@@ -5,12 +5,7 @@
     <div class="request-workspace {{ $isEmployee ? 'personal-list' : '' }}" data-filter-workspace="requests">
         @if($isEmployee)
             <header class="personal-list-heading">
-                <div><h2>My active requests</h2><p>A clear view of your progress and next steps.</p></div>
-                <nav class="personal-navigation" aria-label="My requisitions">
-                    <button type="button" class="btn btn-htc" data-bs-toggle="modal" data-bs-target="#globalRequestModal"><i data-lucide="plus" aria-hidden="true"></i>New requisition</button>
-                    <a href="{{ route('dashboard') }}" class="btn btn-light border">My dashboard</a>
-                    <a href="{{ route('requests.archive') }}" class="btn btn-light border"><i data-lucide="archive" aria-hidden="true"></i>View my archive</a>
-                </nav>
+                <div><h2>My active requests</h2></div>
             </header>
             @if($errors->any())<div class="alert alert-warning" role="alert"><strong>Request filters were not applied.</strong> {{ $errors->first() }} <a href="{{ route('requests.index') }}">Clear filters</a></div>@endif
         @endif
@@ -22,7 +17,6 @@
             <article class="request-metric deadline {{ $requestStats['deadline'] > 0 ? 'attention' : '' }}"><span><i data-lucide="siren"></i></span><div><strong>{{ $requestStats['deadline'] }}</strong><h3>Deadline watch</h3><p>Day 2 or already overdue</p></div></article>
         </section>
         @if($isEmployee)
-            <p class="small text-muted">The three-working-day target runs from submission and excludes weekends and institutional holidays. It is not a guaranteed pickup date.</p>
             @php($requestTabFilters = request()->only('search', 'date_from', 'date_to', 'order'))
             <nav class="personal-filter-tabs" aria-label="Personal request filters" data-filter-region="tabs" data-filter-links>
                 <a href="{{ route('requests.index', $requestTabFilters) }}#request-results" @if(!request('status')) aria-current="page" @endif>All requests <span>{{ $requestStats['total'] }}</span></a>
@@ -39,9 +33,7 @@
         <section class="request-panel">
             <div class="request-panel-heading" data-filter-region="heading">
                 <div>
-                    <span class="request-eyebrow">Current workflow</span>
                     <h3>In-progress requests <em>{{ $activeRequests->total() }}</em></h3>
-                    <p>Search, filter, and open any active requisition.</p>
                 </div>
                 @if(request()->anyFilled(['search', 'status', 'dept', 'date_from', 'date_to', 'order']))
                     <a href="{{ route('requests.index') }}#request-results" class="clear-request-filters" data-filter-link><i data-lucide="rotate-ccw"></i> Clear filters</a>

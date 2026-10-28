@@ -8,6 +8,7 @@
     <header class="archive-heading" data-filter-region="heading">
         <div><span class="archive-eyebrow">{{ $institutional ? 'Institutional records' : 'My request history' }}</span><h1>{{ $institutional ? 'Institutional Archive' : 'My requisition archive' }}</h1><p>Find fulfilled, rejected, and withdrawn requests. Submitted records and their history are retained.</p></div>
         <div class="archive-heading-actions archive-screen-only">
+            <a class="btn btn-light border" href="{{ route('requests.index') }}"><i data-lucide="arrow-left" aria-hidden="true"></i>{{ $institutional ? 'View active requests' : 'View my active requests' }}</a>
             <a class="btn btn-light border" href="{{ route($archiveRoute, [...$archiveFilters, 'export' => 'csv']) }}" download data-download><i data-lucide="file-down" aria-hidden="true"></i>Export filtered CSV</a>
             <a class="btn btn-htc" href="{{ route($archiveRoute, [...$archiveFilters, 'print' => 1]) }}" target="_blank" rel="noopener"><i data-lucide="printer" aria-hidden="true"></i>Print filtered archive</a>
         </div>
