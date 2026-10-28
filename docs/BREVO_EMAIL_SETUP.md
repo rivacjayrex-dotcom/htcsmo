@@ -17,7 +17,7 @@ Sources: [Render free-service limitations](https://render.com/docs/free), [Brevo
 
 Do not paste the key into chat, commit it, or put it in frontend JavaScript. `BREVO_API_KEY` must contain an **API key**, not an SMTP key or your Brevo account password.
 
-This checkout currently tracks `.env` in Git. The new ignore rule prevents newly untracked copies from being added, but does not untrack the existing file. Keep `BREVO_API_KEY` blank in that tracked file and enter the real production key only in Render. For a local test, set `$env:BREVO_API_KEY = 'your-private-key'` in your own PowerShell session, or have the repository owner untrack `.env` before storing secrets there. Avoid saving a command containing a real key in shell history.
+The local `.env` file is untracked and ignored by Git. Keep local credentials there and production credentials in Render's Environment settings. Use `.env.example` as the committed template, with secret values left blank. If a real key enters Git history, revoke and replace it, and remove it from every unpushed commit before retrying the push. Do not use GitHub's protection bypass for a real key.
 
 Sources: [API keys](https://help.brevo.com/hc/en-us/articles/40159485019794-Create-and-manage-your-API-keys), [sender troubleshooting](https://help.brevo.com/hc/en-us/articles/115000188150-Troubleshooting-Issues-with-Brevo-SMTP).
 
