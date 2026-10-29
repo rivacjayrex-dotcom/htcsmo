@@ -3,9 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Notification;
-use App\Models\Requisition;
-use App\Models\Supply;
 use App\Services\NotificationActionResolver;
+use App\Services\NotificationCenterFeed;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -17,7 +16,7 @@ class NotificationController extends Controller
 {
     private const CATEGORIES = ['all', 'approvals', 'deadlines', 'inventory', 'accounts'];
 
-    public function index(Request $request, NotificationActionResolver $actionResolver): View|JsonResponse
+    public function index(Request $request, NotificationActionResolver $actionResolver, NotificationCenterFeed $feed): View|JsonResponse
     {
         $user = $request->user();
         $request->validate([
@@ -30,11 +29,13 @@ class NotificationController extends Controller
             : 'all';
 
         $base = Notification::query()->forUser($user);
-        $notes = $this->applyCategory(clone $base, $category)
-            ->latest('id')
-            ->paginate(20)
-            ->withQueryString();
-        $resolvedActions = $actionResolver->resolve($notes->getCollection(), $user);
+        $warningQueries = $feed->warnings($user);
+        $selectedWarnings = $category === 'all' ? $warningQueries : array_intersect_key($warningQueries, [$category => true]);
+        $filtered = $this->applyCategory(clone $base, $category);
+        $notes = $user->role === 'smo'
+            ? $feed->paginate($filtered, $selectedWarnings)
+            : $filtered->latest('id')->paginate(20)->withQueryString();
+        $resolvedActions = $actionResolver->resolve($notes->getCollection()->reject(fn ($note) => $note->is_current_warning), $user);
         // Preserve the shared category predicates while collecting the badge
         // counts in one database round trip instead of six.
         $countQuery = DB::query()->selectSub(
@@ -46,6 +47,11 @@ class NotificationController extends Controller
         $counts = $countQuery->first();
         $unreadCount = (int) $counts->unread_count;
         $categoryCounts = collect(self::CATEGORIES)->mapWithKeys(fn (string $name) => [$name => (int) $counts->{$name.'_count'}]);
+        foreach ($warningQueries as $name => $query) {
+            $count = (clone $query)->count();
+            $categoryCounts[$name] += $count;
+            $categoryCounts['all'] += $count;
+        }
 
         if ($request->expectsJson()) {
             return response()->json([
@@ -56,22 +62,8 @@ class NotificationController extends Controller
             ])->header('Cache-Control', 'private, no-store, no-cache, must-revalidate');
         }
 
-        $criticalRequests = collect();
-        $criticalRequestCount = 0;
-        if ($user->role === 'smo') {
-            $deadlineQuery = Requisition::query()->deadlineRisks();
-            $criticalRequestCount = (clone $deadlineQuery)->count();
-            $criticalRequests = $deadlineQuery->with(['items', 'user.academicDepartment'])
-                ->oldest('due_at')->oldest('id')->limit(5)->get();
-        }
-        $lowStockSupplies = $user->role === 'smo'
-            ? Supply::whereColumn('quantity', '<=', 'min_stock_level')
-                ->orderByRaw('CASE WHEN quantity <= 0 THEN 0 ELSE 1 END')
-                ->orderBy('quantity')
-                ->get()
-            : collect();
         return view('notifications', compact(
-            'notes', 'resolvedActions', 'category', 'categoryCounts', 'unreadCount', 'criticalRequests', 'criticalRequestCount', 'lowStockSupplies'
+            'notes', 'resolvedActions', 'category', 'categoryCounts', 'unreadCount'
         ));
     }
 
@@ -119,7 +111,8 @@ class NotificationController extends Controller
         $validated = $request->validate(['after_id' => ['nullable', 'integer', 'min:0']]);
         $user = $request->user();
         $afterId = (int) ($validated['after_id'] ?? 0);
-        $latestId = (int) Notification::query()->forUser($user)->max('id');
+        $notificationState = Notification::query()->forUser($user)->withUnreadSummary()->first();
+        $latestId = (int) $notificationState->latest_id;
         $notifications = Notification::query()
             ->forUser($user)
             ->unread()
@@ -141,7 +134,8 @@ class NotificationController extends Controller
             'account_id' => $user->id,
             'latest_id' => $latestId,
             'cursor' => $cursor,
-            'unread_count' => Notification::query()->forUser($user)->unread()->count(),
+            'unread_count' => (int) $notificationState->unread_count,
+            'notification_summary' => $notificationState->unreadSummary(),
             'notifications' => $payloads,
             'notification' => $payloads->first(),
         ])->header('Cache-Control', 'private, no-store, no-cache, must-revalidate');

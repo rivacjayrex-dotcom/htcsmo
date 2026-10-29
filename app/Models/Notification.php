@@ -55,6 +55,24 @@ class Notification extends Model
         return $query->where('is_read', false);
     }
 
+    public function scopeWithUnreadSummary(Builder $query): Builder
+    {
+        // Mutually exclusive groups keep the popup breakdown equal to its total.
+        return $query->selectRaw('COALESCE(MAX(id), 0) as latest_id')
+            ->selectRaw('COUNT(CASE WHEN is_read = ? THEN 1 END) as unread_count', [false])
+            ->selectRaw("COUNT(CASE WHEN is_read = ? AND (type IN ('warning', 'danger') OR event_type LIKE 'deadline.%') THEN 1 END) as needs_attention", [false])
+            ->selectRaw("COUNT(CASE WHEN is_read = ? AND COALESCE(type, '') NOT IN ('warning', 'danger') AND event_type IN ('requisition.submitted', 'requisition.awaiting_approval') THEN 1 END) as new_requisitions", [false]);
+    }
+
+    public function unreadSummary(): array
+    {
+        return [
+            'new_requisitions' => (int) $this->new_requisitions,
+            'needs_attention' => (int) $this->needs_attention,
+            'updates' => max(0, (int) $this->unread_count - (int) $this->new_requisitions - (int) $this->needs_attention),
+        ];
+    }
+
     public function markAsRead(): void
     {
         if (! $this->is_read) {

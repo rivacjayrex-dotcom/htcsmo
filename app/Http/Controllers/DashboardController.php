@@ -121,9 +121,8 @@ class DashboardController extends Controller
                 ->orderBy('id')
                 ->take(4)
                 ->get();
-            // SMO TABLE: Only pull active items that still need to be processed or released
+            // Recent requisitions include every stage, including recently closed requests.
             $allStaffRequests = Requisition::query()
-                ->whereNotIn('status', Requisition::ARCHIVED_STATUSES)
                 ->latest()
                 ->orderByDesc('id')
                 ->take(10)

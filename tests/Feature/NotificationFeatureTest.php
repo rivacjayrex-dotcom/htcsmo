@@ -59,7 +59,7 @@ class NotificationFeatureTest extends TestCase
 
         $this->actingAs($owner)->get(route('notifications'))->assertOk()
             ->assertSee('Mark as read')
-            ->assertSee('Dismiss toast');
+            ->assertSee('Dismiss notification summary');
         $this->assertFalse($notification->fresh()->is_read);
 
         $this->actingAs($other)->patch(route('notifications.read', $notification))->assertForbidden();
@@ -89,6 +89,43 @@ class NotificationFeatureTest extends TestCase
             ->assertJsonMissing(['title' => 'Private'])
             ->assertJsonPath('unread_count', 2)
             ->assertJsonPath('account_id', $user->id);
+    }
+
+    public function test_popup_summary_counts_all_unread_items_once_and_excludes_read_and_other_accounts(): void
+    {
+        $user = User::factory()->create();
+        $other = User::factory()->create();
+        $service = app(NotificationService::class);
+        foreach (range(1, 3) as $number) {
+            $service->send($user, 'requisition.awaiting_approval', 'New requisition', 'Review this request.');
+        }
+        // Urgent requisitions belong to attention only, so groups never overlap.
+        $service->send($user, 'requisition.awaiting_approval', 'Urgent requisition', 'Review promptly.', ['type' => 'danger']);
+        $service->send($user, 'deadline.warning', 'Deadline', 'Due soon.');
+        foreach (range(1, 3) as $number) {
+            $service->send($user, 'inventory.low_stock', 'Low stock', 'Restock.', ['type' => 'warning']);
+        }
+        foreach (range(1, 4) as $number) {
+            $service->send($user, 'requisition.approved', 'Approved', 'Request approved.', ['type' => 'success']);
+        }
+        $service->send($user, 'requisition.submitted', 'Already read', 'Exclude this.')->markAsRead();
+        $service->send($other, 'deadline.overdue', 'Private', 'Exclude this.', ['type' => 'danger']);
+
+        foreach (['/api/runtime-state', '/api/latest-notification'] as $endpoint) {
+            $this->actingAs($user)->getJson($endpoint)->assertOk()
+                ->assertJsonCount(10, 'notifications')
+                ->assertJsonPath('unread_count', 12)
+                ->assertJsonPath('notification_summary', [
+                    'new_requisitions' => 3, 'needs_attention' => 5, 'updates' => 4,
+                ]);
+        }
+
+        $this->actingAs($user)->postJson(route('notifications.read-all'))->assertOk();
+        $this->getJson(route('api.runtime-state'))->assertOk()
+            ->assertJsonPath('unread_count', 0)
+            ->assertJsonPath('notification_summary', [
+                'new_requisitions' => 0, 'needs_attention' => 0, 'updates' => 0,
+            ]);
     }
 
     public function test_action_destination_is_rechecked_and_missing_or_unauthorized_targets_fall_back_safely(): void
@@ -232,34 +269,35 @@ class NotificationFeatureTest extends TestCase
             ]);
     }
 
-    public function test_deadline_sidebar_limits_the_preview_and_keeps_the_total_count(): void
+    public function test_current_deadlines_are_paginated_in_the_activity_feed_and_filtered_by_category(): void
     {
         $this->travelTo(now()->setDate(2026, 10, 23)->setTime(10, 0));
         $smo = User::factory()->create(['role' => 'smo']);
         $owner = User::factory()->create();
-        $risks = collect();
-        foreach (range(1, 7) as $number) {
-            $risks->push($this->deadlineRequisition($owner, ['due_at' => now()->subDays($number)]));
+        foreach (range(1, 23) as $number) {
+            $this->deadlineRequisition($owner, ['due_at' => now()->subDays($number)]);
         }
         foreach (Requisition::ARCHIVED_STATUSES as $status) {
             $this->deadlineRequisition($owner, ['status' => $status]);
         }
         $this->deadlineRequisition($owner, ['sla_warning_at' => now()->addDay(), 'due_at' => now()->addDays(2)]);
 
-        $expected = $risks->reverse()->take(5)->pluck('id')->values()->all();
-        $response = $this->actingAs($smo)->get(route('notifications'));
-        $response->assertOk()
-            ->assertViewHas('criticalRequestCount', 7)
-            ->assertViewHas('criticalRequests', fn ($requests) => $requests->pluck('id')->all() === $expected)
-            ->assertSee('View all 7 deadline risks')
-            ->assertSee(route('requests.index', ['status' => 'deadline']), false);
-        $this->assertSame(5, substr_count($response->getContent(), '<a class="notification-deadline-item '));
-
-        $this->get(route('requests.index', ['status' => 'deadline']))->assertOk()
-            ->assertViewHas('activeRequests', fn ($requests) => $requests->total() === 7);
+        $response = $this->actingAs($smo)->get(route('notifications'))->assertOk()
+            ->assertViewHas('notes', fn ($notes) => $notes->total() === 23 && $notes->count() === 20)
+            ->assertDontSee('Inventory health')->assertDontSee('Request deadlines')
+            ->assertDontSee('<aside class="notification-insights-column">', false)
+            ->assertSee('page=2', false);
+        $this->assertSame(20, substr_count($response->getContent(), 'data-current-warning="deadline.overdue"'));
+        $this->getJson(route('notifications', ['category' => 'deadlines', 'page' => 2]))->assertOk()
+            ->assertJsonPath('category_counts.deadlines', 23)
+            ->assertJsonPath('unread_count', 0)
+            ->assertJsonPath('html', fn ($html) => substr_count($html, 'data-current-warning="deadline.overdue"') === 3);
+        $this->getJson(route('notifications', ['category' => 'accounts']))->assertOk()
+            ->assertJsonPath('html', fn ($html) => ! str_contains($html, 'data-current-warning'));
+        $this->assertSame(0, Notification::count(), 'Viewing the feed must not create notifications.');
     }
 
-    public function test_deadline_sidebar_distinguishes_warnings_from_overdue_requests(): void
+    public function test_current_deadline_cards_distinguish_warnings_from_overdue_requests(): void
     {
         $this->travelTo(now()->setDate(2026, 10, 23)->setTime(10, 0));
         $smo = User::factory()->create(['role' => 'smo']);
@@ -268,33 +306,80 @@ class NotificationFeatureTest extends TestCase
         $overdue = $this->deadlineRequisition($owner, ['due_at' => now()]);
 
         $this->actingAs($smo)->get(route('notifications'))->assertOk()
-            ->assertViewHas('criticalRequestCount', 2)
-            ->assertSeeInOrder([
-                'notification-deadline-item is-overdue', 'Overdue', $overdue->tracking_code,
-                'This requisition has reached its processing deadline.',
-                'Oct 23, 2026 10:00 AM',
-                'notification-deadline-item is-warning', 'Due soon', $warning->tracking_code,
-                'This requisition is approaching its processing deadline.',
-                'Oct 24, 2026 10:00 AM',
-            ], false)
+            ->assertSee('data-current-warning="deadline.overdue"', false)
+            ->assertSee('data-current-warning="deadline.nearing"', false)
+            ->assertSee('Overdue: '.$overdue->tracking_code)
+            ->assertSee('Due soon: '.$warning->tracking_code)
+            ->assertSee('This requisition has reached its processing deadline.')
+            ->assertSee('This requisition is approaching its processing deadline.')
+            ->assertSee('Oct 23, 2026 10:00 AM')->assertSee('Oct 24, 2026 10:00 AM')
             ->assertSee(route('requests.show', $warning), false)
             ->assertSee(route('requests.show', $overdue), false);
     }
 
-    public function test_deadline_sidebar_handles_no_risks_and_remains_smo_only(): void
+    public function test_current_warnings_remain_smo_only_and_clear_when_resolved(): void
     {
         $smo = User::factory()->create(['role' => 'smo']);
         $owner = User::factory()->create();
-        $this->actingAs($smo)->get(route('notifications'))->assertOk()
-            ->assertViewHas('criticalRequestCount', 0)
-            ->assertSee('No critical request deadlines.')
-            ->assertDontSee('View all 0 deadline risks');
-
+        $this->actingAs($smo)->get(route('notifications'))->assertOk()->assertSee('No notifications here');
         $risk = $this->deadlineRequisition($owner);
+        $stock = $this->supply();
+        $stock->update(['quantity' => 0]);
         $this->actingAs($owner)->get(route('notifications'))->assertOk()
-            ->assertViewHas('criticalRequests', fn ($requests) => $requests->isEmpty())
-            ->assertDontSee('Critical deadlines')
-            ->assertDontSee($risk->tracking_code);
+            ->assertDontSee('data-current-warning=', false)->assertDontSee($risk->tracking_code);
+        $this->getJson(route('notifications', ['category' => 'inventory']))->assertForbidden();
+
+        $this->actingAs($smo)->getJson(route('notifications'))->assertOk()
+            ->assertJsonPath('category_counts.all', 2)->assertJsonPath('category_counts.inventory', 1);
+        $risk->update(['status' => 'completed']);
+        $stock->update(['quantity' => 20]);
+        $this->getJson(route('notifications'))->assertOk()->assertJsonPath('category_counts.all', 0);
+    }
+
+    public function test_inventory_warnings_share_the_feed_without_duplicating_recorded_events(): void
+    {
+        $smo = User::factory()->create(['role' => 'smo']);
+        $other = User::factory()->create(['role' => 'smo']);
+        $stock = $this->supply();
+        $stock->update(['item_name' => 'Recorded stock item', 'quantity' => 2]);
+        $empty = $this->supply();
+        $empty->update(['item_name' => '<script>Empty stock</script>', 'quantity' => 0]);
+        $deleted = $this->supply();
+        $deleted->update(['quantity' => 0]);
+        $deleted->delete();
+        $risk = $this->deadlineRequisition(User::factory()->create());
+        $notice = Notification::create([
+            'user_id' => $smo->id, 'title' => 'Recorded stock warning', 'message' => 'Restock.',
+            'event_type' => 'inventory.low', 'action_type' => 'inventory', 'action_id' => $stock->id,
+            'is_read' => false,
+        ]);
+        Notification::create([
+            'user_id' => $smo->id, 'title' => 'Recorded deadline warning', 'message' => 'Follow up.',
+            'event_type' => 'deadline.overdue', 'action_type' => 'requisition', 'action_id' => $risk->id,
+            'is_read' => false,
+        ]);
+        Notification::create([
+            'user_id' => $other->id, 'title' => 'Private notice', 'message' => 'Private',
+            'event_type' => 'inventory.out_of_stock', 'action_type' => 'inventory', 'action_id' => $empty->id,
+        ]);
+        $response = $this->actingAs($smo)->get(route('notifications'))->assertOk()
+            ->assertViewHas('notes', fn ($notes) => $notes->total() === 3)
+            ->assertSee('Recorded stock warning')->assertSee('Recorded deadline warning')
+            ->assertDontSee('Private notice')->assertDontSee('<script>Empty stock</script>', false)
+            ->assertSee('&lt;script&gt;Empty stock&lt;/script&gt;', false)
+            ->assertSee(route('inventory.edit', $empty), false);
+        $this->assertSame(1, substr_count($response->getContent(), 'data-current-warning='));
+        $this->assertFalse($notice->fresh()->is_read);
+        $this->getJson(route('notifications', ['category' => 'inventory']))->assertOk()
+            ->assertJsonPath('category_counts.inventory', 2)->assertJsonPath('category_counts.all', 3)
+            ->assertJsonPath('unread_count', 2)
+            ->assertJsonPath('html', fn ($html) => str_contains($html, 'inventory.out_of_stock') && ! str_contains($html, 'Recorded deadline warning'));
+        $this->postJson(route('notifications.read-all'))->assertOk()->assertJsonPath('unread_count', 0);
+        $this->getJson(route('notifications', ['category' => 'inventory']))->assertOk()
+            ->assertJsonPath('category_counts.inventory', 2);
+        $this->actingAs($other)->getJson(route('notifications', ['category' => 'inventory']))->assertOk()
+            ->assertJsonPath('category_counts.inventory', 2)
+            ->assertJsonPath('html', fn ($html) => substr_count($html, 'data-current-warning=') === 1);
     }
 
     public function test_pruning_removes_only_expired_read_notifications(): void

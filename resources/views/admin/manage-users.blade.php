@@ -12,7 +12,7 @@
         'all' => ['label' => 'All Personnel', 'description' => 'Everyone within your management scope', 'icon' => 'users'],
         'admins' => ['label' => 'Administrators', 'description' => 'SMO and institutional administrators', 'icon' => 'shield-check'],
         'heads' => ['label' => 'Deans & Heads', 'description' => 'Department heads and academic deans', 'icon' => 'landmark'],
-        'staff' => ['label' => 'Faculty & Staff', 'description' => 'Faculty members and support personnel', 'icon' => 'graduation-cap'],
+        'staff' => ['label' => 'Faculty & Staff', 'description' => 'Faculty and staff grouped by department', 'icon' => 'graduation-cap'],
     ];
     $activeCategory = $category ?? 'all';
 @endphp
@@ -23,6 +23,11 @@
     <div class="container-fluid py-2 personnel-page" data-filter-workspace="personnel" x-data="{
         editModal: null,
         selectedUser: { id: '', name: '', role: '', department: '', account_status: 'active', version: 0 },
+        detailedUser: {},
+        openDetails(user) {
+            this.detailedUser = user;
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('personnelDetailsModal')).show();
+        },
         openEdit(user) {
             this.selectedUser = {
                 ...user,
@@ -46,7 +51,8 @@
                 </p>
             </div>
 
-            <form id="personnelFilters" action="{{ route('admin.users.manage') }}#personnel-results" method="GET" class="personnel-search d-flex align-items-center gap-2" data-dynamic-search>
+            <div class="d-flex flex-wrap align-items-center gap-2 personnel-toolbar-actions">
+            <form id="personnelFilters" action="{{ route('admin.users.manage') }}#personnel-results" method="GET" class="personnel-search d-flex flex-wrap align-items-center gap-2" data-dynamic-search>
                 @if($category)
                     <input type="hidden" name="category" value="{{ $category }}">
                 @endif
@@ -58,9 +64,21 @@
                         class="form-control border-start-0 rounded-end-pill bg-white shadow-none"
                         maxlength="100" placeholder="Search name, ID, or email" aria-label="Search personnel" style="min-width: 230px;">
                 </div>
+                @if(Auth::user()->role !== 'dept_head')
+                    <select name="department" class="form-select form-select-sm personnel-department-filter" aria-label="Filter personnel by department">
+                        <option value="">All departments</option>
+                        @foreach($departments as $department)
+                            <option value="{{ $department->dept_code }}" @selected(request('department') === $department->dept_code)>{{ $department->dept_code }} — {{ $department->dept_name }}</option>
+                        @endforeach
+                    </select>
+                @endif
                 <a href="{{ route('admin.users.manage') }}#personnel-results" data-filter-link class="btn btn-sm btn-link text-danger text-decoration-none">Clear filters</a>
                 <x-filter-submit />
             </form>
+            @if(Auth::user()->role === 'smo')
+                <button type="button" class="btn btn-sm btn-htc" data-bs-toggle="modal" data-bs-target="#addDepartmentModal" aria-haspopup="dialog" aria-controls="addDepartmentModal">Add department</button>
+            @endif
+            </div>
         </div>
 
         @if(session('success'))
@@ -81,7 +99,7 @@
             </div>
         @endif
 
-        <div class="row g-3 mb-4">
+        <div class="row g-3 mb-4" data-filter-region="summary">
             <div class="col-md-4">
                 <div class="card border-0 shadow-sm rounded-4 p-3 h-100">
                     <small class="text-muted fw-bold text-uppercase" style="font-size: var(--text-caption);">Visible Personnel</small>
@@ -110,6 +128,7 @@
                         $categoryUrl = route('admin.users.manage', array_filter([
                             'category' => $categoryKey === 'all' ? null : $categoryKey,
                             'search' => request('search'),
+                            'department' => request('department'),
                         ]));
                     @endphp
                     <a href="{{ $categoryUrl }}#personnel-results"
@@ -134,7 +153,7 @@
                         <small class="text-muted">{{ $personnelCategories[$activeCategory]['description'] }}. Actions remain limited by your role and department.</small>
                     </div>
                     @if($activeCategory !== 'all')
-                        <a href="{{ route('admin.users.manage', array_filter(['search' => request('search')])) }}#personnel-results" data-filter-link class="btn btn-sm btn-light border rounded-pill px-3">
+                        <a href="{{ route('admin.users.manage', array_filter(request()->only('search', 'department'))) }}#personnel-results" data-filter-link class="btn btn-sm btn-light border rounded-pill px-3">
                             View all
                         </a>
                     @endif
@@ -154,6 +173,11 @@
                     </thead>
                     <tbody>
                         @forelse($users as $user)
+                            @if($activeCategory === 'staff' && ($loop->first || $users->getCollection()->get($loop->index - 1)->department_id !== $user->department_id))
+                                <tr class="personnel-department-heading" data-personnel-department="{{ $user->department ?: 'unassigned' }}">
+                                    <th colspan="5" scope="rowgroup">{{ $user->academicDepartment ? $user->academicDepartment->dept_code.' — '.$user->academicDepartment->dept_name : 'Administrative Office / Not assigned' }}</th>
+                                </tr>
+                            @endif
                             <tr>
                                 <td class="ps-4" data-label="Personnel">
                                     <div class="fw-bold text-dark">{{ $user->name }}</div>
@@ -175,6 +199,25 @@
                                     @endif
                                 </td>
                                 <td class="text-end pe-4" data-label="Action">
+                                    @if(Auth::user()->role === 'smo')
+                                        <button type="button" class="btn btn-sm btn-light border rounded-pill px-3 fw-bold personnel-details-button"
+                                            aria-haspopup="dialog" aria-controls="personnelDetailsModal" aria-label="View details for {{ $user->name }}"
+                                            x-on:click="openDetails({{ Illuminate\Support\Js::from([
+                                                'id' => $user->id,
+                                                'name' => $user->name,
+                                                'username' => $user->username ?: 'Not set',
+                                                'school_id' => $user->school_id ?: 'Not set',
+                                                'email' => $user->email,
+                                                'department' => $user->academicDepartment ? $user->academicDepartment->dept_name.' ('.$user->academicDepartment->dept_code.')' : 'Administrative Office / Not assigned',
+                                                'designation' => $roleLabels[$user->role] ?? ucwords(str_replace('_', ' ', $user->role)),
+                                                'status' => ucfirst($user->account_status),
+                                                'email_verified_at' => $user->email_verified_at?->format('M j, Y g:i A') ?? 'Not verified',
+                                                'created_at' => $user->created_at?->format('M j, Y g:i A') ?? 'Not recorded',
+                                                'updated_at' => $user->updated_at?->format('M j, Y g:i A') ?? 'Not recorded',
+                                            ]) }})">
+                                            View details
+                                        </button>
+                                    @endif
                                     @if(in_array($user->id, $manageableUserIds, true))
                                         <button type="button" class="btn btn-sm btn-light border rounded-pill px-3 fw-bold"
                                             @click="openEdit({{ json_encode([
@@ -210,6 +253,39 @@
         </div>
 
         </section>
+        @if(Auth::user()->role === 'smo')
+            @include('admin.partials.add-department')
+            <div class="modal fade" id="personnelDetailsModal" tabindex="-1" aria-hidden="true" aria-labelledby="personnelDetailsTitle">
+                <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                    <div class="modal-content border-0 shadow-lg rounded-4">
+                        <div class="modal-header">
+                            <h5 class="modal-title fw-bold" id="personnelDetailsTitle">Personnel details</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <dl class="row mb-0 personnel-detail-fields">
+                                @foreach([
+                                    'id' => 'Account ID', 'name' => 'Full name', 'username' => 'Username',
+                                    'school_id' => 'School ID', 'email' => 'Email address', 'department' => 'Department',
+                                    'designation' => 'Designation', 'status' => 'Account status',
+                                    'email_verified_at' => 'Email verified', 'created_at' => 'Registered', 'updated_at' => 'Last updated',
+                                ] as $field => $label)
+                                    <div class="col-sm-6 mb-3">
+                                        <dt class="mini-label mb-1">{{ $label }}</dt>
+                                        <dd class="mb-0 text-break" x-text="detailedUser.{{ $field }}"></dd>
+                                    </div>
+                                @endforeach
+                            </dl>
+                            <div class="border-top pt-3">
+                                <h6 class="fw-bold">Password</h6>
+                                <p class="text-muted small mb-0">Passwords are stored as one-way hashes and cannot be viewed. The user can reset their password using Forgot password on the sign-in page.</p>
+                            </div>
+                        </div>
+                        <div class="modal-footer"><button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button></div>
+                    </div>
+                </div>
+            </div>
+        @endif
         <div class="modal fade" id="editPersonnelModal" tabindex="-1" aria-hidden="true" aria-labelledby="editPersonnelModalTitle">
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content border-0 shadow-lg rounded-4">
@@ -299,12 +375,19 @@
         .personnel-category.active .personnel-category__count { color: #19603a; background: #d7ecdf; }
         .personnel-empty-icon { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 12px; color: #678071; background: #edf3ef; }
         .personnel-empty-icon svg { width: 20px; height: 20px; }
+        .personnel-details-button { margin:var(--space-4); }
+        .personnel-department-filter { width:auto; max-width:300px; }
+        .personnel-table .personnel-department-heading th { padding:var(--space-12) var(--space-24); background:#edf5ef; color:#235538; font-size:var(--text-secondary); overflow-wrap:anywhere; }
         @media (max-width: 1199.98px) {
             .personnel-categories { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         }
         @media (max-width: 767.98px) {
             .personnel-toolbar { align-items: stretch !important; flex-direction: column; }
             .personnel-search { width: 100%; }
+            .personnel-toolbar-actions { width:100%; }
+            .personnel-department-filter { width:100%; max-width:none; min-height:42px; }
+            .personnel-table .personnel-department-heading { border:0; border-radius:8px; box-shadow:none; }
+            .personnel-table .personnel-department-heading th { display:block; width:100%; padding:var(--space-12); }
             .personnel-search .input-group { flex: 1; }
             .personnel-search input { min-width: 0 !important; min-height: 42px; font-size: var(--text-body); }
             .personnel-page > .row.g-3 { --bs-gutter-y: var(--space-12); }

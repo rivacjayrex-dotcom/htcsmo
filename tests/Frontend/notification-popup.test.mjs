@@ -156,7 +156,7 @@ test("an unread reminder appears when the recipient first opens a page", () => {
     const { center, payload } = browser();
     center.consumeRuntimeState(payload(42));
     assert.equal(center.show, true);
-    assert.equal(center.toasts[0].title, "Notice 42");
+    assert.equal(center.unreadCount, 1);
 });
 
 test("navigating before the next poll does not skip a new reminder", () => {
@@ -166,13 +166,12 @@ test("navigating before the next poll does not skip a new reminder", () => {
     assert.equal(center.lastId, 42);
 });
 
-test("queued reminders remain eligible until their popup is displayed", () => {
+test("a burst is represented by one summary and all displayed notifications advance the cursor", () => {
     const { center, payload } = browser();
     center.consumeRuntimeState(payload(43, 44, 45, 46, 47));
-    assert.equal(center.toasts.length, 3);
-    assert.equal(center.toasts[0].title, "Notice 43");
-    assert.equal(center.lastId, 45);
-    assert.equal(center.queue[0].id, 46);
+    assert.equal(center.show, true);
+    assert.equal(center.unreadCount, 5);
+    assert.equal(center.lastId, 47);
 });
 
 test("a hidden tab does not consume popups meant for a visible tab", () => {
@@ -186,27 +185,47 @@ test("a hidden tab does not consume popups meant for a visible tab", () => {
     assert.equal(center.show, true);
 });
 
-test("duplicate polls do not enqueue the same reminder twice", () => {
-    const { center, payload } = browser();
+test("dismissing the summary keeps the badge unread and duplicate polls do not replay it", () => {
+    const { center, document, payload } = browser();
     center.consumeRuntimeState(payload(43, 44, 45, 46));
+    center.dismiss();
     center.consumeRuntimeState(payload(43, 44, 45, 46));
-    assert.equal(center.toasts.length, 3);
-    assert.equal(center.queue.length, 1);
-    assert.equal(center.queue[0].id, 46);
+    assert.equal(center.show, false);
+    assert.equal(center.unreadCount, 4);
+    assert.equal(document.getElementById('notificationUnreadCount').textContent, '4');
 });
 
-test("the next queued reminder appears after dismissal", async () => {
-    const { center, payload, runTimer } = browser();
-    center.consumeRuntimeState(payload(43, 44, 45, 46));
-    center.dismiss(44);
-    assert.equal(center.toasts.find((toast) => toast.id === 43).visible, true);
-    assert.equal(center.toasts.length, 3);
-    await runTimer(300);
+test("a later arrival updates the same summary and resets its expiry", async () => {
+    const { center, payload, timers, runTimer } = browser();
+    center.consumeRuntimeState(payload(43, 44));
+    center.consumeRuntimeState(payload(43, 44, 45));
+    assert.equal(center.unreadCount, 3);
+    assert.equal(center.lastId, 45);
+    assert.equal([...timers.values()].filter(timer => timer.delay === 9000).length, 1);
+    await runTimer(9000);
+    assert.equal(center.show, false);
+});
+
+test("the summary uses full unread counts beyond the detail payload and hides empty groups", () => {
+    const { center, payload } = browser();
+    center.consumeRuntimeState({...payload(43, 44), latest_id: 62, unread_count: 20,
+        notification_summary: {new_requisitions: 3, needs_attention: 17, updates: 0}});
+    assert.equal(center.headline, 'You have 20 notifications awaiting');
+    assert.equal(center.lastId, 62);
+    assert.deepEqual(Array.from(center.summaryGroups, group => [group.count, group.label]), [
+        [3, 'new requisitions'], [17, 'need attention'],
+    ]);
+});
+
+test("reading items updates the visible summary and reading all closes it", () => {
+    const { center, payload } = browser();
+    center.consumeRuntimeState(payload(43, 44));
+    center.consumeRuntimeState({...payload(44), notification_summary: {new_requisitions: 1, needs_attention: 0, updates: 0}});
     assert.equal(center.show, true);
-    assert.equal(center.toasts.length, 3);
-    assert.equal(center.toasts[2].title, "Notice 46");
-    assert.equal(center.lastId, 46);
-    assert.equal(center.queue.length, 0);
+    assert.equal(center.headline, 'You have 1 notification awaiting');
+    assert.equal(center.summaryGroups[0].label, 'new requisition');
+    center.consumeRuntimeState(payload());
+    assert.equal(center.show, false);
 });
 
 test("a runtime response received before Alpine initializes is still displayed", () => {
@@ -218,7 +237,7 @@ test("a runtime response received before Alpine initializes is still displayed",
         },
     });
     assert.equal(center.show, true);
-    assert.equal(center.toasts[0].title, "Early reminder");
+    assert.equal(center.unreadCount, 1);
 });
 
 test("popups still work with browser storage disabled and icons unavailable", () => {
@@ -226,7 +245,7 @@ test("popups still work with browser storage disabled and icons unavailable", ()
     delete window.lucide;
     center.consumeRuntimeState(payload(42));
     assert.equal(center.show, true);
-    assert.equal(center.toasts[0].title, "Notice 42");
+    assert.equal(center.unreadCount, 1);
 });
 
 test("a reminder already displayed is not replayed after navigation", () => {
@@ -299,20 +318,18 @@ test("background updates are silent and do not wait for notification popups to c
     assert.equal(window.reloads, 0);
     assert.equal(region.innerHTML, "updated content");
     assert.equal(center.show, true);
-    assert.equal(center.toasts.length, 3);
+    assert.equal(center.unreadCount, 3);
     assert.equal(fixture.document.getElementById('liveRefreshNotice').hidden, true);
     assert.equal(fixture.document.getElementById('liveUpdateStatus').textContent, 'Content updated.');
 });
 
-test("each popup expires independently and frees a slot for the queue", async () => {
+test("the entire summary expires without replaying individual reminders", async () => {
     const { center, payload, runTimer } = browser();
     center.consumeRuntimeState(payload(43, 44, 45, 46));
     await runTimer(9000);
-    assert.equal(center.toasts[0].visible, false);
-    assert.equal(center.toasts[1].visible, true);
-    await runTimer(300);
-    assert.equal(center.toasts.length, 3);
-    assert.equal(center.toasts[2].id, 46);
+    assert.equal(center.show, false);
+    center.consumeRuntimeState(payload(43, 44, 45, 46));
+    assert.equal(center.show, false);
 });
 
 function audioFixture({ suspended = false } = {}) {
@@ -362,7 +379,7 @@ function audioFixture({ suspended = false } = {}) {
     };
 }
 
-test("new stacked popups play one audible chime per burst", async () => {
+test("a notification summary plays one audible chime per burst", async () => {
     const { center, payload, notes } = audioFixture();
     center.consumeRuntimeState(payload(43, 44, 45));
     await new Promise(setImmediate);
@@ -401,7 +418,7 @@ test("dismissing a popup before audio is unlocked cancels its delayed chime", as
         suspended: true,
     });
     center.consumeRuntimeState(payload(43));
-    center.dismiss(43);
+    center.dismiss();
     allowAudio();
     document.dispatchEvent(new Event("pointerdown"));
     await new Promise(setImmediate);

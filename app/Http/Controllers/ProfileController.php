@@ -191,6 +191,7 @@ class ProfileController extends Controller
         $validated = $request->validate([
             'search' => ['nullable', 'string', 'max:100'],
             'category' => ['nullable', Rule::in(['admins', 'heads', 'staff'])],
+            'department' => ['nullable', 'string', Rule::exists('departments', 'dept_code')],
         ]);
         $search = trim($validated['search'] ?? '');
         $category = $validated['category'] ?? null;
@@ -201,6 +202,11 @@ class ProfileController extends Controller
 
             $scope->where('department_id', $manager->department_id)
                 ->where('role', 'employee');
+        }
+
+        $departmentFilter = $validated['department'] ?? null;
+        if (filled($departmentFilter)) {
+            $scope->inDepartment($departmentFilter);
         }
 
         $stats = [
@@ -233,7 +239,9 @@ class ProfileController extends Controller
             });
         }
 
-        $users = $query->orderBy('department_id')->orderBy('name')->paginate(20)->withQueryString();
+        $users = $query->orderByRaw('CASE WHEN department_id IS NULL THEN 1 ELSE 0 END')
+            ->orderBy(Department::select('dept_code')->whereColumn('departments.id', 'users.department_id'))
+            ->orderBy('name')->orderBy('id')->paginate(20)->withQueryString();
         $departments = Department::orderBy('dept_name')->get();
         $manageableUserIds = $users
             ->filter(fn (User $user) => $this->canManageTarget($manager, $user))

@@ -386,40 +386,28 @@
 
     @include('layouts.partials.requisition-modal')
 
-    <!-- LIVE PRIORITY NOTIFICATION -->
-    <div x-data="notificationCenter()" x-show="toasts.length > 0" class="notification-toast-wrap" aria-label="Notifications" x-cloak>
-        <template x-for="toast in toasts" :key="toast.id">
-        <article x-show="toast.visible" x-transition.opacity.duration.250ms class="notification-toast" :class="'type-' + toast.type" role="alert" aria-live="assertive">
-            <div class="notification-toast-accent"></div>
+    <!-- One compact summary keeps unread activity easy to scan. -->
+    <div x-data="notificationCenter()" x-show="show" x-transition.opacity.duration.250ms class="notification-toast-wrap" aria-label="Notifications" x-cloak>
+        <article class="notification-toast" role="status" aria-live="polite" aria-atomic="true">
             <div class="notification-toast-body">
-                <div class="notification-toast-icon">
-                    <template x-if="toast.type === 'danger'"><i data-lucide="siren"></i></template>
-                    <template x-if="toast.type === 'warning'"><i data-lucide="triangle-alert"></i></template>
-                    <template x-if="toast.type === 'success'"><i data-lucide="circle-check"></i></template>
-                    <template x-if="!['danger', 'warning', 'success'].includes(toast.type)"><i data-lucide="bell-ring"></i></template>
+                <div class="notification-toast-heading">
+                    <span class="notification-toast-icon"><i data-lucide="bell-ring"></i></span>
+                    <span class="notification-toast-label">Notifications</span>
+                    <button type="button" class="notification-toast-control" @click="toggleSound()" :title="soundEnabled ? 'Mute notification sounds' : 'Enable notification sounds'" :aria-label="soundEnabled ? 'Mute notification sounds' : 'Enable notification sounds'" :aria-pressed="soundEnabled">
+                        <template x-if="soundEnabled"><i data-lucide="volume-2"></i></template>
+                        <template x-if="!soundEnabled"><i data-lucide="volume-x"></i></template>
+                    </button>
+                    <button type="button" class="notification-toast-control" @click="dismiss()" title="Dismiss popup; notifications stay unread" aria-label="Dismiss notification summary"><i data-lucide="x"></i></button>
                 </div>
-                <div class="notification-toast-content">
-                    <div class="notification-toast-meta"><span x-text="toast.label"></span><time>Just now</time></div>
-                    <h6 x-text="toast.title"></h6>
-                    <p x-text="toast.message"></p>
-                    <div class="notification-toast-actions">
-                        <form x-show="toast.actionUrl" :action="toast.actionUrl" method="POST">
-                            @csrf
-                            <button type="submit" class="notification-toast-open" x-text="toast.actionLabel"></button>
-                        </form>
-                        <button type="button" @click="toggleSound()" :title="soundEnabled ? 'Mute notification sounds' : 'Enable notification sounds'" :aria-label="soundEnabled ? 'Mute notification sounds' : 'Enable notification sounds'" :aria-pressed="soundEnabled">
-                            <template x-if="soundEnabled"><i data-lucide="volume-2"></i></template>
-                            <template x-if="!soundEnabled"><i data-lucide="volume-x"></i></template>
-                        </button>
-                        <button type="button" @click="dismiss(toast.id)" title="Hide this toast; it will remain unread">Dismiss toast</button>
-                    </div>
-                    <small class="notification-toast-read-note">Dismissal hides this toast but keeps the notification unread.</small>
-                </div>
-                <button type="button" class="notification-toast-close" @click="dismiss(toast.id)" aria-label="Dismiss notification"><i data-lucide="x"></i></button>
+                <h2 class="notification-toast-title" :aria-label="headline">You have <strong x-text="unreadCount"></strong><br><span x-text="unreadCount === 1 ? 'notification awaiting' : 'notifications awaiting'"></span></h2>
+                <a href="{{ route('notifications') }}" class="notification-toast-open">View notifications <i data-lucide="arrow-up-right"></i></a>
             </div>
-            <div class="notification-toast-timer"></div>
+            <div class="notification-toast-breakdown">
+                <template x-for="group in summaryGroups" :key="group.key">
+                    <span class="notification-toast-chip" :class="{'is-attention': group.key === 'needs_attention'}"><strong x-text="'+' + group.count"></strong> <span x-text="group.label"></span></span>
+                </template>
+            </div>
         </article>
-        </template>
     </div>
 
     <!-- Live updates stay silent unless recovery is needed. -->
@@ -496,7 +484,8 @@
             const runtimeCacheKey = `htc-runtime-state:${accountId}`;
             const tabId = window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
             const channel = 'BroadcastChannel' in window ? new BroadcastChannel(`htc-notifications-${accountId}`) : null;
-            const toastTimers = new Map();
+            let summaryTimer = null;
+            let latestState = null;
             let audioContext = null;
             let lastSoundAt = -Infinity;
             const readPreference = key => {
@@ -507,11 +496,19 @@
             };
 
             return {
-                toasts: [],
-                get show() { return this.toasts.some(toast => toast.visible); },
+                show: false,
+                unreadCount: 0,
+                summary: {new_requisitions: 0, needs_attention: 0, updates: 0},
+                get headline() { return `You have ${this.unreadCount} ${this.unreadCount === 1 ? 'notification' : 'notifications'} awaiting`; },
+                get summaryGroups() {
+                    return [
+                        {key: 'new_requisitions', label: this.summary.new_requisitions === 1 ? 'new requisition' : 'new requisitions'},
+                        {key: 'needs_attention', label: this.summary.needs_attention === 1 ? 'needs attention' : 'need attention'},
+                        {key: 'updates', label: this.summary.updates === 1 ? 'other update' : 'other updates'},
+                    ].map(group => ({...group, count: this.summary[group.key]})).filter(group => group.count > 0);
+                },
                 soundEnabled: readPreference(soundKey) !== 'off',
                 lastId: Math.min(Math.max(0, Number(readPreference(storageKey)) || 0), pageNotificationBaseline),
-                queue: [],
                 pendingSound: null,
 
                 init() {
@@ -534,24 +531,40 @@
                         if (event.key === storageKey) this.lastId = Math.max(this.lastId, Number(event.newValue || 0));
                     });
                     document.addEventListener('visibilitychange', () => {
-                        if (!document.hidden) this.presentNext();
+                        if (!document.hidden && latestState) this.consumeRuntimeState(latestState);
                     });
                     // A fast poll can finish before Alpine initializes this component.
                     if (window.htcRuntimeState) this.consumeRuntimeState(window.htcRuntimeState);
                 },
                 consumeRuntimeState(data) {
                     if (!data || Number(data.account_id) !== accountId) return;
-                    this.updateBadge(Number(data.unread_count || 0));
+                    latestState = data;
+                    this.unreadCount = Math.max(0, Number(data.unread_count) || 0);
+                    this.updateBadge(this.unreadCount);
+                    const summary = data.notification_summary || {};
+                    this.summary = {
+                        new_requisitions: Number(summary.new_requisitions) || 0,
+                        needs_attention: Number(summary.needs_attention) || 0,
+                        updates: Number(summary.updates) || 0,
+                    };
+                    if (!data.notification_summary) this.summary.updates = this.unreadCount;
+                    if (!this.unreadCount) { this.dismiss(); return; }
                     if (document.hidden) return;
                     const notifications = Array.isArray(data.notifications)
                         ? data.notifications
                         : (data.notification ? [data.notification] : []);
-                    notifications.forEach(notification => {
-                        const id = Number(notification.id || 0);
-                        if (id > this.lastId && !this.queue.some(item => Number(item.id) === id)) this.queue.push(notification);
-                    });
-                    if (!notifications.length && !this.toasts.length && !this.queue.length) this.advanceCursor(Number(data.cursor || data.latest_id || 0));
-                    this.presentNext();
+                    const hasNew = notifications.some(notification => Number(notification.id) > this.lastId);
+                    // Every unread item is represented by the aggregate, including
+                    // items beyond the ten-record detail payload.
+                    const summaryId = Math.max(Number(data.latest_id) || 0, ...notifications.map(item => Number(item.id) || 0));
+                    if (!hasNew || !this.claimToast(summaryId)) return;
+                    this.show = true;
+                    this.advanceCursor(summaryId);
+                    this.notifyActivity();
+                    window.clearTimeout(summaryTimer);
+                    summaryTimer = window.setTimeout(() => this.dismiss(), 9000);
+                    this.playSound(this.summary.needs_attention > 0 ? 'warning' : 'info');
+                    this.$nextTick(() => window.lucide?.createIcons());
                 },
                 advanceCursor(id) {
                     if (id <= this.lastId) return;
@@ -570,53 +583,16 @@
                         return true;
                     }
                 },
-                presentNext() {
-                    if (document.hidden) return;
-                    while (this.toasts.length < 3 && this.queue.length) {
-                        const notification = this.queue.shift();
-                        const id = Number(notification.id || 0);
-                        if (id > this.lastId && this.claimToast(id)) {
-                            this.present(notification);
-                        }
-                    }
-                    this.notifyActivity();
-                },
                 notifyActivity() {
                     document.dispatchEvent(new CustomEvent('htc:notification-activity', {
-                        detail: {active: this.toasts.length > 0 || this.queue.length > 0},
+                        detail: {active: this.show},
                     }));
                 },
-                present(notification) {
-                    const type = ['success', 'warning', 'danger'].includes(notification.type) ? notification.type : 'info';
-                    const toast = {
-                        id: Number(notification.id),
-                        title: String(notification.title || 'Notification'),
-                        message: String(notification.message || ''),
-                        type,
-                        label: type === 'success' ? 'Action completed' : type === 'danger' ? 'Action required' : type === 'warning' ? 'Attention needed' : 'System update',
-                        actionUrl: notification.action_url || null,
-                        actionLabel: notification.action_label || 'Open',
-                        visible: true,
-                    };
-                    this.toasts.push(toast);
-                    this.advanceCursor(toast.id);
+                dismiss() {
+                    this.show = false;
+                    this.pendingSound = null;
+                    window.clearTimeout(summaryTimer);
                     this.notifyActivity();
-                    toastTimers.set(toast.id, window.setTimeout(() => this.dismiss(toast.id), 9000));
-                    this.playSound(type);
-                    this.$nextTick(() => window.lucide?.createIcons());
-                },
-                dismiss(id) {
-                    const toast = this.toasts.find(item => item.id === Number(id));
-                    if (!toast?.visible) return;
-                    toast.visible = false;
-                    window.clearTimeout(toastTimers.get(toast.id));
-                    toastTimers.delete(toast.id);
-                    if (!this.show) this.pendingSound = null;
-                    // Leave time for the exit transition before another popup or refresh.
-                    window.setTimeout(() => {
-                        this.toasts = this.toasts.filter(item => item.id !== toast.id);
-                        this.presentNext();
-                    }, 300);
                 },
                 updateBadge(count) {
                     const badge = document.getElementById('notificationUnreadCount');
@@ -650,7 +626,7 @@
                     if (!await this.unlockAudio() || !this.soundEnabled || !this.pendingSound) return;
                     const pendingType = this.pendingSound;
                     this.pendingSound = null;
-                    // A burst of stacked popups gets one chime instead of overlapping sounds.
+                    // A burst of arrivals gets one chime instead of overlapping sounds.
                     if (Date.now() - lastSoundAt < 300) return;
                     lastSoundAt = Date.now();
                     const patterns = {

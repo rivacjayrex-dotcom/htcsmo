@@ -54,40 +54,6 @@
     .staff-dashboard .approval-deadline-heading { padding:var(--space-16); }
     .staff-dashboard .approval-deadline-heading h3 { font-weight:750; }
 
-    /* Keep SMO notifications in their own rail without narrowing individual cards. */
-    .dashboard-page.smo-dashboard { align-items:start; }
-    .smo-dashboard > .dashboard-metric-grid { grid-row:2; margin:0; }
-    .smo-dashboard > .approval-deadline-watch { grid-row:3; }
-    .smo-dashboard > .priority-watch { grid-row:4; margin:0; align-items:start; }
-    .smo-dashboard > .dashboard-layout { grid-row:5; display:grid; grid-template-columns:minmax(0,1fr); gap:var(--space-16); align-items:start; }
-    .smo-dashboard .modern-metric { display:flex; flex-direction:column; align-items:flex-start; gap:0; }
-    .smo-dashboard .modern-metric .metric-top { width:100%; gap:var(--space-8); }
-    .smo-dashboard .modern-metric > strong { max-width:100%; margin:var(--space-12) 0 var(--space-8); padding:0; font-size:var(--text-heading-lg); overflow-wrap:anywhere; }
-    .smo-dashboard .modern-metric h3 { margin:0; }
-    .smo-dashboard .modern-metric p { margin-top:var(--space-8); }
-    .smo-dashboard .activity-panel { align-self:start; }
-    .smo-dashboard .approval-deadline-heading { flex-wrap:wrap; }
-    .smo-dashboard .deadline-detail-block { min-width:0; }
-
-    @media screen and (min-width:768px) {
-        .dashboard-page.smo-dashboard { grid-template-columns:minmax(0,1fr) clamp(240px,20vw,280px); }
-        .smo-dashboard > * { grid-column:1; }
-        .smo-dashboard > .dashboard-layout { display:contents; }
-        .smo-dashboard .queue-panel { grid-column:1; grid-row:5; }
-        .smo-dashboard .activity-panel { grid-column:2; grid-row:1/6; position:sticky; top:88px; max-height:calc(100dvh - 104px); overflow-y:auto; scrollbar-width:thin; }
-        .smo-dashboard .dashboard-metric-grid.four { grid-template-columns:repeat(2,minmax(0,1fr)); }
-        .smo-dashboard .priority-watch { grid-template-columns:minmax(0,1fr); }
-        .smo-dashboard .approval-deadline-item { grid-template-columns:110px minmax(0,1fr) minmax(0,1fr); }
-        .smo-dashboard .approval-deadline-age { grid-column:2; }
-        .smo-dashboard .approval-deadline-action { grid-column:3; grid-row:2; justify-content:flex-start; flex-wrap:wrap; }
-        .smo-dashboard .approval-deadline-details { grid-template-columns:repeat(2,minmax(0,1fr)); }
-    }
-    @media screen and (min-width:1600px) {
-        .smo-dashboard .dashboard-metric-grid.four { grid-template-columns:repeat(4,minmax(0,1fr)); }
-        .smo-dashboard .priority-watch { grid-template-columns:repeat(2,minmax(0,1fr)); }
-        .smo-dashboard .priority-row { grid-template-columns:auto minmax(0,1fr) auto; }
-        .smo-dashboard .priority-value { grid-column:auto; }
-    }
     @media screen and (min-width:768px) and (max-width:1399px) {
         .staff-dashboard:not(.smo-dashboard) .dashboard-metric-grid.four { grid-template-columns:repeat(2,minmax(0,1fr)); }
     }

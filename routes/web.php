@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ArchiveController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportController;
@@ -49,6 +50,7 @@ Route::middleware(['auth', 'role:smo'])->group(function () {
     // -------------------------------------
 
     // USER ACCESS MANAGEMENT
+    Route::post('/admin/departments', [DepartmentController::class, 'store'])->name('admin.departments.store');
     Route::get('/admin/users/pending', [ProfileController::class, 'pendingUsers'])->name('admin.users.pending');
     Route::post('/admin/users/{id}/approve', [ProfileController::class, 'approveUser'])->whereNumber('id')->name('admin.users.approve');
 });

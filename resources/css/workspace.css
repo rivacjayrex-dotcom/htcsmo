@@ -1313,56 +1313,36 @@ body {
     right: 22px;
     bottom: 22px;
     z-index: 10050;
-    width: min(340px, calc(100vw - 28px));
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-8);
-    max-height: calc(100dvh - 100px);
+    width: min(360px, calc(100vw - 28px));
+    max-height: calc(100dvh - 32px);
     overflow-y: auto;
     overscroll-behavior: contain;
-    padding: var(--space-4);
+    padding: 4px;
 }
 
 .notification-toast {
-    position: relative;
-    flex-shrink: 0;
     overflow: hidden;
     border: 1px solid #dce7e0;
-    border-radius: 14px;
-    background: rgba(255,255,255,.98);
-    box-shadow: 0 12px 32px rgba(20, 48, 31, .18);
-    backdrop-filter: blur(12px);
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 12px 36px rgba(20, 48, 31, .18);
     animation: notificationToastEnter .25s ease-out;
 }
 
-.notification-toast-accent {
-    height: 4px;
-    background: #397a56;
-}
-
-.notification-toast.type-warning .notification-toast-accent {
-    background: #e2a126;
-}
-
-.notification-toast.type-danger .notification-toast-accent {
-    background: #d13e47;
-}
-
-.notification-toast.type-success .notification-toast-accent {
-    background: #21804c;
-}
-
 .notification-toast-body {
+    padding: 18px 20px 16px;
+}
+
+.notification-toast-heading {
     display: flex;
-    align-items: flex-start;
-    gap: var(--space-8);
-    padding: var(--space-12);
+    align-items: center;
+    gap: 8px;
 }
 
 .notification-toast-icon {
-    width: 34px;
-    height: 34px;
-    flex: 0 0 34px;
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
     display: grid;
     place-items: center;
     border-radius: 10px;
@@ -1371,146 +1351,111 @@ body {
 }
 
 .notification-toast-icon svg {
-    width: 18px;
-    height: 18px;
+    width: 17px;
+    height: 17px;
 }
 
-.type-warning .notification-toast-icon {
-    color: #97620a;
-    background: #fff0ce;
-}
-
-.type-danger .notification-toast-icon {
-    color: #b32933;
-    background: #fde8e9;
-}
-
-.type-success .notification-toast-icon {
-    color: #17643d;
-    background: #e2f3e8;
-}
-
-.notification-toast-content {
-    min-width: 0;
+.notification-toast-label {
     flex: 1;
+    color: #63766a;
+    font-size: 12px;
+    font-weight: 700;
 }
 
-.notification-toast-meta {
-    display: flex;
-    justify-content: space-between;
+.notification-toast-control {
+    display: grid;
+    place-items: center;
+    flex: 0 0 30px;
+    width: 30px;
+    height: 30px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: #718078;
+}
+
+.notification-toast-control:hover {
+    background: #edf4ef;
+    color: #205d3c;
+}
+
+.notification-toast-control svg {
+    width: 16px;
+    height: 16px;
+}
+
+.notification-toast-title {
+    margin: 16px 0 14px;
+    color: #203d2c;
+    font-size: 21px;
+    font-weight: 600;
+    line-height: 1.45;
+    letter-spacing: -.5px;
+}
+
+.notification-toast-title strong {
+    display: inline-block;
+    margin-left: 3px;
+    color: #247343;
+    font-size: 36px;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.notification-toast .notification-toast-open {
+    display: inline-flex;
     align-items: center;
-    gap: var(--space-8);
-    padding-right: var(--space-16);
-    margin-bottom: var(--space-4);
+    gap: 6px;
+    color: #256c43;
+    font-size: 12px;
+    font-weight: 750;
+    text-decoration: none;
+    min-height: 28px;
 }
 
-.notification-toast-meta span {
-    color: #738078;
-    font-size: var(--text-caption);
-    font-weight: 800;
-    letter-spacing: var(--tracking-label);
-    text-transform: uppercase;
+.notification-toast-open:hover {
+    text-decoration: underline;
 }
 
-.notification-toast-meta time {
-    color: #a0aaa4;
-    font-size: var(--text-caption);
-    white-space: nowrap;
+.notification-toast-open svg {
+    width: 15px;
+    height: 15px;
 }
 
-.notification-toast h6 {
-    margin: 0 var(--space-24) var(--space-4) 0;
-    color: #203128;
-    font-size: var(--text-body);
-    font-weight: 800;
-}
-
-.notification-toast p {
-    margin: 0;
-    color: #6f7d75;
-    font-size: var(--text-secondary);
-    line-height: var(--line-body);
-}
-
-.notification-toast-actions {
+.notification-toast-breakdown {
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
-    gap: var(--space-8);
-    margin-top: var(--space-8);
+    gap: 8px;
+    padding: 12px 20px;
+    border-top: 1px solid #e6ede8;
+    background: #f6f9f7;
 }
 
-.notification-toast-actions a {
-    color: var(--htc-green);
-    font-size: var(--text-caption);
-    font-weight: 800;
-    text-decoration: none;
-    text-transform: uppercase;
-}
-
-.notification-toast-actions button {
-    padding: 0;
-    border: 0;
-    background: transparent;
-    color: #849088;
-    font-size: var(--text-caption);
-}
-
-.notification-toast-actions .notification-toast-open {
-    color: var(--htc-green);
-    font-weight: 800;
-    text-transform: uppercase;
-}
-
-.notification-toast-actions button svg {
-    width: 14px;
-    height: 14px;
-}
-
-.notification-toast-read-note {
-    display: block;
-    margin-top: var(--space-4);
-    color: #8b968f;
-    font-size: var(--text-caption);
+.notification-toast-chip {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 4px;
+    padding: 5px 8px;
+    border-radius: 7px;
+    background: #e7f2eb;
+    color: #2b6542;
+    font-size: 11px;
     line-height: 1.4;
 }
 
-.notification-toast-close {
-    position: absolute;
-    top: .5rem;
-    right: .5rem;
-    padding: .15rem;
-    border: 0;
-    background: transparent;
-    color: #98a39d;
+.notification-toast-chip strong {
+    font-weight: 800;
 }
 
-.notification-toast-close svg {
-    width: 15px;
+.notification-toast-chip.is-attention {
+    background: #fff0d6;
+    color: #87570c;
 }
 
-.notification-toast-timer {
-    height: 3px;
-    background: #397a56;
-    transform-origin: left;
-    animation: notificationCountdown 9s linear forwards;
-}
-
-.type-warning .notification-toast-timer {
-    background: #e2a126;
-}
-
-.type-danger .notification-toast-timer {
-    background: #d13e47;
-}
-
-.type-success .notification-toast-timer {
-    background: #21804c;
-}
-
-@keyframes notificationCountdown {
-    from { transform: scaleX(1); }
-    to { transform: scaleX(0); }
+.notification-toast-control:focus-visible,
+.notification-toast-open:focus-visible {
+    outline: 2px solid #247343;
+    outline-offset: 3px;
 }
 
 @keyframes notificationToastEnter {

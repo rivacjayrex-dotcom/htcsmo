@@ -53,12 +53,7 @@ class RequestController extends Controller
         ]);
         $user = $request->user();
         $afterId = (int) ($validated['after_id'] ?? 0);
-        $notificationState = Notification::query()->forUser($user)
-            ->selectRaw(
-                'COALESCE(MAX(id), 0) as latest_id, COALESCE(SUM(CASE WHEN is_read = ? THEN 1 ELSE 0 END), 0) as unread_count',
-                [false]
-            )
-            ->first();
+        $notificationState = Notification::query()->forUser($user)->withUnreadSummary()->first();
         $latestId = (int) $notificationState->latest_id;
         $notifications = (int) $notificationState->unread_count > 0 && $afterId < $latestId
             ? Notification::query()->forUser($user)->unread()
@@ -82,6 +77,7 @@ class RequestController extends Controller
             'latest_id' => $latestId,
             'cursor' => (int) ($notifications->last()?->id ?? $latestId),
             'unread_count' => (int) $notificationState->unread_count,
+            'notification_summary' => $notificationState->unreadSummary(),
             'notifications' => $payloads,
             'notification' => $payloads->first(),
         ])->header('Cache-Control', 'private, no-store, no-cache, must-revalidate');

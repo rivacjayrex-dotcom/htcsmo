@@ -69,7 +69,7 @@ class RegisteredUserController extends Controller
                 'unique:users,school_id',
             ],
 
-            // Department: Restricted to official HTC colleges only
+            // Department: any department maintained by SMO in the database.
             'department' => ['required', 'string', Rule::exists('departments', 'dept_code')],
 
             // Strict Institutional Email: Must end specifically with @online.htcgsc.edu.ph
@@ -97,7 +97,7 @@ class RegisteredUserController extends Controller
             'username.unique' => 'This username is already taken.',
             'school_id.regex' => 'School ID must follow the exact format: 00000-0000 (e.g. 20260-0001).',
             'school_id.unique' => 'This School ID is already registered.',
-            'department.in' => 'Please select a valid HTC academic department.',
+            'department.exists' => 'Please select a valid HTC department.',
             'email.regex' => 'You must use your official HTC email ending in @online.htcgsc.edu.ph.',
             'email.unique' => 'This institutional email is already in use.',
             'password.min' => 'Password must be at least 8 characters.',

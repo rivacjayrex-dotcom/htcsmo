@@ -32,38 +32,36 @@
             <a href="{{ route('inventory.create') }}" class="btn btn-htc inventory-add-btn"><i data-lucide="plus"></i> Register new item</a>
         </div>
 
-        <nav class="inventory-section-nav" aria-label="Inventory workspace sections">
-            <a href="#inventory-overview"><span>01</span><i data-lucide="layout-dashboard"></i><div><strong>Overview</strong><small>Stock at a glance</small></div></a>
-            @if($attentionItems->isNotEmpty())
-                <a href="#stock-alerts" class="has-alert"><span>02</span><i data-lucide="siren"></i><div><strong>Restock</strong><small>{{ $attentionItems->count() }} item(s) need action</small></div></a>
-            @endif
-            <a href="#stock-catalog"><span>{{ $attentionItems->isNotEmpty() ? '03' : '02' }}</span><i data-lucide="list-tree"></i><div><strong>Catalog</strong><small>Search and update items</small></div></a>
-            <a href="#demand-forecast"><span>{{ $attentionItems->isNotEmpty() ? '04' : '03' }}</span><i data-lucide="chart-no-axes-combined"></i><div><strong>Forecast</strong><small>Plan future purchases</small></div></a>
-        </nav>
-
-        <section class="inventory-overview-section" id="inventory-overview">
-            <div class="workspace-section-heading">
-                <div><span class="section-number">01</span><div><span class="inventory-eyebrow">Inventory overview</span><h4>Stock at a glance</h4></div></div>
-                <p>A quick summary of catalog size, availability, and current value.</p>
-            </div>
+        <section class="inventory-overview-section" id="inventory-overview" aria-label="Stock summary" data-filter-region="summary">
             <div class="inventory-metrics">
-                <div><span class="metric-icon total"><i data-lucide="boxes"></i></span><p>Total catalog</p><strong>{{ $totalItems }}</strong><small>registered items</small></div>
-                <div><span class="metric-icon healthy"><i data-lucide="circle-check"></i></span><p>Healthy stock</p><strong>{{ $healthyItems }}</strong><small>above restock threshold</small></div>
-                <div><span class="metric-icon low"><i data-lucide="triangle-alert"></i></span><p>Low stock</p><strong>{{ $lowStockItems }}</strong><small>ready for restocking</small></div>
-                <div class="{{ $outOfStockItems > 0 ? 'attention' : '' }}"><span class="metric-icon warning"><i data-lucide="circle-x"></i></span><p>Out of stock</p><strong>{{ $outOfStockItems }}</strong><small>unavailable items</small></div>
-                <div><span class="metric-icon value"><i data-lucide="badge-dollar-sign"></i></span><p>Stock value</p><strong>₱{{ number_format($inventoryValue, 0) }}</strong><small>estimated on hand</small></div>
+                @foreach([
+                    'all' => ['label' => 'Total catalog', 'icon' => 'boxes', 'tone' => 'total', 'count' => $totalItems, 'caption' => 'registered items'],
+                    'healthy' => ['label' => 'Healthy stock', 'icon' => 'circle-check', 'tone' => 'healthy', 'count' => $healthyItems, 'caption' => 'above restock threshold'],
+                    'low' => ['label' => 'Low stock', 'icon' => 'triangle-alert', 'tone' => 'low', 'count' => $lowStockItems, 'caption' => 'ready for restocking'],
+                    'out' => ['label' => 'Out of stock', 'icon' => 'circle-x', 'tone' => 'warning', 'count' => $outOfStockItems, 'caption' => 'unavailable items'],
+                ] as $stock => $metric)
+                    <a href="{{ route('inventory.index', ['stock' => $stock, 'forecast_period' => $forecast['period']]) }}#inventory-results"
+                       data-filter-link data-filter-target="#inventory-results" data-inventory-summary="{{ $stock }}"
+                       class="{{ $stock === 'out' && $outOfStockItems > 0 ? 'attention' : '' }}"
+                       :class="{ 'is-active': query === '' && stockFilter === '{{ $stock }}' }"
+                       :aria-current="query === '' && stockFilter === '{{ $stock }}' ? 'true' : null"
+                       aria-label="Show {{ strtolower($metric['label']) }}: {{ $metric['count'] }} items">
+                        <span class="metric-icon {{ $metric['tone'] }}"><i data-lucide="{{ $metric['icon'] }}" aria-hidden="true"></i></span>
+                        <p>{{ $metric['label'] }}</p><strong>{{ $metric['count'] }}</strong><small>{{ $metric['caption'] }}</small>
+                    </a>
+                @endforeach
+                <button type="button" data-bs-toggle="modal" data-bs-target="#inventoryValueModal" aria-haspopup="dialog" aria-controls="inventoryValueModal">
+                    <span class="metric-icon value"><i data-lucide="badge-dollar-sign" aria-hidden="true"></i></span><p>Stock value</p><strong>₱{{ number_format($inventoryValue, 2) }}</strong><small>view value breakdown</small>
+                </button>
             </div>
         </section>
 
         <section class="forecast-section" id="demand-forecast" data-filter-region="forecast" data-result-count="{{ $forecast['recommendations']->count() }}" data-result-label="forecast recommendations" tabindex="-1" aria-label="Inventory forecast">
             <div class="forecast-header">
                 <div class="forecast-heading">
-                    <span class="section-number">{{ $attentionItems->isNotEmpty() ? '04' : '03' }}</span>
                     <span class="forecast-icon"><i data-lucide="chart-no-axes-combined"></i></span>
                     <div>
-                        <span class="inventory-eyebrow">Demand intelligence</span>
                         <h5>{{ $forecast['period_label'] }} purchase forecast</h5>
-                        <p>Suggested orders use actual SMO releases, seasonal demand, recent consumption, and safety stock.</p>
                     </div>
                 </div>
                 <div class="forecast-readiness">
@@ -125,7 +123,7 @@
         @if($attentionItems->isNotEmpty())
             <section class="restock-section" id="stock-alerts">
                 <div class="section-heading">
-                    <div><span class="section-number">02</span><span class="section-icon warning"><i data-lucide="siren"></i></span><div><span class="inventory-eyebrow">Action required</span><h5>Restock priority</h5><p>Low and unavailable items are surfaced here first.</p></div></div>
+                    <div><span class="section-icon warning"><i data-lucide="siren"></i></span><h5>Restock priority</h5></div>
                     <span class="priority-count">{{ $attentionItems->count() }} need attention</span>
                 </div>
                 <div class="restock-grid">
@@ -157,7 +155,6 @@
         <section class="catalog-section" id="stock-catalog">
             <div class="catalog-controls">
                 <div>
-                    <span class="inventory-eyebrow">{{ $attentionItems->isNotEmpty() ? '03' : '02' }} · Catalog management</span>
                     <h5>Stock catalog</h5>
                     <p>Out-of-stock and low-stock items always appear at the top of each list.</p>
                 </div>
@@ -198,6 +195,33 @@
             </div>
         </section>
 
+    <div class="modal fade" id="inventoryValueModal" tabindex="-1" aria-hidden="true" aria-labelledby="inventoryValueTitle">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="inventoryValueTitle">Stock value breakdown</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="table-responsive">
+                        <table class="table align-middle">
+                            <thead><tr><th scope="col">Item</th><th scope="col">On hand</th><th scope="col" class="text-end">Unit cost</th><th scope="col" class="text-end">Stock value</th></tr></thead>
+                            <tbody>
+                                @forelse($supplies as $item)
+                                    <tr><td>{{ $item->item_name }}</td><td>{{ $item->quantity }} {{ $item->unit }}</td><td class="text-end">₱{{ number_format((float) $item->unit_price, 2) }}</td><td class="text-end">₱{{ number_format($item->quantity * (float) $item->unit_price, 2) }}</td></tr>
+                                @empty
+                                    <tr><td colspan="4" class="text-center">No inventory items yet.</td></tr>
+                                @endforelse
+                            </tbody>
+                            <tfoot><tr><th scope="row" colspan="3">Total stock value</th><td class="text-end fw-bold">₱{{ number_format($inventoryValue, 2) }}</td></tr></tfoot>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer"><button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button></div>
+            </div>
+        </div>
+    </div>
+
     <div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-sm"><div class="modal-content border-0 shadow-lg rounded-4"><div class="modal-body p-4 text-center">
             <div class="delete-icon"><i data-lucide="trash-2"></i></div><h5 class="fw-bold">Remove inventory item?</h5>
@@ -224,30 +248,17 @@
     <style>
         .inventory-workspace { display: flex; flex-direction: column; padding: var(--space-8); }
         .inventory-page-header { display: flex; justify-content: space-between; align-items: center; gap: var(--space-24); margin-bottom: var(--space-24); }
-        .inventory-eyebrow { color: var(--htc-green); font-size: var(--text-caption); font-weight: 800; letter-spacing: var(--tracking-label); text-transform: uppercase; }
         .inventory-page-header h3 { margin: var(--space-4) 0; color: #17251d; font-weight: 800; }
         .inventory-page-header p, .catalog-controls p, .section-heading p { margin: 0; color: #7b8981; font-size: var(--text-secondary); }
         .inventory-add-btn { display: inline-flex; align-items: center; gap: var(--space-8); padding: var(--space-12) var(--space-16); border-radius: 12px; white-space: nowrap; }
         .inventory-add-btn svg { width: 17px; }
-        .inventory-section-nav { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: var(--space-12); margin-bottom: var(--space-32); padding: var(--space-8); border: 1px solid #dfe8e2; border-radius: 16px; background: #f5f8f6; }
-        .inventory-section-nav > a { min-width: 0; display: grid; grid-template-columns: 24px 34px minmax(0, 1fr); align-items: center; gap: var(--space-12); padding: var(--space-12); border: 1px solid transparent; border-radius: 11px; color: #53645a; background: transparent; text-decoration: none; transition: border-color .18s ease, background .18s ease, transform .18s ease; }
-        .inventory-section-nav > a:hover { border-color: #d5e3da; color: #244c35; background: #fff; transform: translateY(-1px); }
-        .inventory-section-nav > a:focus-visible { outline: 3px solid rgba(35, 113, 73, .2); outline-offset: 2px; }
-        .inventory-section-nav > a > span { color: #9aa69e; font-size: var(--text-caption); font-weight: 900; letter-spacing: var(--tracking-label); }
-        .inventory-section-nav > a > svg { width: 17px; height: 17px; color: var(--htc-green); }
-        .inventory-section-nav > a.has-alert > svg { color: #b52d35; }
-        .inventory-section-nav strong, .inventory-section-nav small { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .inventory-section-nav strong { color: #2b4034; font-size: var(--text-caption); }
-        .inventory-section-nav small { margin-top: .1rem; color: #8b978f; font-size: var(--text-caption); }
-        .inventory-overview-section { margin-bottom: var(--space-32); padding: var(--space-24); border: 1px solid #e1e9e4; border-radius: 18px; background: linear-gradient(145deg, #f8faf9, #fff); box-shadow: 0 8px 24px rgba(24, 55, 36, .04); scroll-margin-top: 1rem; }
-        .workspace-section-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--space-16); margin-bottom: var(--space-16); }
-        .workspace-section-heading > div { display: flex; align-items: center; gap: var(--space-12); }
-        .workspace-section-heading h4 { margin: .1rem 0 0; color: #203128; font-size: var(--text-heading-sm); font-weight: 800; }
-        .workspace-section-heading p { max-width: 430px; margin: 0; color: #7f8d85; font-size: var(--text-secondary); text-align: right; }
-        .section-number { width: 32px; height: 32px; flex: 0 0 32px; display: grid; place-items: center; border: 1px solid #d5e3da; border-radius: 9px; color: #397451; background: #f1f7f3; font-size: var(--text-caption); font-weight: 900; letter-spacing: var(--tracking-label); }
+        .inventory-overview-section { margin-bottom: var(--space-24); }
         .inventory-metrics { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--space-12); }
-        .inventory-metrics > div { position: relative; padding: var(--space-16); border: 1px solid #e3eae6; border-radius: 15px; background: #fff; box-shadow: 0 5px 16px rgba(24, 55, 36, .04); }
-        .inventory-metrics > div.attention { border-color: #f4c6c8; background: #fffafa; }
+        .inventory-metrics > :is(a,button) { position: relative; min-width:0; padding: var(--space-16); border: 1px solid #e3eae6; border-radius: 15px; background: #fff; box-shadow: 0 5px 16px rgba(24, 55, 36, .04); color:inherit; text-align:left; text-decoration:none; cursor:pointer; }
+        .inventory-metrics > .attention { border-color: #f4c6c8; background: #fffafa; }
+        .inventory-metrics > :is(a,button):hover { border-color:#85ad94; background:#f5faf7; }
+        .inventory-metrics > a.is-active { border-color:var(--htc-green); box-shadow:inset 0 -3px var(--htc-green); }
+        .inventory-metrics > :is(a,button):focus-visible { outline:3px solid #8eb39c; outline-offset:3px; }
         .inventory-metrics p { margin: var(--space-12) 0 .1rem; color: #738078; font-size: var(--text-secondary); font-weight: 800; letter-spacing: var(--tracking-label); text-transform: uppercase; }
         .inventory-metrics strong { display: block; color: #1f3026; font-size: var(--text-heading-sm); line-height: var(--line-heading); }
         .inventory-metrics small { color: #96a199; font-size: var(--text-caption); }
@@ -298,21 +309,14 @@
         .stock-badge { display: inline-flex; align-items: center; gap: var(--space-4); padding: var(--space-4) var(--space-8); border-radius: 999px; font-size: var(--text-caption); font-weight: 800; }.stock-badge svg { width: 13px; }.stock-badge.out { color: #ac2730; background: #fde9ea; }.stock-badge.low { color: #96610a; background: #fff0cc; }.stock-badge.healthy { color: #17643d; background: #e5f5eb; }.stock-threshold { display: block; margin-top: var(--space-4); color: #9aa39e; font-size: var(--text-caption); }
         .inventory-action { width: 32px; height: 32px; display: inline-grid; place-items: center; padding: 0; border: 1px solid #dce4df; border-radius: 9px; color: #5f6f66; background: #fff; }.inventory-action svg { width: 14px; }.inventory-action:hover { border-color: var(--htc-green); color: var(--htc-green); background: #eff7f2; }.inventory-action.danger:hover { border-color: #dc3545; color: #dc3545; background: #fff5f5; }
         .inventory-empty { height: 220px; text-align: center; color: #94a3b8; }.inventory-empty svg { display: block; width: 34px; margin: 0 auto var(--space-8); }.inventory-empty strong, .inventory-empty span { display: block; }.delete-icon { width: 58px; height: 58px; display: grid; place-items: center; margin: 0 auto var(--space-16); border-radius: 50%; color: #b52d35; background: #fdebec; }.delete-icon svg { width: 25px; }
-        @media(max-width: 1199px) { .inventory-section-nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }.inventory-metrics { grid-template-columns: repeat(3, 1fr); }.restock-grid, .forecast-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media(max-width: 1199px) { .inventory-metrics { grid-template-columns: repeat(3, 1fr); }.restock-grid, .forecast-grid { grid-template-columns: repeat(2, 1fr); } }
         @media(max-width: 767px) {
             .inventory-workspace { padding: 0; }
             .inventory-page-header, .catalog-controls, .forecast-header { align-items: stretch; flex-direction: column; }
             .inventory-add-btn { min-height: 44px; justify-content: center; }
-            .inventory-section-nav { gap: var(--space-8); margin-bottom: var(--space-24); padding: var(--space-8); border-radius: 14px; }
-            .inventory-section-nav > a { grid-template-columns: 20px 26px minmax(0, 1fr); gap: var(--space-8); padding: var(--space-12) var(--space-8); }
-            .inventory-section-nav > a > svg { width: 15px; }
-            .inventory-section-nav small { display: none; }
-            .inventory-overview-section { margin-bottom: var(--space-24); padding: var(--space-16); }
-            .workspace-section-heading { align-items: flex-start; flex-direction: column; }
-            .workspace-section-heading p { text-align: left; }
             .inventory-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-12); }
-            .inventory-metrics > div { padding: var(--space-12); }
-            .inventory-metrics > div:last-child { grid-column: 1 / -1; }
+            .inventory-metrics > :is(a,button) { padding: var(--space-12); }
+            .inventory-metrics > :last-child { grid-column: 1 / -1; }
             .forecast-header, .section-heading, .catalog-controls { padding: var(--space-16); }
             .forecast-heading { align-items: flex-start; }
             .forecast-readiness { flex-wrap: wrap; }
@@ -347,8 +351,6 @@
         }
 
         @media(max-width: 420px) {
-            .inventory-section-nav > a { grid-template-columns: 19px minmax(0, 1fr); }
-            .inventory-section-nav > a > svg { display: none; }
             .inventory-metrics p { margin-top: var(--space-8); }
             .inventory-metrics strong { font-size: var(--text-heading-sm); }
         }

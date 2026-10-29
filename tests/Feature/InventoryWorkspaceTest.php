@@ -51,6 +51,54 @@ class InventoryWorkspaceTest extends TestCase
         $this->assertSame([$minor->id, $major->id], $response->viewData('catalogSupplies')->pluck('id')->all());
     }
 
+    public function test_summary_cards_open_the_matching_catalog_and_preserve_the_forecast_period(): void
+    {
+        $smo = User::factory()->create(['role' => 'smo']);
+        $healthy = $this->supply('Healthy Paper', 'minor', 20, 5);
+        $low = $this->supply('Low Toner', 'major', 5, 5);
+        $out = $this->supply('Empty Ink', 'minor', 0, 5);
+        $response = $this->actingAs($smo)->get(route('inventory.index', [
+            'search' => 'missing', 'stock' => 'healthy', 'forecast_period' => 'quarterly',
+        ]))->assertOk();
+        $dom = new \DOMDocument();
+        @$dom->loadHTML($response->getContent());
+        $xpath = new \DOMXPath($dom);
+        $this->assertSame(4, $xpath->query('//a[@data-inventory-summary]')->length);
+
+        foreach (['all' => [$out->id, $low->id, $healthy->id], 'healthy' => [$healthy->id], 'low' => [$low->id], 'out' => [$out->id]] as $stock => $ids) {
+            $card = $xpath->query('//a[@data-inventory-summary="'.$stock.'"]')->item(0);
+            $this->assertTrue($card->hasAttribute('data-filter-link'));
+            $this->assertSame('#inventory-results', $card->getAttribute('data-filter-target'));
+            $url = $card->getAttribute('href');
+            parse_str(parse_url($url, PHP_URL_QUERY), $query);
+            $this->assertSame(['stock' => $stock, 'forecast_period' => 'quarterly'], $query);
+            $this->assertSame('inventory-results', parse_url($url, PHP_URL_FRAGMENT));
+            $this->get($url, ['X-Filter-Request' => 'true', 'X-Requested-With' => 'XMLHttpRequest'])
+                ->assertOk()->assertViewHas('catalogSupplies', fn ($items) => $items->pluck('id')->all() === $ids)
+                ->assertSee('name="stock"', false)->assertSee('value="'.$stock.'" selected', false)
+                ->assertSee('data-filter-region="summary"', false);
+        }
+
+        $out->delete();
+        $this->get(route('inventory.index', ['stock' => 'out']))->assertOk()
+            ->assertViewHas('catalogSupplies', fn ($items) => $items->isEmpty())
+            ->assertSee('No matching items');
+    }
+
+    public function test_stock_value_card_opens_an_accurate_breakdown_of_the_whole_inventory(): void
+    {
+        $smo = User::factory()->create(['role' => 'smo']);
+        $this->supply('Valued Paper', 'minor', 2, 1, 12.35);
+        $this->supply('Valued Ink', 'minor', 1, 1, 4.56);
+        $this->supply('Empty Toner', 'major', 0, 1, 500);
+        $this->actingAs($smo)->get(route('inventory.index', ['search' => 'Valued Paper']))->assertOk()
+            ->assertSee('data-bs-target="#inventoryValueModal"', false)
+            ->assertSee('id="inventoryValueModal"', false)
+            ->assertSee('aria-labelledby="inventoryValueTitle"', false)
+            ->assertSee('Stock value breakdown')->assertSee('Valued Ink')
+            ->assertSee('₱24.70')->assertSee('₱4.56')->assertSee('₱29.26');
+    }
+
     public function test_smo_registers_brands_as_requestor_choices_without_a_brand_field(): void
     {
         $smo = User::factory()->create(['role' => 'smo']);

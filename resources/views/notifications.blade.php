@@ -12,7 +12,7 @@
     @endphp
 
     <div class="container-fluid notification-center-page" data-filter-workspace="notifications" data-notification-center data-notification-endpoint="{{ route('notifications') }}" data-notification-account="{{ Auth::id() }}">
-        <div class="notification-center-grid {{ Auth::user()->role === 'smo' ? 'has-insights' : '' }}">
+        <div class="notification-center-grid">
             <main class="notification-activity-panel" id="notification-results" data-filter-results data-filter-region="results" data-result-count="{{ $notes->total() }}" tabindex="-1" aria-label="Matching notifications">
                 <div class="notification-panel-heading">
                     <div class="notification-panel-title"><span>Activity feed</span><h2 data-current-category>{{ $categoryLabels[$category] }}</h2></div>
@@ -53,58 +53,12 @@
                         </form>
                     </div>
                 </div>
-                <div class="notification-feed-container" data-notification-feed aria-live="polite">
+                <div class="notification-feed-container" id="notification-feed-scroll" data-notification-feed aria-live="polite" tabindex="0" aria-label="Activity feed">
                     @include('notifications.feed', ['notes' => $notes, 'resolvedActions' => $resolvedActions])
                 </div>
             </main>
 
-            @if(Auth::user()->role === 'smo')
-                <aside class="notification-insights-column">
-                    <section class="notification-insight-card inventory-health {{ $lowStockSupplies->isNotEmpty() ? 'has-alerts' : '' }}">
-                        <div class="notification-insight-heading">
-                            <div><span>Inventory health</span><h2>{{ $lowStockSupplies->count() }} {{ Str::plural('item', $lowStockSupplies->count()) }} need attention</h2></div>
-                            <i data-lucide="package-search"></i>
-                        </div>
-                        <div class="notification-stock-list">
-                            @forelse($lowStockSupplies->take(5) as $supply)
-                                <a href="{{ route('inventory.edit', $supply->id) }}" class="notification-stock-row">
-                                    <span class="stock-state {{ $supply->quantity <= 0 ? 'is-out' : 'is-low' }}"></span>
-                                    <span><strong>{{ $supply->item_name }}</strong><small>{{ $supply->quantity <= 0 ? 'Out of stock' : $supply->quantity.' '.$supply->unit.' remaining' }}</small></span>
-                                    <i data-lucide="chevron-right"></i>
-                                </a>
-                            @empty
-                                <div class="notification-insight-empty"><i data-lucide="circle-check"></i><span>Inventory levels are healthy.</span></div>
-                            @endforelse
-                        </div>
-                        <a href="{{ route('inventory.index') }}" class="notification-insight-link" aria-label="Open inventory forecast" title="Open inventory forecast"><i data-lucide="arrow-right" aria-hidden="true"></i></a>
-                    </section>
 
-                    <section class="notification-insight-card deadline-watch">
-                        <div class="notification-insight-heading">
-                            <div><span>Request deadlines</span><h2>Critical deadlines</h2></div>
-                            <b>{{ $criticalRequestCount }}</b>
-                        </div>
-                        <div class="notification-deadline-list">
-                            @forelse($criticalRequests as $req)
-                                @php($isOverdue = $req->isDeadlineOverdue())
-                                <a class="notification-deadline-item {{ $isOverdue ? 'is-overdue' : 'is-warning' }}" href="{{ route('requests.show', $req) }}" aria-label="View request {{ $req->tracking_code }}">
-                                    <div><span>{{ $isOverdue ? 'Overdue' : 'Due soon' }}</span><small>{{ $req->tracking_code }}</small></div>
-                                    <h3>{{ $req->items->first()->item_name ?? 'Multiple requested items' }}</h3>
-                                    <p>{{ $isOverdue ? 'This requisition has reached its processing deadline.' : 'This requisition is approaching its processing deadline.' }}</p>
-                                    @if($req->due_at)
-                                        <p>Due <time datetime="{{ $req->due_at->toIso8601String() }}">{{ $req->due_at->format('M j, Y g:i A') }}</time></p>
-                                    @endif
-                                </a>
-                            @empty
-                                <div class="notification-insight-empty"><i data-lucide="shield-check"></i><span>No critical request deadlines.</span></div>
-                            @endforelse
-                        </div>
-                        @if($criticalRequestCount > 0)
-                            <a href="{{ route('requests.index', ['status' => 'deadline']) }}" class="notification-insight-link">View all {{ $criticalRequestCount }} deadline risks <i data-lucide="arrow-right" aria-hidden="true"></i></a>
-                        @endif
-                    </section>
-                </aside>
-            @endif
         </div>
     </div>
 
@@ -120,7 +74,7 @@
         .notification-icon-control:hover { background:#edf7f1; border-color:#b8d6c3; }
         .notification-icon-control:disabled { opacity:.5; cursor:wait; }
         .notification-icon-control svg { width:18px; height:18px; }
-        .notification-icon-control:focus-visible,.notification-category-link:focus-visible,.notification-insight-link:focus-visible { outline:2px solid var(--htc-green); outline-offset:2px; }
+        .notification-icon-control:focus-visible,.notification-category-link:focus-visible { outline:2px solid var(--htc-green); outline-offset:2px; }
         .notification-category-nav { display:flex; flex:1 1 auto; flex-wrap:nowrap; min-width:0; gap:var(--space-4); overflow-x:auto; padding:var(--space-4); }
         .notification-category-link { flex:0 0 auto; min-height:44px; display:inline-flex; align-items:center; gap:var(--space-8); padding:var(--space-8) var(--space-12); border-radius:10px; color:#677970; font-size:var(--text-caption); font-weight:800; text-decoration:none; white-space:nowrap; transition:.18s ease; }
         .notification-category-link:hover { background:#f0f6f2; color:var(--htc-green); }
@@ -129,16 +83,15 @@
         .notification-category-link b { min-width:21px; padding:.15rem var(--space-4); border-radius:999px; background:#eef3f0; color:#5e7166; font-size:var(--text-caption); text-align:center; }
         .notification-category-link.is-active b { background:rgba(255,255,255,.18); color:#fff; }
         .notification-center-grid { display:grid; grid-template-columns:minmax(0,1fr); gap:var(--space-16); align-items:start; }
-        .notification-center-grid.has-insights { grid-template-columns:minmax(0,1.8fr) minmax(280px,.72fr); }
-        .notification-activity-panel,.notification-insight-card { overflow:hidden; border:1px solid var(--note-line); border-radius:16px; background:#fff; box-shadow:0 7px 20px rgba(24,70,43,.05); }
-        .notification-panel-heading,.notification-insight-heading { display:flex; align-items:center; justify-content:space-between; gap:var(--space-16); }
-        .notification-panel-heading { flex-wrap:nowrap; gap:var(--space-8); padding:var(--space-16); border-bottom:1px solid #e7eee9; background:linear-gradient(135deg,#fbfdfc,#f4f8f5); }
+        .notification-activity-panel { display:flex; flex-direction:column; height:calc(100dvh - 168px); min-height:0; overflow:hidden; border:1px solid var(--note-line); border-radius:16px; background:#fff; box-shadow:0 7px 20px rgba(24,70,43,.05); }
+        .notification-panel-heading { display:flex; align-items:center; justify-content:space-between; gap:var(--space-16); }
+        .notification-panel-heading { flex-shrink:0; flex-wrap:nowrap; gap:var(--space-8); padding:var(--space-16); border-bottom:1px solid #e7eee9; background:linear-gradient(135deg,#fbfdfc,#f4f8f5); }
         .notification-panel-title { flex:0 0 auto; white-space:nowrap; }
-        .notification-panel-heading > div > span,.notification-insight-heading > div > span { color:#87978e; font-size:var(--text-caption); font-weight:800; letter-spacing:var(--tracking-label); text-transform:uppercase; }
-        .notification-panel-heading h2,.notification-insight-heading h2 { margin:.12rem 0 0; color:var(--note-ink); font-size:var(--text-heading-sm); font-weight:800; }
+        .notification-panel-heading > div > span { color:#87978e; font-size:var(--text-caption); font-weight:800; letter-spacing:var(--tracking-label); text-transform:uppercase; }
+        .notification-panel-heading h2 { margin:.12rem 0 0; color:var(--note-ink); font-size:var(--text-heading-sm); font-weight:800; }
         .notification-live-label { display:inline-flex; align-items:center; gap:var(--space-4); color:#3c7655; font-size:var(--text-secondary); font-weight:800; text-transform:uppercase; }
         .notification-live-label svg { width:13px; height:13px; }
-        .notification-feed-container { position:relative; min-height:260px; transition:opacity .15s ease; }
+        .notification-feed-container { position:relative; flex:1; min-height:0; overflow-y:auto; overscroll-behavior-y:contain; scrollbar-gutter:stable; transition:opacity .15s ease; }
         .notification-center-page.is-loading .notification-feed-container { opacity:.38; pointer-events:none; }
         .notification-center-page.is-loading .notification-activity-panel { cursor:progress; }
         .notification-feed-list { display:grid; gap:var(--space-12); padding:var(--space-12); background:#f6f9f7; }
@@ -172,38 +125,13 @@
         .notification-empty-state h3 { margin:0; color:var(--note-ink); font-size:var(--text-heading-sm); }
         .notification-empty-state p { max-width:320px; margin:var(--space-4) 0 0; color:var(--note-muted); font-size:var(--text-secondary); }
         .notification-feed-pagination { padding:var(--space-12) var(--space-16); border-top:1px solid var(--note-line); background:#fff; }
-        .notification-insights-column { display:grid; gap:var(--space-16); }
-        .notification-insight-card { padding:var(--space-16); }
-        .notification-insight-heading { margin-bottom:var(--space-12); }
-        .notification-insight-heading > svg { width:34px; height:34px; padding:var(--space-8); border-radius:10px; background:#e8f3ec; color:#276d48; }
-        .notification-insight-heading > b { min-width:28px; height:28px; display:grid; place-items:center; border-radius:9px; background:#fde8ea; color:#b52d36; font-size:var(--text-caption); }
-        .notification-stock-row { display:grid; grid-template-columns:8px minmax(0,1fr) 14px; align-items:center; gap:var(--space-12); padding:var(--space-12) 0; border-bottom:1px solid #edf1ef; color:inherit; text-decoration:none; }
-        .notification-stock-row > span:nth-child(2) { min-width:0; }
-        .notification-stock-row strong,.notification-stock-row small { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-        .notification-stock-row strong { color:#2f4438; font-size:var(--text-secondary); }
-        .notification-stock-row small { color:#89978f; font-size:var(--text-caption); }
-        .notification-stock-row > svg { width:14px; color:#9ba79f; }
-        .stock-state { width:8px; height:8px; border-radius:50%; background:#e1a124; box-shadow:0 0 0 4px rgba(225,161,36,.11); }
-        .stock-state.is-out { background:#d4424b; box-shadow:0 0 0 4px rgba(212,66,75,.11); }
-        .notification-insight-link { min-height:38px; display:flex; align-items:center; justify-content:center; gap:var(--space-8); margin-top:var(--space-12); border-radius:9px; background:#edf7f1; color:#1f6b43; font-size:var(--text-caption); font-weight:800; text-decoration:none; }
-        .notification-insight-link svg { width:14px; }
-        .notification-deadline-list { display:grid; gap:var(--space-8); }
-        .notification-deadline-item { display:block; padding:var(--space-12); border:1px solid #efd3d5; border-radius:11px; background:#fff8f8; color:inherit; text-decoration:none; }
-        .notification-deadline-item:hover { box-shadow:0 3px 10px rgba(24,70,43,.12); }
-        .notification-deadline-item:hover h3 { text-decoration:underline; }
-        .notification-deadline-item:focus-visible { outline:2px solid var(--htc-green); outline-offset:-3px; }
-        .notification-deadline-item.is-warning { border-color:#ecd9ae; background:#fffbf1; }
-        .notification-deadline-item.is-warning > div span { color:#8a5b0a; }
-        .notification-deadline-item > div { display:flex; justify-content:space-between; gap:var(--space-8); }
-        .notification-deadline-item > div span { color:#b63139; font-size:var(--text-caption); font-weight:900; text-transform:uppercase; }
-        .notification-deadline-item small { min-width:0; overflow-wrap:anywhere; color:#9a8587; font-size:var(--text-caption); text-align:right; }
-        .notification-deadline-item h3 { margin:var(--space-4) 0 var(--space-4); color:#432e30; font-size:var(--text-body); font-weight:800; }
-        .notification-deadline-item p { margin:0 0 var(--space-8); color:#806c6e; font-size:var(--text-secondary); }
-        .notification-deadline-item p:last-child { margin-bottom:0; }
-        .notification-insight-empty { min-height:90px; display:flex; align-items:center; justify-content:center; gap:var(--space-8); color:#7b8b82; font-size:var(--text-caption); text-align:center; }
-        .notification-insight-empty svg { width:18px; color:#45815e; }
-        @media(max-width:991.98px){.notification-center-grid.has-insights{grid-template-columns:1fr}.notification-insights-column{grid-template-columns:repeat(2,minmax(0,1fr))}}
-        @media(max-width:575.98px){.notification-center-page{padding-top:var(--space-4)}.notification-category-nav{gap:var(--space-4)}.notification-category-link{padding:var(--space-8)}.notification-center-grid{gap:var(--space-12)}.notification-insights-column{grid-template-columns:1fr}.notification-feed-item{grid-template-columns:36px minmax(0,1fr);padding:var(--space-12)}.notification-feed-icon{width:36px;height:36px}.notification-feed-meta{align-items:flex-start;flex-direction:column;gap:.1rem}.notification-panel-heading{padding:var(--space-12)}.notification-live-label{display:none}}
+        @media(max-width:767.98px){
+            .notification-activity-panel{height:calc(100dvh - 128px)}
+            .notification-panel-heading{display:grid;grid-template-columns:minmax(0,1fr) auto}
+            .notification-category-nav{grid-column:1/-1;grid-row:2;width:100%}
+            .notification-toolbar-actions{margin-left:0}
+        }
+        @media(max-width:575.98px){.notification-center-page{padding-top:var(--space-4)}.notification-category-nav{gap:var(--space-4)}.notification-category-link{padding:var(--space-8)}.notification-center-grid{gap:var(--space-12)}.notification-feed-item{grid-template-columns:36px minmax(0,1fr);padding:var(--space-12)}.notification-feed-icon{width:36px;height:36px}.notification-feed-meta{align-items:flex-start;flex-direction:column;gap:.1rem}.notification-panel-heading{padding:var(--space-12)}.notification-live-label{display:none}}
         @media(prefers-reduced-motion:reduce){.notification-feed-item,.notification-feed-container{transition:none}}
     </style>
     @endPushOnce
@@ -238,9 +166,19 @@
                 }
             };
 
-            const loadFeed = (url, pushState = true) => window.htcFilters?.refresh(center, url, {
-                history: pushState ? 'push' : 'none', orient: pushState, background: !pushState,
-            });
+            const loadFeed = async (url, pushState = true) => {
+                const scrollTop = center.querySelector('[data-notification-feed]')?.scrollTop || 0;
+                const scrollLeft = center.querySelector('.notification-category-nav')?.scrollLeft || 0;
+                await window.htcFilters?.refresh(center, url, {
+                    history: pushState ? 'push' : 'none', orient: pushState, background: !pushState,
+                });
+                if (!pushState) {
+                    const feed = center.querySelector('[data-notification-feed]');
+                    const tabs = center.querySelector('.notification-category-nav');
+                    if (feed) feed.scrollTop = scrollTop;
+                    if (tabs) tabs.scrollLeft = scrollLeft;
+                }
+            };
             center.addEventListener('submit', async event => {
                 const readForm = event.target.closest('[data-notification-read-form]');
                 const readAllForm = event.target.closest('[data-mark-all-read-form]');
@@ -311,8 +249,8 @@
                 const data = event.detail;
                 if (!data || Number(data.account_id) !== Number(center.dataset.notificationAccount)) return;
                 updateUnreadCount(data.unread_count);
-                const signature = `${data.latest_id}:${data.unread_count}`;
-                if (signature !== lastRuntimeSignature && Array.isArray(data.notifications) && data.notifications.length) {
+                const signature = `${data.latest_id}:${data.unread_count}:${data.versions?.dashboard || ''}`;
+                if (signature !== lastRuntimeSignature && (lastRuntimeSignature !== null || data.notifications?.length)) {
                     loadFeed(window.location.href, false);
                 }
                 lastRuntimeSignature = signature;

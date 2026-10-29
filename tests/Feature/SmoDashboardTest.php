@@ -76,7 +76,7 @@ class SmoDashboardTest extends TestCase
         $this->assertTrue($majorVp->isAwaitingAdministrativeApproval());
     }
 
-    public function test_active_preview_has_deterministic_order_and_tier_specific_status_labels(): void
+    public function test_recent_preview_includes_closed_requests_with_deterministic_order_and_tier_specific_status_labels(): void
     {
         $this->travelTo(now()->setDate(2026, 10, 21)->setTime(10, 0));
         $smo = User::factory()->create(['role' => 'smo', 'name' => 'Dashboard Officer']);
@@ -92,14 +92,14 @@ class SmoDashboardTest extends TestCase
         $archived = $this->requisition($owner, 'completed');
 
         $response = $this->actingAs($smo)->get(route('dashboard'))->assertOk()
-            ->assertViewHas('allStaffRequests', fn ($requests) => $requests->count() === 10 && $requests->first()->is($minor))
-            ->assertSee('Latest 10 of 12 active requests.')
+            ->assertViewHas('allStaffRequests', fn ($requests) => $requests->count() === 10 && $requests->first()->is($archived))
+            ->assertSee('Latest 10 of 13 requisitions, newest first.')
             ->assertSee('Welcome back, Dashboard.')
             ->assertSee('Provost review')
             ->assertSee('Awaiting SMO processing')
             ->assertSee('class="status-pill pending">Provost review', false)
             ->assertDontSee($first->tracking_code)
-            ->assertDontSee($archived->tracking_code);
+            ->assertSee($archived->tracking_code);
 
         $this->assertSame(13, $response->viewData('stats')['total']);
     }
@@ -138,7 +138,7 @@ class SmoDashboardTest extends TestCase
         $this->get(route('dashboard'))->assertRedirect(route('login'));
         $smo = User::factory()->create(['role' => 'smo']);
         $response = $this->actingAs($smo)->get(route('dashboard'))->assertOk()
-            ->assertSee('No active requisitions')
+            ->assertSee('No recent requisitions')
             ->assertSee('No approval deadlines need attention')
             ->assertSee('No low-stock items')
             ->assertSee('No recent alerts')
@@ -177,6 +177,50 @@ class SmoDashboardTest extends TestCase
         $later = $this->getJson(route('api.runtime-state', ['scope' => 'dashboard']))->assertOk()->json();
         $this->assertNotSame($after['version'], $later['version']);
         $this->assertSame($after['versions']['inventory'], $later['versions']['inventory']);
+    }
+
+    public function test_card_tabs_render_the_selected_panel_on_direct_links_and_live_refresh(): void
+    {
+        $smo = User::factory()->create(['role' => 'smo']);
+        foreach (['recent', 'deadlines', 'inventory', 'invalid'] as $tab) {
+            $selected = $tab === 'invalid' ? 'recent' : $tab;
+            foreach ([[], ['X-Workspace-Refresh' => 'true']] as $headers) {
+                $response = $this->actingAs($smo)->get(route('dashboard', ['tab' => $tab]), $headers)->assertOk();
+                $dom = new \DOMDocument();
+                @$dom->loadHTML($response->getContent());
+                $xpath = new \DOMXPath($dom);
+                $this->assertSame(3, $xpath->query('//*[@data-smo-tab]')->length);
+                $this->assertSame($selected, $xpath->query('//*[@data-smo-tab and @aria-selected="true"]')->item(0)->getAttribute('data-smo-tab'));
+                $this->assertSame('smo-panel-'.$selected, $xpath->query('//*[@role="tabpanel" and not(@hidden)]')->item(0)->getAttribute('id'));
+                $this->assertSame(2, $xpath->query('//*[@role="tabpanel" and @hidden]')->length);
+            }
+        }
+    }
+
+    public function test_dashboard_notification_box_opens_its_record_and_marks_only_that_notification_read(): void
+    {
+        $smo = User::factory()->create(['role' => 'smo']);
+        $other = User::factory()->create(['role' => 'smo']);
+        $supply = $this->supply('Restock paper', 1, 10);
+        $notice = Notification::create([
+            'user_id' => $smo->id, 'title' => 'Paper is low', 'message' => 'Review stock',
+            'action_type' => 'inventory', 'action_id' => $supply->id, 'is_read' => false,
+        ]);
+        $private = Notification::create([
+            'user_id' => $other->id, 'title' => 'Private notice', 'message' => 'Other officer', 'is_read' => false,
+        ]);
+        $response = $this->actingAs($smo)->get(route('dashboard'))->assertOk()->assertDontSee('Private notice');
+        $dom = new \DOMDocument();
+        @$dom->loadHTML($response->getContent());
+        $xpath = new \DOMXPath($dom);
+        $button = $xpath->query('//button[@class="smo-notification-action"]')->item(0);
+        $this->assertSame('Open notification: Paper is low', $button->getAttribute('aria-label'));
+        $this->assertSame(route('notifications.open', $notice), $button->parentNode->getAttribute('action'));
+        $this->assertFalse($notice->fresh()->is_read);
+        $this->post(route('notifications.open', $notice))->assertRedirect(route('inventory.edit', $supply));
+        $this->assertTrue($notice->fresh()->is_read);
+        $this->post(route('notifications.open', $private))->assertForbidden();
+        $this->assertFalse($private->fresh()->is_read);
     }
 
     private function requisition(User $owner, string $status, array $attributes = []): Requisition

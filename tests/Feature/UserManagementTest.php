@@ -39,6 +39,53 @@ class UserManagementTest extends TestCase
             ->assertDontSee('CTE Faculty Member');
     }
 
+    public function test_smo_can_view_complete_personnel_details_without_exposing_credentials(): void
+    {
+        $smo = User::factory()->create(['role' => 'smo']);
+        $employee = User::factory()->create([
+            'name' => 'Mara <script>alert("x")</script> O\'Neil',
+            'username' => 'details.login', 'department' => 'CETE',
+            'password' => 'Private-test-pass-123!', 'remember_token' => 'private-remember-token',
+        ]);
+
+        foreach ([[], ['X-Filter-Request' => 'true', 'X-Requested-With' => 'XMLHttpRequest']] as $headers) {
+            $response = $this->actingAs($smo)->get(route('admin.users.manage', ['search' => $employee->school_id]), $headers)
+                ->assertOk()->assertSee('View details')
+                ->assertSee('details.login')->assertSee('Personnel details')
+                ->assertSee('Passwords are stored as one-way hashes and cannot be viewed.')
+                ->assertDontSee($employee->getRawOriginal('password'), false)
+                ->assertDontSee('Private-test-pass-123!', false)
+                ->assertDontSee('private-remember-token', false)
+                ->assertDontSee('<script>alert("x")</script>', false);
+
+            $dom = new \DOMDocument();
+            @$dom->loadHTML($response->getContent());
+            $xpath = new \DOMXPath($dom);
+            $button = $xpath->query('//button[@aria-controls="personnelDetailsModal"]')->item(0);
+            $this->assertNotNull($button);
+            $this->assertSame('dialog', $button->getAttribute('aria-haspopup'));
+            $this->assertStringContainsString('openDetails(', $button->getAttribute('x-on:click'));
+            $this->assertStringContainsString('details.login', $button->getAttribute('x-on:click'));
+            $this->assertSame(1, $xpath->query('//*[@id="personnelDetailsModal"]')->length);
+            foreach (['id', 'name', 'username', 'school_id', 'email', 'department', 'designation', 'status', 'email_verified_at', 'created_at', 'updated_at'] as $field) {
+                $this->assertSame(1, $xpath->query('//*[@id="personnelDetailsModal"]//*[@x-text="detailedUser.'.$field.'"]')->length);
+            }
+        }
+    }
+
+    public function test_personnel_details_button_is_only_available_to_smo(): void
+    {
+        $employee = User::factory()->create(['department' => 'CETE', 'username' => 'smo-only-details']);
+        foreach (['dept_head', 'president', 'provost', 'vp_admin'] as $role) {
+            $manager = User::factory()->create(['role' => $role, 'department' => 'CETE']);
+            $this->actingAs($manager)->get(route('admin.users.manage'))->assertOk()
+                ->assertSee($employee->name)
+                ->assertDontSee('aria-controls="personnelDetailsModal"', false)
+                ->assertDontSee('id="personnelDetailsModal"', false)
+                ->assertDontSee('smo-only-details');
+        }
+    }
+
     public function test_department_head_can_manage_an_employee_in_their_department_only(): void
     {
         $head = User::factory()->create(['role' => 'dept_head', 'department' => 'CETE']);
@@ -306,6 +353,71 @@ class UserManagementTest extends TestCase
             ->assertSee('Category Faculty Member')
             ->assertDontSee('Category Administrator')
             ->assertDontSee('Category Department Head');
+    }
+
+    public function test_faculty_and_staff_are_grouped_by_department_and_name(): void
+    {
+        $smo = User::factory()->create(['role' => 'smo']);
+        $ceteZ = User::factory()->create(['name' => 'Zoe CETE', 'department' => 'CETE']);
+        $cte = User::factory()->create(['name' => 'Amy CTE', 'department' => 'CTE']);
+        $ceteA = User::factory()->create(['name' => 'Ana CETE', 'department' => 'CETE']);
+        $unassigned = User::factory()->create(['name' => 'Unassigned Staff', 'department_id' => null]);
+        $response = $this->actingAs($smo)->get(route('admin.users.manage', ['category' => 'staff']))->assertOk()
+            ->assertViewHas('users', fn ($users) => $users->pluck('id')->all() === [$ceteA->id, $ceteZ->id, $cte->id, $unassigned->id]);
+        $dom = new \DOMDocument();
+        @$dom->loadHTML($response->getContent());
+        $xpath = new \DOMXPath($dom);
+        $groups = $xpath->query('//tr[@data-personnel-department]');
+        $this->assertSame(3, $groups->length);
+        $this->assertSame('CETE', $groups->item(0)->getAttribute('data-personnel-department'));
+        $this->assertSame('CTE', $groups->item(1)->getAttribute('data-personnel-department'));
+        $this->assertSame('unassigned', $groups->item(2)->getAttribute('data-personnel-department'));
+    }
+
+    public function test_department_filters_preserve_search_category_and_pagination_without_expanding_manager_scope(): void
+    {
+        $smo = User::factory()->create(['role' => 'smo']);
+        foreach (range(1, 21) as $number) {
+            User::factory()->create(['name' => 'Matching CETE '.$number, 'department' => 'CETE']);
+        }
+        $other = User::factory()->create(['name' => 'Matching CTE', 'department' => 'CTE']);
+        $filters = ['category' => 'staff', 'department' => 'CETE', 'search' => 'Matching'];
+        $this->actingAs($smo)->get(route('admin.users.manage', $filters), ['X-Filter-Request' => 'true'])
+            ->assertOk()->assertViewHas('users', fn ($users) => $users->total() === 21 && $users->count() === 20)
+            ->assertDontSee($other->school_id)->assertSee('department=CETE', false)->assertSee('page=2', false)
+            ->assertSee('value="CETE" selected', false);
+        $this->get(route('admin.users.manage', [...$filters, 'page' => 2]))->assertOk()
+            ->assertViewHas('users', fn ($users) => $users->count() === 1 && $users->first()->department === 'CETE');
+        $head = User::factory()->create(['role' => 'dept_head', 'department' => 'CETE']);
+        $this->actingAs($head)->get(route('admin.users.manage', ['department' => 'CTE']))->assertOk()
+            ->assertViewHas('users', fn ($users) => $users->isEmpty())->assertDontSee($other->school_id);
+    }
+
+    public function test_only_smo_can_add_departments_and_duplicate_codes_are_rejected(): void
+    {
+        $this->post(route('admin.departments.store'), ['dept_code' => 'HR', 'dept_name' => 'Human Resources'])
+            ->assertUnauthorized();
+        foreach (['employee', 'dept_head', 'president', 'provost', 'vp_admin', 'vp_finance'] as $role) {
+            $this->actingAs(User::factory()->create(['role' => $role]))
+                ->post(route('admin.departments.store'), ['dept_code' => 'HR', 'dept_name' => 'Human Resources'])
+                ->assertRedirect('/dashboard');
+        }
+        $this->assertDatabaseMissing('departments', ['dept_code' => 'HR']);
+        $smo = User::factory()->create(['role' => 'smo']);
+        $this->actingAs($smo)->post(route('admin.departments.store'), ['dept_code' => ' hr ', 'dept_name' => ' Human   Resources '])
+            ->assertRedirect(route('admin.users.manage', ['category' => 'staff']))->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('departments', ['dept_code' => 'HR', 'dept_name' => 'Human Resources']);
+        $this->assertTrue(UserActivityLog::where('user_id', $smo->id)->where('action', 'like', 'Added department #%: HR')->exists());
+        $this->from(route('admin.users.manage'))->post(route('admin.departments.store'), ['dept_code' => 'hr', 'dept_name' => 'Another Office'])
+            ->assertSessionHasErrorsIn('departmentForm', 'dept_code');
+        $this->post(route('admin.departments.store'), ['dept_code' => 'OTHER', 'dept_name' => 'Human Resources'])
+            ->assertSessionHasErrorsIn('departmentForm', 'dept_name');
+        $this->post(route('admin.departments.store'), ['dept_code' => '<bad>', 'dept_name' => 'Invalid code'])
+            ->assertSessionHasErrorsIn('departmentForm', 'dept_code');
+        $this->assertSame(1, Department::where('dept_code', 'HR')->count());
+        $this->get(route('admin.users.manage'))->assertOk()
+            ->assertSee('data-bs-target="#addDepartmentModal"', false)
+            ->assertSee('Human Resources (HR)');
     }
 
     public function test_incomplete_pending_registration_cannot_be_approved(): void

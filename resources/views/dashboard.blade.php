@@ -8,195 +8,16 @@
     @endphp
 
     <div class="dashboard-page{{ Auth::user()->role === 'employee' ? ' employee-dashboard' : ' staff-dashboard'.($isSmo ? ' smo-dashboard' : '') }}">
-        <section class="dashboard-hero">
-            <div class="dashboard-hero-copy">
-                <h2>{{ 'Welcome back, '.$firstName.'.' }}</h2>
-                <div class="dashboard-hero-meta">
-                    <span><i data-lucide="calendar-days"></i>{{ now()->format('l, F d, Y') }}</span>
-                    <span><i data-lucide="building-2"></i>{{ Auth::user()->department ?: 'Institutional Office' }}</span>
-                </div>
-            </div>
+        @unless($isSmo)
+            @include('dashboard.partials.hero')
+        @endunless
 
-            <div class="dashboard-hero-actions">
-                @if($isSmo)
-                    <a href="{{ route('admin.approvals') }}" class="hero-btn primary"><i data-lucide="package-check"></i> Fulfillment queue</a>
-                    <a href="{{ route('inventory.index') }}" class="hero-btn secondary"><i data-lucide="boxes"></i> Manage stock</a>
-                @else
-                    <button type="button" class="hero-btn primary" data-bs-toggle="modal" data-bs-target="#globalRequestModal"><i data-lucide="plus"></i> New requisition</button>
-                    @if(Auth::user()->role === 'employee')<a href="{{ route('requests.index') }}" class="hero-btn secondary">View all requests <i data-lucide="arrow-right"></i></a>@endif
-                    <a href="{{ route('requests.archive') }}" class="hero-btn secondary"><i data-lucide="archive"></i> View archive</a>
-                @endif
-            </div>
-        </section>
-
-        @if($isSmo || $isApprover)
+        @if($isApprover)
             @include('requests.partials.approval-deadline-watch', ['approvalDeadlineRequests' => $approvalDeadlineRequests])
         @endif
 
         @if($isSmo)
-            <section class="dashboard-metric-grid four">
-                <article class="modern-metric neutral">
-                    <div class="metric-top"><span class="metric-icon"><i data-lucide="files"></i></span><span class="metric-trend">All time</span></div>
-                    <strong x-data="countUp({{ $stats['total'] }})" x-text="current">{{ $stats['total'] }}</strong>
-                    <h3>Total requisitions</h3>
-                    <p>Every recorded institutional request.</p>
-                </article>
-                <article class="modern-metric amber">
-                    <div class="metric-top"><span class="metric-icon"><i data-lucide="workflow"></i></span><span class="metric-trend">In progress</span></div>
-                    <strong x-data="countUp({{ $stats['pending'] }})" x-text="current">{{ $stats['pending'] }}</strong>
-                    <h3>Active pipeline</h3>
-                    <p>Awaiting approval or fulfillment.</p>
-                </article>
-                <article class="modern-metric {{ $stats['urgent'] > 0 ? 'red urgent' : 'green' }}">
-                    <div class="metric-top"><span class="metric-icon"><i data-lucide="{{ $stats['urgent'] > 0 ? 'siren' : 'shield-check' }}"></i></span><span class="metric-trend">3 working days</span></div>
-                    <strong x-data="countUp({{ $stats['urgent'] }})" x-text="current">{{ $stats['urgent'] }}</strong>
-                    <h3>{{ $stats['urgent'] > 0 ? 'Deadline risks' : 'SLA healthy' }}</h3>
-                    <p>{{ $stats['urgent'] > 0 ? 'Near-deadline or overdue active requests.' : 'No requests require deadline action.' }}</p>
-                </article>
-                <article class="modern-metric green">
-                    <div class="metric-top"><span class="metric-icon"><i data-lucide="circle-dollar-sign"></i></span><span class="metric-trend">This month</span></div>
-                    <strong class="money">₱<span x-data="countUp({{ (float) $stats['monthly_value'] }})" x-text="current.toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2})">{{ number_format((float) $stats['monthly_value'], 2) }}</span></strong>
-                    <h3>Released value</h3>
-                    <p>Supplies completed or released this month.</p>
-                </article>
-            </section>
-
-            <section class="priority-watch" aria-label="Urgent operational warnings">
-                <article class="priority-panel deadline {{ $stats['urgent'] > 0 ? 'has-alerts' : 'is-clear' }}">
-                    <div class="priority-heading">
-                        <span class="priority-symbol"><i data-lucide="{{ $stats['urgent'] > 0 ? 'siren' : 'shield-check' }}"></i></span>
-                        <div>
-                            <span>Deadline monitor</span>
-                            <h3>{{ $stats['urgent'] > 0 ? ($stats['urgent'] === 1 ? '1 request needs attention' : $stats['urgent'].' requests need attention') : 'All request deadlines are healthy' }}</h3>
-                        </div>
-                        <a href="{{ route('requests.index', ['status' => 'deadline']) }}">View deadline requests <i data-lucide="arrow-up-right"></i></a>
-                    </div>
-                    <div class="priority-list">
-                        @forelse($deadlineRequests as $deadlineRequest)
-                            @php
-                                $waitingDays = $deadlineRequest->approvalDeadlineDaysElapsed();
-                                $deadlineState = $deadlineRequest->isDeadlineOverdue() ? 'overdue' : 'near';
-                            @endphp
-                            <a href="{{ route('requests.show', $deadlineRequest) }}" class="priority-row">
-                                <span class="priority-state {{ $deadlineState }}">{{ $deadlineRequest->isDeadlineOverdue() ? 'Overdue' : 'Near deadline' }}</span>
-                                <span class="priority-detail"><b>{{ $deadlineRequest->tracking_code }}</b><small>{{ $deadlineRequest->items->first()->item_name ?? 'Supply requisition' }} · {{ $deadlineRequest->user?->department ?: 'General' }}</small></span>
-                                <span class="priority-value">Day {{ $waitingDays }}<i data-lucide="chevron-right"></i></span>
-                            </a>
-                        @empty
-                            <div class="priority-clear"><i data-lucide="circle-check-big"></i><span><b>No near or overdue requests</b><small>The institutional workflow is currently within the three-working-day target.</small></span></div>
-                        @endforelse
-                    </div>
-                    @if($stats['urgent'] > $deadlineRequests->count())
-                        <a href="{{ route('requests.index', ['status' => 'deadline']) }}" class="activity-footer">Showing {{ $deadlineRequests->count() }} of {{ $stats['urgent'] }} deadline risks <i data-lucide="arrow-right"></i></a>
-                    @endif
-                </article>
-
-                <article class="priority-panel stock {{ $stats['low_stock'] > 0 ? 'has-alerts' : 'is-clear' }}">
-                    <div class="priority-heading">
-                        <span class="priority-symbol"><i data-lucide="{{ $stats['low_stock'] > 0 ? 'package-minus' : 'package-check' }}"></i></span>
-                        <div>
-                            <span>Inventory warning</span>
-                            <h3>{{ $stats['low_stock'] > 0 ? ($stats['low_stock'] === 1 ? '1 item requires restocking' : $stats['low_stock'].' items require restocking') : 'Inventory thresholds are healthy' }}</h3>
-                            @if($stats['out_of_stock'] > 0)<small>{{ $stats['out_of_stock'] }} out of stock</small>@endif
-                        </div>
-                        <a href="{{ route('inventory.index') }}">Manage inventory <i data-lucide="arrow-up-right"></i></a>
-                    </div>
-                    <div class="priority-list">
-                        @forelse($lowStockSupplies as $stockItem)
-                            <a href="{{ route('inventory.edit', $stockItem->id) }}" class="priority-row">
-                                <span class="priority-state {{ $stockItem->quantity <= 0 ? 'overdue' : 'near' }}">{{ $stockItem->quantity <= 0 ? 'Out of stock' : 'Low stock' }}</span>
-                                <span class="priority-detail"><b>{{ $stockItem->item_name }}</b><small>{{ strtoupper($stockItem->requisition_tier ?? 'minor') }} · Minimum {{ $stockItem->min_stock_level }} {{ $stockItem->unit }}</small></span>
-                                <span class="priority-value">{{ $stockItem->quantity }} left<i data-lucide="chevron-right"></i></span>
-                            </a>
-                        @empty
-                            <div class="priority-clear"><i data-lucide="circle-check-big"></i><span><b>No low-stock items</b><small>Every inventory item is currently above its minimum level.</small></span></div>
-                        @endforelse
-                    </div>
-                    @if($stats['low_stock'] > $lowStockSupplies->count())
-                        <a href="{{ route('inventory.index') }}" class="activity-footer">Showing {{ $lowStockSupplies->count() }} of {{ $stats['low_stock'] }} stock warnings <i data-lucide="arrow-right"></i></a>
-                    @endif
-                </article>
-            </section>
-
-            <div class="dashboard-layout">
-                <section class="dashboard-panel queue-panel">
-                    <div class="panel-heading">
-                        <div>
-                            <h3>Active requisitions</h3>
-                            <p>Latest {{ $allStaffRequests->count() }} of {{ $stats['pending'] }} active requests.</p>
-                        </div>
-                        <a href="{{ route('requests.index') }}" class="panel-action"><i data-lucide="arrow-up-right"></i> View All</a>
-                    </div>
-
-                    <div class="table-responsive dashboard-table-wrap">
-                        <table class="table dashboard-table responsive-dashboard-table">
-                            <thead>
-                                <tr><th scope="col">Request</th><th scope="col">Requestor</th><th scope="col">Primary item</th><th scope="col">Status</th><th scope="col"><span class="visually-hidden">Action</span></th></tr>
-                            </thead>
-                            <tbody>
-                                @forelse($allStaffRequests as $req)
-                                    @php
-                                        $isOverdue = $req->isDeadlineOverdue();
-                                        $isNearDeadline = $req->isDeadlineNearing();
-                                        $statusLabel = match($req->status) {
-                                            'pending' => 'Department review',
-                                            'approved_dept' => $req->request_type === 'minor' ? 'VP Finance review' : 'VP Administration review',
-                                            'approved_vp' => $req->request_type === 'minor' ? 'Awaiting SMO processing' : 'Provost review',
-                                            'approved_provost' => 'President review',
-                                            'approved_president' => 'Awaiting SMO processing',
-                                            'processing' => 'SMO processing',
-                                            'ready_for_pickup' => 'Ready for pickup',
-                                            'for_clarification' => 'For clarification',
-                                            default => ucfirst(str_replace('_', ' ', $req->status)),
-                                        };
-                                        $statusTone = match($req->status) {
-                                            'for_clarification' => 'warning',
-                                            'approved_vp' => $req->request_type === 'minor' ? 'ready' : 'pending',
-                                            'approved_president', 'processing', 'ready_for_pickup' => 'ready',
-                                            default => 'pending',
-                                        };
-                                    @endphp
-                                    <tr class="{{ $isOverdue ? 'row-overdue' : ($isNearDeadline ? 'row-near-deadline' : '') }}">
-                                        <td data-label="Request">
-                                            <div class="request-code">{{ $req->tracking_code }}</div>
-                                            <small>{{ $req->created_at->format('M d, Y') }}</small>
-                                        </td>
-                                        <td data-label="Requestor">
-                                            <div class="person-cell"><span>{{ mb_strtoupper(mb_substr($req->user?->name ?? '?', 0, 1)) }}</span><div><b>{{ $req->user?->name ?? 'Unavailable requestor' }}</b><small>{{ $req->user?->department ?: 'General' }}</small></div></div>
-                                        </td>
-                                        <td data-label="Primary item"><b>{{ $req->items->first()->item_name ?? 'Supplies' }}</b>@if($req->items->count() > 1)<small>+{{ $req->items->count() - 1 }} more item(s)</small>@endif</td>
-                                        <td data-label="Status">
-                                            <span class="status-pill {{ $statusTone }}">{{ $statusLabel }}</span>
-                                            @if($isOverdue)<small class="deadline-text overdue">Overdue by SLA</small>@elseif($isNearDeadline)<small class="deadline-text near">Near SLA deadline</small>@endif
-                                        </td>
-                                        <td data-label="Action"><a href="{{ route('requests.show', $req->id) }}" class="row-action" aria-label="View {{ $req->tracking_code }}"><i data-lucide="arrow-right"></i></a></td>
-                                    </tr>
-                                @empty
-                                    <tr><td colspan="5"><div class="dashboard-empty"><i data-lucide="inbox"></i><strong>No active requisitions</strong><span>New active requests will appear here.</span></div></td></tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-                </section>
-
-                <aside class="dashboard-panel activity-panel">
-                    <div class="panel-heading compact">
-                        <div><h3>Alerts and activity</h3></div>
-                        <a href="{{ route('notifications') }}" class="icon-link" aria-label="View all notifications"><i data-lucide="arrow-up-right"></i></a>
-                    </div>
-                    <div class="activity-list">
-                        @forelse($recentActivity as $activity)
-                            <article class="activity-item">
-                                <span class="activity-icon {{ $activity->safeType() }}"><i data-lucide="{{ $activity->safeIcon() }}"></i></span>
-                                <div><h4><a href="{{ route('notifications') }}">{{ $activity->title }}</a></h4><p>{{ Str::limit($activity->message, 92) }}</p><time datetime="{{ $activity->created_at->toIso8601String() }}">{{ $activity->created_at->diffForHumans() }}</time></div>
-                            </article>
-                        @empty
-                            <div class="dashboard-empty small"><i data-lucide="bell-off"></i><strong>No recent alerts</strong><span>New system activity will appear here.</span></div>
-                        @endforelse
-                    </div>
-                    <a href="{{ route('notifications') }}" class="activity-footer">View notification center <i data-lucide="arrow-right"></i></a>
-                </aside>
-            </div>
+            @include('dashboard.smo')
         @elseif(Auth::user()->role === 'employee')
             @include('dashboard.employee')
         @else
@@ -1367,5 +1188,6 @@
     @if(Auth::user()->role !== 'employee')
         @include('dashboard.partials.employee-styles')
         @include('dashboard.partials.staff-styles')
+        @if($isSmo)@include('dashboard.partials.smo-styles')@endif
     @endif
 </x-app-layout>
