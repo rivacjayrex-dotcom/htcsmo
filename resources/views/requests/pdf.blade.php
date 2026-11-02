@@ -36,8 +36,10 @@
         .signature-name { border-top: 1px solid #000; padding-top: 2px; font-weight: bold; text-align: center; text-transform: uppercase; }
         .signature-role { margin-top: 1px; font-size: 7px; text-align: center; }
         .footer { position: fixed; right: 0; bottom: -17px; left: 0; font-size: 7px; }
-        .footer-left { float: left; font-weight: bold; }
-        .footer-right { float: right; }
+        .footer table { table-layout: fixed; }
+        .footer td { padding: 0; border: 0; }
+        .footer-left { width: 40%; font-weight: bold; }
+        .footer-right { width: 60%; text-align: right; }
         .page-number:after { content: counter(page); }
     </style>
 </head>
@@ -72,8 +74,12 @@
     @endphp
 
     <div class="footer">
-        <span class="footer-left">Document ID: {{ $documentId }}</span>
-        <span class="footer-right">{{ $request->tracking_code }} | Page <span class="page-number"></span></span>
+        <table>
+            <tr>
+                <td class="footer-left">Document ID: {{ $documentId }}</td>
+                <td class="footer-right">{{ $request->tracking_code }} | Page <span class="page-number"></span></td>
+            </tr>
+        </table>
     </div>
 
     <table class="header-table">

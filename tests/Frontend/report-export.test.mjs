@@ -18,7 +18,7 @@ function browser(response) {
             click() {downloads.push({href: this.href, filename: this.download});},
         };
     }
-    for (const id of ['reportForm', 'downloadPdfButton', 'pdfGenerationModal', 'cancelPdfGeneration', 'retryPdfGeneration', 'pdfGenerationTitle', 'pdfGenerationMessage', 'pdfGenerationSpinner', 'pdfGenerationErrorIcon', 'pdfGenerationProgress']) {
+    for (const id of ['reportForm', 'downloadPdfButton', 'pdfGenerationModal', 'cancelPdfGeneration', 'retryPdfGeneration', 'pdfGenerationTitle', 'pdfGenerationMessage', 'pdfGenerationSpinner', 'pdfGenerationErrorIcon']) {
         elements.set(id, element());
     }
     const form = elements.get('reportForm');

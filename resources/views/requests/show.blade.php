@@ -7,6 +7,7 @@
         $lastLog = $request->logs->sortByDesc('created_at')->first();
         $questioningRole = $request->status === 'for_clarification' ? $lastLog?->role : null;
         $isEmployee = Auth::user()->role === 'employee';
+        $isArchived = in_array($request->status, \App\Models\Requisition::ARCHIVED_STATUSES, true);
         if ($isEmployee && $request->status === 'for_clarification') {
             $questioningRole = $request->currentReviewerRole();
         }
@@ -113,7 +114,7 @@
                 <div><span>{{ $isEmployee ? 'Requested value' : 'Total value' }}</span><strong>₱{{ number_format($request->grand_total, 2) }}</strong></div>
                 <div><span>{{ $isEmployee ? 'Item lines' : 'Items' }}</span><strong>{{ $isEmployee ? $request->items->count() : $request->items->sum('quantity') }}</strong></div>
                 <div><span>Submitted</span><strong>{{ ($request->submitted_at ?? $request->created_at)->format('M d, Y') }}</strong></div>
-                @if(in_array($request->status, \App\Models\Requisition::ARCHIVED_STATUSES, true))
+                @if($isArchived)
                     <div><span>Closed</span><strong>{{ $request->closed_at?->format('M d, Y') ?? 'Date unavailable' }}</strong></div>
                 @else
                     <div><span>SLA deadline</span><strong>{{ $request->due_at?->format('M d, Y') ?? 'Not set' }}</strong></div>
@@ -145,7 +146,7 @@
                     </div>
                 </section>
 
-                @if(in_array($request->status, \App\Models\Requisition::ARCHIVED_STATUSES, true))
+                @if($isArchived)
                     <section class="request-panel" aria-labelledby="final-outcome-heading">
                         <div class="request-section-heading"><div><span>Archived outcome</span><h2 id="final-outcome-heading">{{ $request->archiveStatusLabel() }}</h2></div></div>
                         <div class="p-3">
@@ -161,9 +162,9 @@
                             @endif
                         </div>
                     </section>
-                @else
+                @endif
                 <section class="request-panel request-approval-panel">
-                    <div class="request-section-heading"><div><span>Approval route</span><h2>Requisition progress</h2></div><small>Live workflow status</small></div>
+                    <div class="request-section-heading"><div><span>Approval route</span><h2>Requisition progress</h2></div><small>{{ $isArchived ? 'Final workflow status' : 'Live workflow status' }}</small></div>
                     <div class="request-progress-scroll" tabindex="0" aria-label="Approval route; scroll horizontally to see every step">
                         <ol class="request-progress-list" style="--request-step-count: {{ count($steps) }}">
                             @foreach($steps as $index => $step)
@@ -175,7 +176,6 @@
                         </ol>
                     </div>
                 </section>
-                @endif
 
                 <section class="request-panel request-items-panel">
                     <div class="request-section-heading request-items-heading"><div><span>Order contents</span><h2>Requested items</h2></div><span class="request-item-count">{{ $request->items->count() }} {{ Str::plural('line item', $request->items->count()) }}</span></div>

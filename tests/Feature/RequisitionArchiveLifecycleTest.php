@@ -43,6 +43,7 @@ class RequisitionArchiveLifecycleTest extends TestCase
         $this->assertSame('Duplicate order <script>alert(1)</script>', $event->remarks);
         $this->get(route('requests.show', $record))->assertOk()->assertSee('Withdrawn')
             ->assertSee($event->remarks)->assertDontSee('<script>alert(1)</script>', false)->assertSee($owner->name)
+            ->assertSee('Requisition progress')->assertSee('Final workflow status')
             ->assertDontSee('Live workflow status');
         $this->get(route('requests.index'))->assertOk()->assertDontSee($record->tracking_code);
         $this->from(route('requests.index'))->delete(route('requisitions.destroy', $record))->assertSessionHas('error');

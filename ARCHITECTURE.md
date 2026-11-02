@@ -25,16 +25,16 @@ flowchart LR
 
 ### Technology and process boundaries
 
-| Area                | Implementation                                                      | Connection to the system                                                                              |
-| ------------------- | ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| Runtime/backend     | PHP 8.2+, Laravel 12, Eloquent                                      | Route dispatch, validation, authorization, business workflows, persistence                            |
-| Database            | MySQL/MariaDB in normal setup; in-memory SQLite in PHPUnit          | Requisitions, catalog, accounts, inventory, approvals, notifications, audit records                   |
-| UI                  | Blade templates, Bootstrap 5, Alpine.js                             | Server-rendered pages and interaction controls; `resources/js/app.js` starts Bootstrap and Alpine     |
-| Assets              | Vite, `resources/css/app.css`, `resources/js/app.js`                | Produces `public/build`; `vite.config.js` declares the two source entry points                        |
-| PDF                 | `barryvdh/laravel-dompdf`                                           | Renders requisition documents, report exports, and inventory forecasts from Blade                     |
-| Email               | Laravel Mail                                                        | Sends approval/release messages and records delivery outcomes in `email_logs`                         |
-| Background schedule | `routes/console.php` schedules deadline checks and notification pruning in the configured timezone | Docker starts `schedule:work`; non-Docker hosts must invoke Laravel's scheduler                        |
-| Container           | Node build stage + PHP 8.3 Apache stage                             | Builds assets, installs production Composer dependencies, runs config cache/migrations, serves Apache |
+| Area                | Implementation                                                                                     | Connection to the system                                                                              |
+| ------------------- | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Runtime/backend     | PHP 8.2+, Laravel 12, Eloquent                                                                     | Route dispatch, validation, authorization, business workflows, persistence                            |
+| Database            | MySQL/MariaDB in normal setup; in-memory SQLite in PHPUnit                                         | Requisitions, catalog, accounts, inventory, approvals, notifications, audit records                   |
+| UI                  | Blade templates, Bootstrap 5, Alpine.js                                                            | Server-rendered pages and interaction controls; `resources/js/app.js` starts Bootstrap and Alpine     |
+| Assets              | Vite, `resources/css/app.css`, `resources/js/app.js`                                               | Produces `public/build`; `vite.config.js` declares the two source entry points                        |
+| PDF                 | `barryvdh/laravel-dompdf`                                                                          | Renders requisition documents, report exports, and inventory forecasts from Blade                     |
+| Email               | Laravel Mail                                                                                       | Sends approval/release messages and records delivery outcomes in `email_logs`                         |
+| Background schedule | `routes/console.php` schedules deadline checks and notification pruning in the configured timezone | Docker starts `schedule:work`; non-Docker hosts must invoke Laravel's scheduler                       |
+| Container           | Node build stage + PHP 8.3 Apache stage                                                            | Builds assets, installs production Composer dependencies, runs config cache/migrations, serves Apache |
 
 ## 2. Repository structure and responsibilities
 
@@ -120,17 +120,17 @@ sequenceDiagram
 
 `RequestController::adminIndex` builds the queue for the current role. `updateStatus` validates the decision and asks `canReviewRequisition` whether the current user owns that state transition. The implemented standard sequence is:
 
-| Current state                                    | Eligible reviewer                                  | Approval result                            |
-| ------------------------------------------------ | -------------------------------------------------- | ------------------------------------------ |
-| `pending`                                        | `dept_head` whose department matches the requestor | `approved_dept`                            |
-| `approved_dept` + `minor`                        | `vp_finance`                                       | `approved_vp` (SMO-ready minor)            |
-| `approved_dept` + `major`                        | `vp_admin`                                         | `approved_vp`                              |
-| `approved_vp` + `major`                          | `provost`                                          | `approved_provost`                         |
-| `approved_provost` + `major`                     | `president`                                        | `approved_president` (SMO-ready major)     |
-| `approved_vp` + `minor`, or `approved_president` | SMO starts fulfillment                             | `processing`                               |
-| `processing`                                     | SMO prepares and deducts stock                     | `ready_for_pickup`                         |
-| `ready_for_pickup`                               | SMO confirms handoff                               | `completed`                                |
-| A reviewable state                               | Its current reviewer                               | `rejected` or `for_clarification`          |
+| Current state                                    | Eligible reviewer                                  | Approval result                        |
+| ------------------------------------------------ | -------------------------------------------------- | -------------------------------------- |
+| `pending`                                        | `dept_head` whose department matches the requestor | `approved_dept`                        |
+| `approved_dept` + `minor`                        | `vp_finance`                                       | `approved_vp` (SMO-ready minor)        |
+| `approved_dept` + `major`                        | `vp_admin`                                         | `approved_vp`                          |
+| `approved_vp` + `major`                          | `provost`                                          | `approved_provost`                     |
+| `approved_provost` + `major`                     | `president`                                        | `approved_president` (SMO-ready major) |
+| `approved_vp` + `minor`, or `approved_president` | SMO starts fulfillment                             | `processing`                           |
+| `processing`                                     | SMO prepares and deducts stock                     | `ready_for_pickup`                     |
+| `ready_for_pickup`                               | SMO confirms handoff                               | `completed`                            |
+| A reviewable state                               | Its current reviewer                               | `rejected` or `for_clarification`      |
 
 Every decision updates requisition status/remarks and creates an `ApprovalLog`; approval decisions additionally create a `DigitalSignature`. Clarification notifications go to the requestor and all SMO users. Each decision also attempts an email and records sent/failed status. The approval decision itself is not wrapped in a transaction, unlike requisition create/update and stock release.
 
@@ -214,25 +214,25 @@ The notes below describe the purpose of each declared application method/functio
 
 ### RequestController
 
-| Method                  | Responsibility                                                                                                                             |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `systemVersion`         | Exposes the current system fingerprint as a non-cacheable JSON response.                                                                   |
-| `runtimeState`          | Combines the fingerprint, latest notification cursor, and next unread notification for the authenticated user.                             |
-| `runtimeVersion`        | Hashes aggregate update markers from requisitions, approval logs, and supplies for lightweight change detection.                           |
-| `index`                 | Lists active requisitions with owner privacy, search/status/department/date filters, counts and pagination.                                |
-| `archive`               | Lists completed/rejected requisitions, scoped to the owner unless SMO, with filters and pagination.                                        |
-| `adminIndex`            | Builds role-specific approval queues and clarification lists; only deep-links to an item already in the current approval queue.            |
-| `updateStatus`          | Validates approval/rejection/clarification, checks reviewer authority, changes state, writes log/signature, and sends notifications/email. |
-| `canReviewRequisition`  | Encodes the valid role and request-state transition, including department and clarification-origin checks.                                 |
-| `startProcessing`       | SMO-only transition from final approval into active fulfillment.                                                                           |
-| `markReadyForPickup`    | SMO-only preparation transaction: checks stock, deducts inventory, audits, signs, and sends pickup notices.                               |
-| `completeRequest`       | SMO-only confirmation that the prepared supplies were handed to the requestor.                                                             |
+| Method                          | Responsibility                                                                                                                                 |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `systemVersion`                 | Exposes the current system fingerprint as a non-cacheable JSON response.                                                                       |
+| `runtimeState`                  | Combines the fingerprint, latest notification cursor, and next unread notification for the authenticated user.                                 |
+| `runtimeVersion`                | Hashes aggregate update markers from requisitions, approval logs, and supplies for lightweight change detection.                               |
+| `index`                         | Lists active requisitions with owner privacy, search/status/department/date filters, counts and pagination.                                    |
+| `archive`                       | Lists completed/rejected requisitions, scoped to the owner unless SMO, with filters and pagination.                                            |
+| `adminIndex`                    | Builds role-specific approval queues and clarification lists; only deep-links to an item already in the current approval queue.                |
+| `updateStatus`                  | Validates approval/rejection/clarification, checks reviewer authority, changes state, writes log/signature, and sends notifications/email.     |
+| `canReviewRequisition`          | Encodes the valid role and request-state transition, including department and clarification-origin checks.                                     |
+| `startProcessing`               | SMO-only transition from final approval into active fulfillment.                                                                               |
+| `markReadyForPickup`            | SMO-only preparation transaction: checks stock, deducts inventory, audits, signs, and sends pickup notices.                                    |
+| `completeRequest`               | SMO-only confirmation that the prepared supplies were handed to the requestor.                                                                 |
 | `NotificationController::index` | Loads and categorizes personal notifications, resolves action targets in batches, and returns either the full center or an AJAX feed fragment. |
-| `show`                  | Loads a request with owner/items/log signatures and renders tracking details.                                                              |
-| `downloadPDF`           | Renders a request with its history and signatures into a portrait PDF download.                                                            |
-| `sendAlert`             | Inserts a per-user in-app notification.                                                                                                    |
-| `NotificationController::poll` | Compatibility notification polling endpoint; returns a bounded batch of unread notifications after an optional ID.                    |
-| `sendEmailNotification` | Sends `RequisitionAlertMail`; writes success/failure to `email_logs` and suppresses transport exceptions from the request.                 |
+| `show`                          | Loads a request with owner/items/log signatures and renders tracking details.                                                                  |
+| `downloadPDF`                   | Renders a request with its history and signatures into a portrait PDF download.                                                                |
+| `sendAlert`                     | Inserts a per-user in-app notification.                                                                                                        |
+| `NotificationController::poll`  | Compatibility notification polling endpoint; returns a bounded batch of unread notifications after an optional ID.                             |
+| `sendEmailNotification`         | Sends `RequisitionAlertMail`; writes success/failure to `email_logs` and suppresses transport exceptions from the request.                     |
 
 ### RequisitionController
 
@@ -335,7 +335,7 @@ The notes below describe the purpose of each declared application method/functio
 | `Requisition::booted`                                                  | Creates tracking number after insert using tier, requestor department and row ID.                                                          |
 | `Requisition::items/user/logs`                                         | Declares has-many line/log and belongs-to requestor relationships.                                                                         |
 | `Requisition::getTrackingCodeAttribute/getTrackingCodeFallback`        | Exposes stored tracking number with a deterministic fallback for old rows/views.                                                           |
-| `Requisition::isNearingDeadline/isOverdue`                             | Checks the fixed submission SLA against its two-working-day warning and three-working-day deadline.                                       |
+| `Requisition::isNearingDeadline/isOverdue`                             | Checks the fixed submission SLA against its two-working-day warning and three-working-day deadline.                                        |
 | `RequisitionItem::requisition/supply`                                  | Belongs-to relationships to header and optional inventory record.                                                                          |
 | `Supply::requestOptions`                                               | Reconstructs Brand and configurable choice groups, falling back to legacy brand text.                                                      |
 | `Supply::supplyCategory/inventoryLogs`                                 | Category belongs-to and movement has-many relationships.                                                                                   |
@@ -350,7 +350,7 @@ The notes below describe the purpose of each declared application method/functio
 | `AppLayout::render`, `GuestLayout::render`                             | Resolve the authenticated and guest layout Blade views.                                                                                    |
 | `AppServiceProvider::register`                                         | No application bindings currently registered.                                                                                              |
 | `AppServiceProvider::boot`                                             | Enables Bootstrap 5 pagination and shares active catalog items/unread count with authenticated layout.                                     |
-| `CheckDeadlineSla::handle`                                             | Finds active requests at SLA risk, sends deduplicated alerts to stakeholders, and reports the count.                                      |
+| `CheckDeadlineSla::handle`                                             | Finds active requests at SLA risk, sends deduplicated alerts to stakeholders, and reports the count.                                       |
 | `DatabaseSeeder::run`                                                  | Runs department then account seeders.                                                                                                      |
 | `AccountSeeder::run`                                                   | Idempotently seeds approved workflow signatories and department heads with environment-configured password.                                |
 

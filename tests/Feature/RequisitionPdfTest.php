@@ -8,6 +8,7 @@ use App\Models\Requisition;
 use App\Models\RequisitionItem;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class RequisitionPdfTest extends TestCase
@@ -57,5 +58,39 @@ class RequisitionPdfTest extends TestCase
             ->assertOk()
             ->assertHeader('content-type', 'application/pdf')
             ->assertDownload('HTC-Requisition-'.$requisition->fresh()->tracking_code.'.pdf');
+    }
+
+    public static function requisitionTiers(): array
+    {
+        return [['minor'], ['major']];
+    }
+
+    #[DataProvider('requisitionTiers')]
+    public function test_wrapped_item_names_do_not_expand_a_short_request_across_pages(string $tier): void
+    {
+        $requestor = User::factory()->create(['department' => 'CETE']);
+        $requisition = Requisition::create([
+            'user_id' => $requestor->id,
+            'request_type' => $tier,
+            'status' => 'pending',
+            'purpose' => 'For office and classroom use.',
+            'grand_total' => $tier === 'minor' ? 58.90 : 1500,
+        ]);
+        RequisitionItem::create([
+            'requisition_id' => $requisition->id,
+            'item_name' => 'Isopropyl Rubbing Alcohol, 500 ml',
+            'specifications' => 'Reference code: 105-00026 | Brand: Green Cross',
+            'quantity' => 1,
+            'unit' => 'Bottle',
+            'unit_price' => $requisition->grand_total,
+            'subtotal' => $requisition->grand_total,
+        ]);
+
+        $response = $this->actingAs($requestor)
+            ->get(route('requests.download', $requisition))
+            ->assertOk()->assertHeader('content-type', 'application/pdf');
+
+        $this->assertSame(1, preg_match_all('/\/Type\s*\/Page\b/', $response->getContent()),
+            'A short requisition must keep the wrapped item, blank form rows, total, and signatures on one page.');
     }
 }

@@ -12,8 +12,8 @@
         <table class="table workflow-responsive-table request-history-table">
             <thead>
                 <tr>
+                    @if(Auth::user()->role === 'smo')<th>Full name</th>@endif
                     <th>Request</th>
-                    @if(Auth::user()->role === 'smo')<th>Requestor</th>@endif
                     <th>Requested item</th>
                     <th>Tier</th>
                     <th class="text-end">{{ $isPersonalEmployee ? 'Requested value' : 'Value' }}</th>
@@ -58,16 +58,15 @@
                         }
                     @endphp
                     <tr class="{{ $isOverdue ? 'request-overdue' : ($isNear ? 'request-near' : '') }}">
+                        @if(Auth::user()->role === 'smo')
+                            <td data-label="Full name">
+                                <div class="request-person"><span>{{ strtoupper(substr($req->user?->name ?? '?', 0, 1)) }}</span><div><b>{{ $req->user?->name ?? 'Former or unavailable user' }}</b><small>{{ $req->user?->department ?: 'Unassigned' }}</small></div></div>
+                            </td>
+                        @endif
                         <td data-label="Request">
                             <div class="history-request-code">{{ $req->tracking_code }}</div>
                             <small><i data-lucide="calendar"></i>{{ $type === 'archive' ? 'Closed '.($req->closed_at?->format('M d, Y') ?? 'date unavailable') : ($isPersonalEmployee ? ($req->submitted_at ?? $req->created_at)?->format('M d, Y') : $req->created_at?->format('M d, Y')) }}</small>
                         </td>
-
-                        @if(Auth::user()->role === 'smo')
-                            <td data-label="Requestor">
-                                <div class="request-person"><span>{{ strtoupper(substr($req->user?->name ?? '?', 0, 1)) }}</span><div><b>{{ $req->user?->name ?? 'Former or unavailable user' }}</b><small>{{ $req->user?->department ?: 'Unassigned' }}</small></div></div>
-                            </td>
-                        @endif
 
                         <td data-label="Requested item">
                             <div class="history-item">

@@ -33,7 +33,7 @@
                 <div class="table-responsive dashboard-table-wrap">
                     <table class="table dashboard-table responsive-dashboard-table">
                         <thead>
-                            <tr><th scope="col">Request</th><th scope="col">Requestor</th><th scope="col">Primary item</th><th scope="col">Status</th><th scope="col"><span class="visually-hidden">Action</span></th></tr>
+                            <tr><th scope="col">Full name</th><th scope="col">Request</th><th scope="col">Primary item</th><th scope="col">Status</th><th scope="col"><span class="visually-hidden">Action</span></th></tr>
                         </thead>
                         <tbody>
                             @forelse($allStaffRequests as $req)
@@ -60,12 +60,12 @@
                                     };
                                 @endphp
                                 <tr class="{{ $isOverdue ? 'row-overdue' : ($isNearDeadline ? 'row-near-deadline' : '') }}">
+                                    <td data-label="Full name">
+                                        <div class="person-cell"><div><b>{{ $req->user?->name ?? 'Unavailable requestor' }}</b><small>{{ $req->user?->department ?: 'General' }}</small></div></div>
+                                    </td>
                                     <td data-label="Request">
                                         <div class="request-code">{{ $req->tracking_code }}</div>
                                         <small>{{ $req->created_at->format('M d, Y') }}</small>
-                                    </td>
-                                    <td data-label="Requestor">
-                                        <div class="person-cell"><div><b>{{ $req->user?->name ?? 'Unavailable requestor' }}</b><small>{{ $req->user?->department ?: 'General' }}</small></div></div>
                                     </td>
                                     <td data-label="Primary item"><b>{{ $req->items->first()->item_name ?? 'Supplies' }}</b>@if($req->items->count() > 1)<small>+{{ $req->items->count() - 1 }} more item(s)</small>@endif</td>
                                     <td data-label="Status">

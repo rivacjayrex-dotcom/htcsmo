@@ -162,8 +162,13 @@ class RequisitionArchiveTest extends TestCase
         $this->get(route('requests.show', $requisition))->assertRedirect(route('login'));
         $this->actingAs($otherEmployee)->get(route('requests.show', $requisition))->assertForbidden();
         $this->actingAs($otherEmployee)->get(route('requests.download', $requisition))->assertForbidden();
-        $this->actingAs($owner)->get(route('requests.show', $requisition))->assertOk();
-        $this->actingAs($smo)->get(route('requests.show', $requisition))->assertOk();
+        foreach ([$owner, $smo] as $viewer) {
+            $this->actingAs($viewer)->get(route('requests.show', $requisition))->assertOk()
+                ->assertSee('Archived outcome')->assertSee('Requisition progress')
+                ->assertSee('class="request-progress-list"', false)
+                ->assertSee('class="request-step-marker"', false)
+                ->assertSee('Final workflow status')->assertDontSee('Live workflow status');
+        }
     }
 
     public function test_institutional_archive_is_smo_only_and_archive_views_do_not_mutate_audit_records(): void

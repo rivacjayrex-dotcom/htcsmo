@@ -285,7 +285,6 @@
                     <span class="pdf-generation-eyebrow">Report export</span>
                     <h5 id="pdfGenerationTitle">Generating PDF report…</h5>
                     <p id="pdfGenerationMessage">Preparing the selected records and formatting your document.</p>
-                    <div class="pdf-generation-progress" id="pdfGenerationProgress"><span></span></div>
                     <div class="d-flex gap-2 justify-content-center mt-4">
                         <button type="button" id="cancelPdfGeneration" class="btn btn-light border rounded-pill px-4">Cancel</button>
                         <button type="button" id="retryPdfGeneration" class="btn btn-htc rounded-pill px-4" hidden>Try again</button>
@@ -357,10 +356,7 @@
     .pdf-generation-eyebrow { color: #218653; font-size: var(--text-caption); font-weight: 800; letter-spacing: var(--tracking-label); text-transform: uppercase; }
     .pdf-generation-modal h5 { margin: var(--space-4) 0 var(--space-8); color: #1d3025; font-weight: 800; }
     .pdf-generation-modal p { margin: 0; color: #6d7d74; font-size: var(--text-body); line-height: var(--line-body); }
-    .pdf-generation-progress { height: 4px; margin-top: var(--space-24); overflow: hidden; border-radius: 999px; background: #e4eee8; }
-    .pdf-generation-progress span { display: block; width: 42%; height: 100%; border-radius: inherit; background: #218653; animation: pdf-generation-progress 1.2s ease-in-out infinite; }
     @keyframes pdf-generation-spin { to { transform: rotate(360deg); } }
-    @keyframes pdf-generation-progress { 0% { transform: translateX(-120%); } 100% { transform: translateX(340%); } }
 
     @media screen and (max-width: 767.98px) {
         .report-center-hero { align-items: stretch; flex-direction: column; padding: var(--space-16); border-radius: 17px; }
@@ -456,7 +452,6 @@
         const pdfMessage = document.getElementById('pdfGenerationMessage');
         const pdfSpinner = document.getElementById('pdfGenerationSpinner');
         const pdfErrorIcon = document.getElementById('pdfGenerationErrorIcon');
-        const pdfProgress = document.getElementById('pdfGenerationProgress');
         let pdfRequest = null;
         let cancelPending = false;
 
@@ -473,7 +468,6 @@
                 : 'Preparing the selected records and formatting your document.';
             pdfSpinner.hidden = failed;
             pdfErrorIcon.hidden = !failed;
-            pdfProgress.hidden = failed;
             retryPdfButton.hidden = !failed;
             cancelPdfButton.textContent = failed ? 'Close' : 'Cancel';
             window.lucide?.createIcons();
