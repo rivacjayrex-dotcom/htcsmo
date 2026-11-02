@@ -41,7 +41,7 @@ test('login progress appears during the session check and updates when the write
     assert.equal(b.dialog.open, true);
     assert.equal(b.document.activeElement, b.dialog);
     assert.match(b.title.textContent, /Signing you in/);
-    assert.match(b.message.textContent, /Checking your session/);
+    assert.match(b.message.textContent, /securely sign you in/);
     b.dispatch('htc:session-submit', {detail: {form: b.form}});
     assert.match(b.message.textContent, /securely sign you in/);
     assert.equal(b.dialog.open, true);

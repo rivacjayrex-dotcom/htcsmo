@@ -112,6 +112,7 @@ test('search debounces to one GET, retains filters, resets pagination and never 
     assert.equal(b.doc.activeElement, input); assert.equal(b.result.focusOptions, undefined);
     assert.deepEqual(b.result.scrollOptions, {block: 'start', behavior: 'auto'});
     assert.equal(b.status.textContent, '3 matching results.');
+    assert.equal(b.status.className, 'visually-hidden');
 });
 
 test('select and sort changes update immediately and reflect the query in URL history', async () => {
@@ -160,6 +161,7 @@ test('empty results replace the old results and announce zero matches', async ()
     const b = fixture(); const old = b.result;
     b.input('search').value = 'none'; b.event('input', b.input('search')); b.tick(); await flush();
     assert.notEqual(b.result, old); assert.equal(b.status.textContent, '0 matching results.');
+    assert.equal(b.status.className, 'visually-hidden');
 });
 
 for (const kind of ['network', 'validation', 'redirect', 'incomplete']) {
@@ -175,6 +177,7 @@ for (const kind of ['network', 'validation', 'redirect', 'incomplete']) {
         await b.api.refresh(b.root, 'https://app.test/requests?search=paper');
         assert.equal(b.result, original); assert.equal(b.root.dataset.filterState, 'error');
         assert.match(b.status.textContent, /Previous results are still shown/);
+        assert.equal(b.status.className, '');
         assert.equal(b.status.children.at(-1).href, 'https://app.test/requests?search=paper#results');
         assert.equal(b.pushes.length, 0); assert.equal(b.navigations.length, 0);
     });
@@ -261,6 +264,7 @@ test('background notification refreshes neither scroll nor focus, and do not sup
     const b = fixture(); const input = b.doc.activeElement;
     await b.api.refresh(b.root, 'https://app.test/requests', {background: true, orient: false, history: 'none'});
     assert.equal(b.doc.activeElement, input); assert.equal(b.result.scrollOptions, undefined); assert.equal(b.pushes.length, 0);
+    assert.equal(b.status.className, 'visually-hidden');
     b.input('search').value = 'paper'; b.event('input', b.input('search'));
     await b.api.refresh(b.root, 'https://app.test/requests', {background: true, orient: false});
     assert.equal(b.calls.length, 1);

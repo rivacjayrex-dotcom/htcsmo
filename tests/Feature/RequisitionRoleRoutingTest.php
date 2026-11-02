@@ -90,6 +90,10 @@ class RequisitionRoleRoutingTest extends TestCase
             'event_type' => $event,
             'action_id' => $requisition->id,
         ])->exists());
+        if ($recipient->role === 'smo') {
+            $this->assertSame(1, Notification::where('user_id', $recipient->id)
+                ->where('action_id', $requisition->id)->count(), 'A request ready for SMO should produce one alert.');
+        }
     }
 
     private function supply(string $tier, float $price): Supply

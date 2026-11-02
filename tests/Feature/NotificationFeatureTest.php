@@ -15,11 +15,13 @@ class NotificationFeatureTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_requisition_submission_notifies_owner_and_matching_department_heads_only(): void
+    public function test_requisition_submission_notifies_owner_matching_department_heads_and_active_smo(): void
     {
         $owner = User::factory()->create(['department' => 'CETE']);
         $matchingHead = User::factory()->create(['role' => 'dept_head', 'department' => 'CETE']);
         $otherHead = User::factory()->create(['role' => 'dept_head', 'department' => 'CAS']);
+        $smoUsers = User::factory()->count(2)->create(['role' => 'smo']);
+        $inactiveSmo = User::factory()->create(['role' => 'smo', 'account_status' => User::ACCOUNT_SUSPENDED]);
         $supply = $this->supply();
 
         $this->actingAs($owner)->post(route('requisitions.store'), [
@@ -32,6 +34,52 @@ class NotificationFeatureTest extends TestCase
         $this->assertDatabaseHas('notifications', ['user_id' => $owner->id, 'event_type' => 'requisition.submitted', 'action_id' => $requisition->id]);
         $this->assertDatabaseHas('notifications', ['user_id' => $matchingHead->id, 'event_type' => 'requisition.awaiting_approval', 'action_id' => $requisition->id]);
         $this->assertDatabaseMissing('notifications', ['user_id' => $otherHead->id, 'action_id' => $requisition->id]);
+        foreach ($smoUsers as $smo) {
+            $this->assertDatabaseHas('notifications', [
+                'user_id' => $smo->id, 'event_type' => 'requisition.submitted',
+                'action_type' => 'requisition', 'action_id' => $requisition->id, 'is_read' => false,
+            ]);
+        }
+        $this->assertDatabaseMissing('notifications', ['user_id' => $inactiveSmo->id, 'action_id' => $requisition->id]);
+    }
+
+    public function test_employee_submission_reaches_an_open_smo_notification_center_on_the_next_poll(): void
+    {
+        $smo = User::factory()->create(['role' => 'smo']);
+        $employee = User::factory()->create(['role' => 'employee']);
+        $supply = $this->supply();
+        $seen = app(NotificationService::class)->send($smo, 'system.notice', 'Previous notice', 'Already displayed.');
+
+        $this->actingAs($smo)->get(route('notifications'))->assertOk()
+            ->assertDontSee('New Requisition Submitted');
+        $this->getJson(route('api.runtime-state', ['scope' => 'notifications', 'after_id' => $seen->id]))
+            ->assertOk()->assertJsonCount(0, 'notifications');
+
+        $this->actingAs($employee)->post(route('requisitions.store'), [
+            'request_type' => 'minor',
+            'purpose' => 'Supplies for classroom instruction.',
+            'items' => [['supply_id' => $supply->id, 'qty' => 1]],
+        ])->assertRedirect(route('dashboard'));
+
+        $requisition = Requisition::firstOrFail();
+        $alert = Notification::where('user_id', $smo->id)->latest('id')->firstOrFail();
+        $this->assertSame('pending', $requisition->status);
+        $this->actingAs($smo)->getJson(route('api.runtime-state', [
+            'scope' => 'notifications', 'after_id' => $seen->id,
+        ]))->assertOk()
+            ->assertJsonCount(1, 'notifications')
+            ->assertJsonPath('notifications.0.id', $alert->id)
+            ->assertJsonPath('notifications.0.title', 'New Requisition Submitted')
+            ->assertJsonPath('notifications.0.action_url', route('notifications.open', $alert))
+            ->assertJsonPath('latest_id', $alert->id)
+            ->assertJsonPath('unread_count', 2)
+            ->assertJsonPath('notification_summary.new_requisitions', 1);
+
+        $this->get(route('notifications'), ['X-Filter-Request' => 'true', 'Accept' => 'text/html'])
+            ->assertOk()->assertSee('New Requisition Submitted')->assertSee($requisition->tracking_code);
+        $this->getJson(route('notifications', ['category' => 'approvals']))->assertOk()
+            ->assertJsonPath('category_counts.approvals', 1);
+        $this->post(route('notifications.open', $alert))->assertRedirect(route('requests.show', $requisition));
     }
 
     public function test_dedupe_key_prevents_retried_event_from_creating_a_second_notification(): void

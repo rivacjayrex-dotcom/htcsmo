@@ -20,7 +20,6 @@ function browser(reply = {ok: true, status: 204}) {
         appendChild(child) { this.children.push(child); child.parent = this; }
         remove() { this.parent.children = this.parent.children.filter(child => child !== this); }
         querySelector(selector) {
-            if (selector === '[data-session-close]') return close;
             if (selector === '[name="_token"]') return {value: 'old-token'};
             if (selector === '[data-session-status]') return this.children.find(child => 'sessionStatus' in child.dataset);
         }
@@ -30,21 +29,16 @@ function browser(reply = {ok: true, status: 204}) {
         method = 'post'; action = 'https://app.test/requisitions'; purpose = 'Unsaved work'; writes = 0;
         submit() { this.writes++; }
     }
-    const close = new Element();
     const button = new Element(); button.name = 'status'; button.value = 'approved';
-    const dialog = new Element();
-    dialog.dataset = {checkUrl: '/session/check', recoveryUrl: '/session/recover', loginUrl: 'https://app.test/login', account: '7'};
-    dialog.showModal = () => { dialog.opens = (dialog.opens || 0) + 1; };
-    dialog.close = () => dialog.dispatchEvent(new Event('close'));
-    const notice = new Element();
-    const link = new Element();
+    const config = new Element();
+    config.dataset = {checkUrl: '/session/check', recoveryUrl: '/session/recover', loginUrl: 'https://app.test/login', account: '7', token: 'old-token'};
     const document = Object.assign(new EventTarget(), {
-        getElementById: id => id === 'sessionExpiredDialog' ? dialog : notice,
-        querySelectorAll: () => [link], createElement: () => new Element(),
+        hidden: false, getElementById: () => config, createElement: () => new Element(),
     });
     const calls = [];
-    const window = Object.assign(new EventTarget(), {location: {href: 'https://app.test/requests?status=pending', origin: 'https://app.test', pathname: '/requests', search: '?status=pending'},
-        fetch: async (...args) => { calls.push(args); if (reply instanceof Error) throw reply; return reply; },
+    const navigations = [];
+    const window = Object.assign(new EventTarget(), {location: {href: 'https://app.test/requests?status=pending', origin: 'https://app.test', pathname: '/requests', search: '?status=pending', replace: url => navigations.push(url)},
+        fetch: async (...args) => { calls.push(args); if (reply instanceof Error) throw reply; return typeof reply === 'function' ? reply(...args) : reply; },
         setTimeout: () => 1, clearTimeout() {},
     });
     vm.runInNewContext(source, {window, document, HTMLFormElement: Form, URL, URLSearchParams, CustomEvent, AbortController});
@@ -56,11 +50,11 @@ function browser(reply = {ok: true, status: 204}) {
         document.dispatchEvent(event);
         return event;
     };
-    return {window, document, form, button, submit, calls, dialog, link, notice};
+    return {window, document, form, button, submit, calls, navigations, config};
 }
 
 for (const status of [401, 419]) {
-    test(`${status} during a native form check retains work and never sends or replays the write`, async () => {
+    test(`${status} during a native form check navigates once without sending or replaying the write`, async () => {
         const b = browser({status, ok: false});
         assert.equal(b.submit().defaultPrevented, true);
         await flush();
@@ -71,12 +65,13 @@ for (const status of [401, 419]) {
         assert.equal(b.form.purpose, 'Unsaved work');
         assert.equal(b.form.hasAttribute('aria-busy'), false);
         assert.equal(b.window.htcSession.expired, true);
-        assert.equal(b.dialog.opens, 1);
-        assert.equal(new URL(b.link.href).searchParams.get('return'), '/requests?status=pending');
-        b.dialog.close();
-        assert.equal(b.notice.hidden, false);
+        assert.equal(b.navigations.length, 1);
+        assert.equal(new URL(b.navigations[0]).pathname, '/session/recover');
+        assert.equal(new URL(b.navigations[0]).searchParams.get('return'), '/requests?status=pending');
         b.submit();
+        b.window.dispatchEvent(new Event('focus'));
         await assert.rejects(b.window.fetch('/notifications'), {name: 'SessionExpiredError'});
+        assert.equal(b.navigations.length, 1);
         assert.equal(b.calls.length, 1);
         assert.equal(b.form.writes, 0);
     });
@@ -86,7 +81,10 @@ test('a valid form check submits exactly once with the confirmed action value', 
     const b = browser();
     let submitted;
     b.document.addEventListener('htc:session-submit', event => submitted = event.detail);
-    b.submit(); b.submit();
+    b.submit();
+    assert.equal(b.form.querySelector('[data-session-status]').hidden, true);
+    assert.equal(b.form.querySelector('[data-session-status]').textContent, '');
+    b.submit();
     await flush();
     assert.equal(b.calls.length, 1);
     assert.equal(b.calls[0][1].body.get('account'), '7');
@@ -95,6 +93,8 @@ test('a valid form check submits exactly once with the confirmed action value', 
     assert.equal(submitted.form, b.form);
     assert.equal(submitted.submitter, b.button);
     assert.equal(b.window.htcSession.expired, false);
+    assert.equal(b.form.querySelector('[data-session-status]').hidden, true);
+    assert.equal(b.form.querySelector('[data-session-status]').textContent, '');
 });
 
 test('browser Back restores submit controls without leaving duplicate action fields', async () => {
@@ -115,7 +115,10 @@ test('a network failure checking the session sends no write and allows an explic
     assert.equal(b.form.writes, 0);
     assert.equal(b.button.disabled, false);
     assert.match(b.form.children.at(-1).textContent, /not submitted/);
-    b.submit(); await flush();
+    assert.equal(b.form.children.at(-1).hidden, false);
+    b.submit();
+    assert.equal(b.form.children.at(-1).hidden, true);
+    await flush();
     assert.equal(b.calls.length, 2);
     assert.equal(b.form.writes, 0);
 });
@@ -123,7 +126,7 @@ test('a network failure checking the session sends no write and allows an explic
 test('a followed login redirect triggers recovery before HTML or PDF content is consumed', async () => {
     const b = browser({status: 200, ok: true, redirected: true, url: 'https://app.test/login'});
     await assert.rejects(b.window.fetch('/admin/reports/generate'), {name: 'SessionExpiredError'});
-    assert.equal(b.dialog.opens, 1);
+    assert.equal(b.navigations.length, 1);
 });
 
 test('first-party expiry handling does not intercept external fetches', async () => {
@@ -131,6 +134,89 @@ test('first-party expiry handling does not intercept external fetches', async ()
     assert.equal((await b.window.fetch('https://external.test/data')).status, 401);
     assert.equal(b.window.htcSession.expired, false);
 });
+
+for (const trigger of ['focus', 'visibilitychange', 'pageshow']) {
+    test(`returning via ${trigger} checks the session and recovers an expired page`, async () => {
+        const b = browser({status: 419});
+        const event = new Event(trigger);
+        if (trigger === 'pageshow') event.persisted = true;
+        (trigger === 'visibilitychange' ? b.document : b.window).dispatchEvent(event);
+        await flush();
+        assert.equal(b.calls.length, 1);
+        assert.equal(b.calls[0][0], '/session/check');
+        assert.equal(b.calls[0][1].body.get('_token'), 'old-token');
+        assert.equal(b.calls[0][1].body.get('account'), '7');
+        assert.equal(b.calls[0][1].cache, 'no-store');
+        assert.equal(b.navigations.length, 1);
+        assert.equal(b.form.writes, 0);
+    });
+}
+
+test('an ordinary page load and hiding the tab do not check or refresh the session', async () => {
+    const b = browser();
+    b.window.dispatchEvent(new Event('pageshow'));
+    b.document.hidden = true;
+    b.document.dispatchEvent(new Event('visibilitychange'));
+    b.window.dispatchEvent(new Event('focus'));
+    await flush();
+    assert.equal(b.calls.length, 0);
+    assert.equal(b.navigations.length, 0);
+});
+
+test('overlapping return events share one check and leave an active session on the page', async () => {
+    let finish;
+    const b = browser(new Promise(resolve => finish = resolve));
+    b.document.dispatchEvent(new Event('visibilitychange'));
+    b.window.dispatchEvent(new Event('focus'));
+    assert.equal(b.calls.length, 1);
+    finish({status: 204});
+    await flush();
+    assert.equal(b.navigations.length, 0);
+    assert.equal(b.window.htcSession.expired, false);
+    assert.equal(b.form.writes, 0);
+});
+
+test('expiry detected in a hidden tab refreshes only once when the user returns', async () => {
+    const b = browser({status: 401});
+    b.document.hidden = true;
+    await assert.rejects(b.window.fetch('/notifications'), {name: 'SessionExpiredError'});
+    assert.equal(b.navigations.length, 0);
+    b.document.hidden = false;
+    b.document.dispatchEvent(new Event('visibilitychange'));
+    b.window.dispatchEvent(new Event('focus'));
+    assert.equal(b.navigations.length, 1);
+    assert.equal(b.calls.length, 1);
+});
+
+test('guest forms refresh their current page to obtain a fresh token', async () => {
+    const b = browser({status: 419});
+    b.config.dataset.account = '';
+    b.window.location.href = 'https://app.test/login';
+    b.window.dispatchEvent(new Event('focus'));
+    await flush();
+    assert.equal(b.calls[0][1].body.has('account'), false);
+    assert.deepEqual(b.navigations, ['https://app.test/login']);
+    assert.equal(b.form.writes, 0);
+});
+
+for (const reply of [new Error('Offline'), {status: 500}, {status: 429}]) {
+    test(`a return check with ${reply.message || reply.status} allows a later retry without refreshing`, async () => {
+        let attempts = 0;
+        const b = browser(() => {
+            if (++attempts > 1) return {status: 419};
+            if (reply instanceof Error) throw reply;
+            return reply;
+        });
+        b.window.dispatchEvent(new Event('focus'));
+        await flush();
+        assert.equal(b.navigations.length, 0);
+        assert.equal(b.window.htcSession.expired, false);
+        b.window.dispatchEvent(new Event('focus'));
+        await flush();
+        assert.equal(b.calls.length, 2);
+        assert.equal(b.navigations.length, 1);
+    });
+}
 
 test('an in-flight success cannot replace work after another request detects expiry', async () => {
     let finish;

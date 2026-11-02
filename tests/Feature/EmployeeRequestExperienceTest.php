@@ -104,7 +104,8 @@ class EmployeeRequestExperienceTest extends TestCase
         }
         foreach ($requests as $index => $request) {
             $this->get(route('requests.show', $request))->assertOk()
-                ->assertSee($cases[$index][2])->assertSee('Your next step')->assertSee('Requested value');
+                ->assertSee($cases[$index][2])->assertSee('Requested value')
+                ->assertDontSee('Request guidance')->assertDontSee('Your next step');
         }
     }
 
@@ -124,8 +125,9 @@ class EmployeeRequestExperienceTest extends TestCase
                 ->assertDontSee('<script>alert(1)</script>', false);
         }
         $this->get(route('requests.show', $request))->assertOk()->assertSee($remarks)
-            ->assertSee('Provost inquiry')->assertSee('Clarification remarks and next step')
-            ->assertSee('reviewing office and SMO')->assertDontSee('<script>alert(1)</script>', false);
+            ->assertSee('Provost inquiry')->assertSee('Activity audit trail')
+            ->assertDontSee('Request guidance')->assertDontSee('Clarification remarks and next step')
+            ->assertDontSee('<script>alert(1)</script>', false);
     }
 
     public function test_notifications_are_personal_request_related_and_keep_authorized_open_and_unread_behavior(): void

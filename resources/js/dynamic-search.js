@@ -55,6 +55,7 @@ export function initializeDynamicSearch(browser = window, doc = document) {
             root.prepend(region);
         }
         root.dataset.filterState = state;
+        region.className = ['error', 'invalid'].includes(state) ? '' : 'visually-hidden';
         region.textContent = message;
         if (fallback) {
             const link = doc.createElement('a');

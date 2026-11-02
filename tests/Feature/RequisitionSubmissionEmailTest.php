@@ -173,11 +173,29 @@ class RequisitionSubmissionEmailTest extends TestCase
         $this->assertDatabaseCount('requisitions', 1);
         $this->assertDatabaseCount('requisition_items', 1);
         $this->assertDatabaseHas('notifications', ['user_id' => $requestor->id, 'event_type' => 'requisition.submitted']);
-        Log::shouldHaveReceived('error')->once()->with('Requisition saved but submission notification failed.', \Mockery::on(
-            fn ($context) => $context['channel'] === 'email'
-                && $context['requisition_id'] === Requisition::firstOrFail()->id
-                && $context['exception'] instanceof \RuntimeException
-        ));
+        foreach (['in_app', 'email'] as $channel) {
+            Log::shouldHaveReceived('error')->with('Requisition saved but submission notification failed.', \Mockery::on(
+                fn ($context) => $context['channel'] === $channel
+                    && $context['requisition_id'] === Requisition::firstOrFail()->id
+                    && $context['exception'] instanceof \RuntimeException
+            ))->once();
+        }
+    }
+
+    public function test_smo_in_app_alert_is_available_before_submission_emails_are_dispatched(): void
+    {
+        $requestor = User::factory()->create(['role' => 'employee']);
+        $smo = User::factory()->create(['role' => 'smo']);
+        Bus::partialMock()->shouldReceive('dispatch')->twice()->andReturnUsing(function (SendRequisitionEmail $job) use ($smo) {
+            $this->assertDatabaseHas('notifications', [
+                'user_id' => $smo->id,
+                'event_type' => 'requisition.submitted',
+                'action_id' => $job->requisitionId,
+                'is_read' => false,
+            ]);
+        });
+
+        $this->submit($requestor, $this->supply())->assertRedirect(route('dashboard'));
     }
 
     public function test_in_app_notification_failure_does_not_undo_submission_or_prevent_email(): void

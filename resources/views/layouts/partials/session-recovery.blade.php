@@ -1,33 +1,16 @@
-<style>
-    #sessionExpiredDialog { width:min(34rem, calc(100vw - 2rem)); max-height:calc(100dvh - 2rem); margin:auto; padding:var(--space-24); border:1px solid #dce4de; border-radius:1rem; color:#173b27; background:#fff; font:var(--text-body)/var(--line-body) var(--bs-body-font-family); text-align:center; }
-    #sessionExpiredDialog::backdrop { background:rgb(10 29 18 / 50%); }
-    #sessionExpiredNotice { position:fixed; inset:auto 1rem 1rem; z-index:21000; padding:var(--space-16); border:2px solid #14532d; border-radius:.5rem; background:#fff; color:#173b27; }
-    #sessionExpiredNotice[hidden] { display:none; }
-    #sessionExpiredDialog a,#sessionExpiredNotice a { color:#14532d; text-decoration:underline; }
-    #sessionExpiredDialog :focus-visible,#sessionExpiredNotice :focus-visible { outline:3px solid #b38328; outline-offset:3px; }
-</style>
-<dialog id="sessionExpiredDialog" aria-labelledby="sessionExpiredTitle" aria-describedby="sessionExpiredDescription"
+<span id="sessionRecovery" hidden
         data-check-url="{{ route('session.check') }}" data-recovery-url="{{ route('session.recover') }}" data-login-url="{{ route('login') }}"
-        data-account="{{ Auth::id() }}">
-    <h2 id="sessionExpiredTitle">Your session expired</h2>
-    <p id="sessionExpiredDescription">Sign in again before continuing. Your entries are still on this page. No action will be retried automatically.</p>
-    <p>Sign in in a new tab, then open a fresh form and copy your work into it. Review it before submitting. Passwords and file selections must be entered again. Reloading or leaving this page may lose your entries.</p>
-    <p><a data-session-sign-in target="_blank" rel="noopener" href="{{ route('session.recover') }}">Sign in again (opens a new tab)</a></p>
-    <button type="button" data-session-close autofocus>Keep this page open to copy my work</button>
-</dialog>
-<aside id="sessionExpiredNotice" role="alert" hidden>
-    Your session expired. Copy your work before leaving this page.
-    <a data-session-sign-in target="_blank" rel="noopener" href="{{ route('session.recover') }}">Sign in again (opens a new tab)</a>
-</aside>
+        data-account="{{ Auth::id() }}" data-token="{{ csrf_token() }}"></span>
 <script>
     (() => {
         if (window.htcSession) return;
-        const dialog = document.getElementById('sessionExpiredDialog');
-        const notice = document.getElementById('sessionExpiredNotice');
+        const config = document.getElementById('sessionRecovery').dataset;
         const nativeFetch = window.fetch.bind(window);
         const nativeSubmit = HTMLFormElement.prototype.submit;
         const pending = new Map();
         let expired = false;
+        let refreshing = false;
+        let checking = false;
 
         const expiryError = () => Object.assign(new Error('Your session expired.'), {name: 'SessionExpiredError'});
         const releaseForm = form => {
@@ -45,23 +28,31 @@
             [...pending.keys()].forEach(form => {
                 releaseForm(form);
                 const status = form.querySelector('[data-session-status]');
-                if (status) status.textContent = '';
+                if (status) {
+                    status.textContent = '';
+                    status.hidden = true;
+                }
             });
         });
+        const refreshExpiredPage = () => {
+            if (!expired || refreshing || document.hidden) return;
+            refreshing = true;
+            const recovery = new URL(config.recoveryUrl, window.location.href);
+            // The server validates this again against the application screen routes.
+            recovery.searchParams.set('return', window.location.pathname + window.location.search);
+            // Navigate with GET so the browser cannot resubmit a previous write.
+            // Guest forms need a fresh token on their current screen.
+            window.location.replace(config.account ? recovery.href : window.location.href);
+        };
         const show = () => {
             if (expired) return;
             expired = true;
-            const recovery = new URL(dialog.dataset.recoveryUrl, window.location.href);
-            // The server validates this again against the application screen routes.
-            recovery.searchParams.set('return', window.location.pathname + window.location.search);
-            document.querySelectorAll('[data-session-sign-in]').forEach(link => link.href = recovery.href);
             document.dispatchEvent(new CustomEvent('htc:session-expired'));
-            if (typeof dialog.showModal === 'function') dialog.showModal();
-            else notice.hidden = false;
+            refreshExpiredPage();
         };
         const inspect = response => {
             const redirectedToLogin = response.redirected && response.url
-                && new URL(response.url).pathname === new URL(dialog.dataset.loginUrl).pathname;
+                && new URL(response.url).pathname === new URL(config.loginUrl).pathname;
             if (response.status === 401 || response.status === 419 || redirectedToLogin) show();
             if (expired) throw expiryError();
             return response;
@@ -80,18 +71,41 @@
                 throw error;
             }
         };
-        dialog.querySelector('[data-session-close]').addEventListener('click', () => dialog.close());
-        // Keep an underlying Bootstrap modal from taking keyboard focus back.
-        dialog.addEventListener('focusin', event => event.stopPropagation());
-        dialog.addEventListener('close', () => notice.hidden = false);
+        const checkOnReturn = async () => {
+            if (document.hidden) return;
+            if (expired) { refreshExpiredPage(); return; }
+            if (checking) return;
+            checking = true;
+            const controller = new AbortController();
+            const timeout = window.setTimeout(() => controller.abort(), 10000);
+            try {
+                const body = new URLSearchParams({_token: config.token});
+                if (config.account) body.set('account', config.account);
+                await window.fetch(config.checkUrl, {
+                    method: 'POST', credentials: 'same-origin', cache: 'no-store',
+                    headers: {Accept: 'application/json'}, body, signal: controller.signal,
+                });
+            } catch (error) {
+                // Offline or temporary server errors do not mean the session expired.
+                // A later return or submission can check again.
+            } finally {
+                window.clearTimeout(timeout);
+                checking = false;
+            }
+        };
+        document.addEventListener('visibilitychange', checkOnReturn);
+        window.addEventListener('focus', checkOnReturn);
+        window.addEventListener('pageshow', event => {
+            if (event.persisted) checkOnReturn();
+        });
         document.addEventListener('submit', event => {
             if (!expired) return;
             event.preventDefault();
             event.stopImmediatePropagation();
         }, true);
 
-        // Check the existing token before a native write so an idle form stays in
-        // the DOM. Run after target handlers/confirmations; do not redispatch them.
+        // Check the existing token before a native write. Run after target
+        // handlers/confirmations; never redispatch them or replay a write.
         document.addEventListener('submit', async event => {
             const form = event.target;
             if (!(form instanceof HTMLFormElement) || event.defaultPrevented) return;
@@ -112,7 +126,8 @@
                 status.setAttribute('role', 'status');
                 form.appendChild(status);
             }
-            status.textContent = 'Checking your session…';
+            status.textContent = '';
+            status.hidden = true;
             const buttons = [...form.querySelectorAll('button[type="submit"], input[type="submit"]')].filter(button => !button.disabled);
             state.buttons = buttons;
             buttons.forEach(button => button.disabled = true);
@@ -120,8 +135,8 @@
             const timeout = window.setTimeout(() => controller.abort(), 10000);
             try {
                 const body = new URLSearchParams({_token: form.querySelector('[name="_token"]')?.value || ''});
-                if (dialog.dataset.account) body.set('account', dialog.dataset.account);
-                const response = await window.fetch(dialog.dataset.checkUrl, {
+                if (config.account) body.set('account', config.account);
+                const response = await window.fetch(config.checkUrl, {
                     method: 'POST', credentials: 'same-origin', headers: {Accept: 'application/json'}, body, signal: controller.signal,
                 });
                 if (response.status !== 204) throw new Error('Session check failed.');
@@ -137,14 +152,14 @@
                 for (const attribute of ['action', 'method', 'enctype', 'target']) {
                     if (submitter?.hasAttribute('form' + attribute)) form.setAttribute(attribute, submitter.getAttribute('form' + attribute));
                 }
-                status.textContent = 'Submitting…';
                 document.dispatchEvent(new CustomEvent('htc:session-submit', {detail: {form, submitter}}));
                 nativeSubmit.call(form);
                 // Keep the form locked until navigation completes; never retry a write.
             } catch (error) {
                 status.textContent = error.name === 'SessionExpiredError'
-                    ? 'Your session expired. Copy your work and sign in again. This form was not submitted.'
+                    ? 'Your session expired. Refreshing...'
                     : 'We could not check your session. This form was not submitted. Keep your work here and try again when connected.';
+                status.hidden = false;
                 releaseForm(form);
                 form.dispatchEvent(new CustomEvent('htc:session-check-failed', {bubbles: true}));
             } finally {

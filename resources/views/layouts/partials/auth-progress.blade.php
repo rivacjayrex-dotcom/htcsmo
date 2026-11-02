@@ -31,11 +31,11 @@
             register: ['Creating your account…', 'Please wait while we submit your account for review.'],
         };
 
-        const show = (form, checking = false) => {
+        const show = form => {
             const text = copy[form?.dataset.authProgress];
             if (!text || window.htcSession?.expired || typeof dialog.showModal !== 'function') return;
             title.textContent = text[0];
-            message.textContent = checking ? 'Checking your session before continuing.' : text[1];
+            message.textContent = text[1];
             activeForm = form;
             if (dialog.open) return;
             previousFocus = document.activeElement;
@@ -56,7 +56,7 @@
             if (!(form instanceof HTMLFormElement)) return;
             const checking = form.getAttribute('aria-busy') === 'true';
             if (event.defaultPrevented && !checking) return;
-            show(form, checking);
+            show(form);
         });
         document.addEventListener('htc:session-submit', event => show(event.detail.form));
         document.addEventListener('htc:session-check-failed', event => {

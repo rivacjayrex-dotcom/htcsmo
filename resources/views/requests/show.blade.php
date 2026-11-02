@@ -120,7 +120,6 @@
                 @endif
             </div>
         </header>
-        @if($isEmployee) @include('requests.partials.personal-guidance') @endif
 
         <div class="request-detail-grid">
             <main class="request-detail-main">
@@ -202,7 +201,7 @@
             </main>
 
             <aside class="request-audit-column">
-                <section class="request-panel request-audit-panel">
+                <section class="request-panel request-audit-panel" id="request-activity-history" style="scroll-margin-top: 6rem;">
                     <div class="request-section-heading"><div><span>Accountability</span><h2>Activity audit trail</h2></div><i data-lucide="history"></i></div>
                     <div class="request-audit-stream">
                         <article class="request-audit-entry is-created">

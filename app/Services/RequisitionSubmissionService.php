@@ -66,8 +66,8 @@ class RequisitionSubmissionService
 
         $notificationFailed = false;
         foreach ([
-            'email' => fn () => $this->sendSubmissionEmails($requisition, $user),
             'in_app' => fn () => $this->sendSubmissionNotifications($requisition, $user, $this->notifications, count($validated['items'])),
+            'email' => fn () => $this->sendSubmissionEmails($requisition, $user),
         ] as $channel => $send) {
             try {
                 if ($send() === false) {
@@ -123,6 +123,22 @@ class RequisitionSubmissionService
                     'dedupe_key' => "requisition:{$requisition->id}:initial-route:{$nextRole}",
                 ]
             );
+        }
+
+        // SMO monitors every new submission, including requests still awaiting
+        // department approval. Direct-to-SMO requests already have an alert above.
+        if ($requisition->nextReviewerRole() !== 'smo') {
+            User::query()->where('role', 'smo')
+                ->where('account_status', User::ACCOUNT_ACTIVE)
+                ->where('id', '!=', $user->id)
+                ->eachById(fn (User $smo) => $notifications->send(
+                    $smo, 'requisition.submitted', 'New Requisition Submitted',
+                    "{$user->name} submitted requisition {$requisition->tracking_code} for {$itemCount} item(s).", [
+                        'icon' => 'file-text', 'type' => 'info', 'action_type' => 'requisition',
+                        'action_id' => $requisition->id,
+                        'dedupe_key' => "requisition:{$requisition->id}:submitted:smo",
+                    ]
+                ));
         }
     }
 

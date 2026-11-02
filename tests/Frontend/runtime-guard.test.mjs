@@ -238,7 +238,7 @@ test('workflow progress stays visible from session checking through native submi
     b.form.setAttribute('aria-busy', 'true');
     b.dispatch('submit', b.form, {submitter: b.submitter, canceled: true});
     assert.equal(b.actionModal.open, true); assert.equal(b.actionModal.opens, 1);
-    assert.match(b.actionMessage.textContent, /Checking your session/);
+    assert.equal(b.actionMessage.textContent, 'Please wait while we save this action.');
     assert.equal(b.actionTitle.textContent, 'Confirming pickup and completion...');
     b.dispatch('htc:session-submit', b.form, {detail: {form: b.form, submitter: b.submitter}});
     assert.equal(b.actionModal.opens, 1); assert.equal(b.loader.hidden, true);

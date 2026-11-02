@@ -90,7 +90,7 @@
                             <span class="history-status {{ $statusTone }}">{{ $isPersonalEmployee ? $personalStage['label'] : str_replace('_', ' ', $req->status) }}</span>
                             <small class="history-stage">{{ $stageLabel }}</small>
                             @if($isPersonalEmployee && $req->status === 'for_clarification')
-                                <a href="{{ route('requests.show', $req) }}#employee-next-step" class="history-stage">Read clarification remarks</a>
+                                <a href="{{ route('requests.show', $req) }}#request-activity-history" class="history-stage">Read clarification remarks</a>
                                 @if($req->clarificationRemarks())<small class="history-stage">{{ Str::limit($req->clarificationRemarks(), 120) }}</small>@endif
                             @endif
                             @if($isOverdue && !in_array($req->status, App\Models\Requisition::ARCHIVED_STATUSES, true))

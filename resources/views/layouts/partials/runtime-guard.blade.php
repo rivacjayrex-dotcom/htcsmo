@@ -177,7 +177,7 @@
             logoutModal.focus({preventScroll: true});
         };
 
-        const showActionProgress = (form, submitter, checking = false) => {
+        const showActionProgress = (form, submitter) => {
             if (!actionModal || window.htcSession?.expired) return;
             if (typeof actionModal.showModal !== 'function') {
                 showLoader(form.dataset.loadingMessage || 'Saving requisition...');
@@ -192,9 +192,7 @@
             if (loader) loader.hidden = true;
             activeActionForm = form;
             actionTitle.textContent = submitter?.dataset.loadingText || form.dataset.loadingMessage || 'Saving requisition...';
-            actionMessage.textContent = checking
-                ? 'Checking your session before saving this action.'
-                : 'Please wait while we save this action.';
+            actionMessage.textContent = 'Please wait while we save this action.';
             runtimeLocked = true;
             document.body.classList.add('runtime-locked');
             document.documentElement.setAttribute('aria-busy', 'true');
@@ -270,7 +268,7 @@
             // A canceled event is an in-flight session check only when the form
             // is busy. Declined confirmations must not open a progress dialog.
             if (actionProgress && event.defaultPrevented && form.getAttribute('aria-busy') === 'true') {
-                showActionProgress(form, submitter, true);
+                showActionProgress(form, submitter);
             }
             if (event.defaultPrevented) return;
             if (form.dataset.download !== undefined || submitter?.dataset.download !== undefined) {

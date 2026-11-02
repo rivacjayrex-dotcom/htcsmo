@@ -24,8 +24,10 @@
                                aria-label="{{ $categoryLabels[$key] }}" title="{{ $categoryLabels[$key] }}"
                                @if($category === $key) aria-current="page" @endif>
                                 <i aria-hidden="true" data-lucide="{{ match($key) { 'all' => 'layout-list', 'approvals' => 'clipboard-check', 'deadlines' => 'alarm-clock', 'accounts' => 'users', default => 'bell' } }}"></i>
-                                <span>{{ $categoryLabels[$key] }}</span>
-                                <b data-category-count>{{ $categoryCounts[$key] }}</b>
+                                <span class="notification-category-details" aria-hidden="true">
+                                    <span>{{ $categoryLabels[$key] }}</span>
+                                    <b data-category-count>{{ $categoryCounts[$key] }}</b>
+                                </span>
                             </a>
                         @endforeach
                         @if(Auth::user()->role === 'smo')
@@ -35,8 +37,10 @@
                                aria-label="Inventory" title="Inventory"
                                @if($category === 'inventory') aria-current="page" @endif>
                                 <i data-lucide="package-search" aria-hidden="true"></i>
-                                <span>{{ $categoryLabels['inventory'] }}</span>
-                                <b data-category-count>{{ $categoryCounts['inventory'] }}</b>
+                                <span class="notification-category-details" aria-hidden="true">
+                                    <span>{{ $categoryLabels['inventory'] }}</span>
+                                    <b data-category-count>{{ $categoryCounts['inventory'] }}</b>
+                                </span>
                             </a>
                         @endif
                     </nav>
@@ -76,10 +80,14 @@
         .notification-icon-control svg { width:18px; height:18px; }
         .notification-icon-control:focus-visible,.notification-category-link:focus-visible { outline:2px solid var(--htc-green); outline-offset:2px; }
         .notification-category-nav { display:flex; flex:1 1 auto; flex-wrap:nowrap; min-width:0; gap:var(--space-4); overflow-x:auto; padding:var(--space-4); }
-        .notification-category-link { flex:0 0 auto; min-height:44px; display:inline-flex; align-items:center; gap:var(--space-8); padding:var(--space-8) var(--space-12); border-radius:10px; color:#677970; font-size:var(--text-caption); font-weight:800; text-decoration:none; white-space:nowrap; transition:.18s ease; }
+        .notification-category-link { flex:0 0 auto; min-width:44px; min-height:44px; display:inline-flex; align-items:center; justify-content:center; padding:var(--space-8) var(--space-12); border-radius:10px; color:#677970; font-size:var(--text-caption); font-weight:800; text-decoration:none; white-space:nowrap; transition:background-color .18s ease,color .18s ease,box-shadow .18s ease; }
         .notification-category-link:hover { background:#f0f6f2; color:var(--htc-green); }
         .notification-category-link.is-active { background:var(--htc-green); color:#fff; box-shadow:0 5px 13px rgba(24,91,59,.2); }
-        .notification-category-link svg { width:18px; height:18px; }
+        .notification-category-link svg { width:18px; height:18px; flex:0 0 18px; }
+        .notification-category-details { display:flex; align-items:center; gap:var(--space-8); max-width:0; margin-inline-start:0; overflow:hidden; opacity:0; transition:max-width .28s ease,margin-inline-start .28s ease,opacity .18s ease; }
+        .notification-category-link.is-active .notification-category-details { max-width:12rem; margin-inline-start:var(--space-8); opacity:1; }
+        .notification-category-link.is-expanding .notification-category-details { animation:notification-category-reveal .28s ease both; }
+        @keyframes notification-category-reveal { from { max-width:0; margin-inline-start:0; opacity:0; } to { max-width:12rem; margin-inline-start:var(--space-8); opacity:1; } }
         .notification-category-link b { min-width:21px; padding:.15rem var(--space-4); border-radius:999px; background:#eef3f0; color:#5e7166; font-size:var(--text-caption); text-align:center; }
         .notification-category-link.is-active b { background:rgba(255,255,255,.18); color:#fff; }
         .notification-center-grid { display:grid; grid-template-columns:minmax(0,1fr); gap:var(--space-16); align-items:start; }
@@ -132,7 +140,7 @@
             .notification-toolbar-actions{margin-left:0}
         }
         @media(max-width:575.98px){.notification-center-page{padding-top:var(--space-4)}.notification-category-nav{gap:var(--space-4)}.notification-category-link{padding:var(--space-8)}.notification-center-grid{gap:var(--space-12)}.notification-feed-item{grid-template-columns:36px minmax(0,1fr);padding:var(--space-12)}.notification-feed-icon{width:36px;height:36px}.notification-feed-meta{align-items:flex-start;flex-direction:column;gap:.1rem}.notification-panel-heading{padding:var(--space-12)}.notification-live-label{display:none}}
-        @media(prefers-reduced-motion:reduce){.notification-feed-item,.notification-feed-container{transition:none}}
+        @media(prefers-reduced-motion:reduce){.notification-feed-item,.notification-feed-container,.notification-category-link,.notification-category-details{transition:none}.notification-category-link.is-expanding .notification-category-details{animation:none}}
     </style>
     @endPushOnce
 
@@ -141,6 +149,15 @@
             const center = document.querySelector('[data-notification-center]');
             if (!center) return;
 
+            let displayedCategory = center.querySelector('.notification-category-link.is-active')?.dataset.notificationCategory;
+            center.addEventListener('htc:filters-applied', () => {
+                const activeTab = center.querySelector('.notification-category-link.is-active');
+                const nextCategory = activeTab?.dataset.notificationCategory;
+                if (nextCategory && displayedCategory && nextCategory !== displayedCategory) {
+                    activeTab.classList.add('is-expanding');
+                }
+                displayedCategory = nextCategory;
+            });
 
 
             const unreadSyncKey = `htc-notification-unread-sync-${center.dataset.notificationAccount}`;

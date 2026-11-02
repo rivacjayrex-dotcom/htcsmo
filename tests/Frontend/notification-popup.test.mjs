@@ -323,6 +323,61 @@ test("background updates are silent and do not wait for notification popups to c
     assert.equal(fixture.document.getElementById('liveUpdateStatus').textContent, 'Content updated.');
 });
 
+test('a new employee request updates the open notification center and shows the popup on the next live poll', async () => {
+    const fixture = browser({cursor: 42});
+    const {document, window, context, center, runTimer} = fixture;
+    const feed = {scrollTop: 180, innerHTML: 'Previous notifications'};
+    const tabs = {scrollLeft: 0};
+    const unread = {textContent: '0'};
+    const markAll = {hidden: true};
+    const page = Object.assign(new EventTarget(), {
+        dataset: {notificationAccount: '7'},
+        querySelectorAll: () => [unread],
+        querySelector: selector => ({
+            '[data-notification-feed]': feed,
+            '.notification-category-nav': tabs,
+            '[data-mark-all-read-form]': markAll,
+        })[selector] || null,
+    });
+    document.querySelector = selector => selector === '[data-notification-center]' ? page : null;
+    document.body.dataset.runtimeScope = 'notifications';
+    window.location.href = 'http://localhost/notifications';
+    let refreshes = 0;
+    window.htcFilters = {async refresh(root, url, options) {
+        assert.equal(root, page);
+        assert.equal(url, window.location.href);
+        assert.equal(options.history, 'none');
+        refreshes++;
+        feed.innerHTML = 'New Requisition Submitted';
+        feed.scrollTop = 0;
+    }};
+    const template = readFileSync(new URL('../../resources/views/notifications.blade.php', import.meta.url), 'utf8');
+    vm.runInContext(template.slice(template.indexOf('<script>') + 8, template.lastIndexOf('</script>')), context);
+    let submitted = false;
+    context.fetch = async () => ({ok: true, json: async () => ({
+        account_id: 7, version: 'notifications', versions: {dashboard: submitted ? 'after' : 'before'},
+        latest_id: submitted ? 43 : 42, unread_count: submitted ? 1 : 0,
+        notification_summary: {new_requisitions: submitted ? 1 : 0, needs_attention: 0, updates: 0},
+        notifications: submitted ? [{id: 43, title: 'New Requisition Submitted', event_type: 'requisition.submitted'}] : [],
+    })});
+    vm.runInContext(runtimeSource, context);
+    await runTimer(0);
+    assert.equal(center.show, false);
+    assert.equal(refreshes, 0);
+
+    submitted = true;
+    await runTimer(3000);
+    assert.equal(center.show, true);
+    assert.equal(center.summary.new_requisitions, 1);
+    assert.equal(document.getElementById('notificationUnreadCount').textContent, '1');
+    assert.equal(unread.textContent, 1);
+    assert.equal(markAll.hidden, false);
+    assert.equal(feed.innerHTML, 'New Requisition Submitted');
+    assert.equal(feed.scrollTop, 180);
+    assert.equal(refreshes, 1);
+    assert.equal(window.reloads, 0);
+});
+
 test("the entire summary expires without replaying individual reminders", async () => {
     const { center, payload, runTimer } = browser();
     center.consumeRuntimeState(payload(43, 44, 45, 46));

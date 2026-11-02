@@ -44,6 +44,7 @@ class RequisitionTest extends ApiTestCase
         Mail::fake();
         $user = User::factory()->create();
         $head = User::factory()->create(['role' => 'dept_head', 'department_id' => $user->department_id]);
+        $smo = User::factory()->create(['role' => 'smo']);
         $supply = $this->supply(['configurable_options' => ['Size' => ['A4', 'Legal']]]);
         $response = $this->api('POST', '/requisitions', [
             'request_type' => 'minor', 'purpose' => 'Printing classroom learning materials.',
@@ -58,6 +59,7 @@ class RequisitionTest extends ApiTestCase
         $this->assertDatabaseHas('requisitions', ['id' => $id, 'user_id' => $user->id, 'grand_total' => 200]);
         $this->assertDatabaseHas('notifications', ['user_id' => $user->id, 'action_id' => $id, 'event_type' => 'requisition.submitted']);
         $this->assertDatabaseHas('notifications', ['user_id' => $head->id, 'action_id' => $id, 'event_type' => 'requisition.awaiting_approval']);
+        $this->assertDatabaseHas('notifications', ['user_id' => $smo->id, 'action_id' => $id, 'event_type' => 'requisition.submitted']);
         $this->assertSame(20, $supply->fresh()->quantity);
     }
 
