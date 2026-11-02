@@ -97,7 +97,7 @@ Both lists accept `page` (default 1, maximum 1,000,000) and `per_page` (default 
 
 Choose a real catalog ID and use the item's returned `options` map to select valid choices. Omit `options` when none are configured. Purpose must contain 10–500 characters. A request may have 1–100 items, positive integer quantities, and at most five option selections per item.
 
-The server calculates item names, prices, subtotals, grand total, ownership, tracking number, and initial approval status. Submitted values cannot override these. The server checks the combined quantity when the same supply appears more than once. All items must belong to the selected tier. Minor totals must be at most PHP 1,000; major totals must exceed PHP 1,000. Submission does not reserve or deduct stock; the existing fulfillment workflow handles stock deductions.
+The server calculates item names, prices, subtotals, grand total, ownership, tracking number, and initial approval status. Submitted values cannot override these. The server checks the combined quantity when the same supply appears more than once. All catalog items can be requested in either tier, regardless of their inventory tier classification. Minor totals must be at most PHP 1,000; major totals must exceed PHP 1,000. Submission does not reserve or deduct stock; the existing fulfillment workflow handles stock deductions.
 
 Item prices must fit the existing requisition snapshot limit of PHP 99,999,999.99, and the combined total must not exceed PHP 9,999,999,999.99. Values above these storage limits return HTTP 422 before records are written.
 

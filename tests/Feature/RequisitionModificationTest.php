@@ -137,6 +137,35 @@ class RequisitionModificationTest extends TestCase
         ]);
     }
 
+    public function test_both_tiers_can_display_and_save_items_from_the_other_inventory_classification(): void
+    {
+        $requestor = User::factory()->create();
+        $minorItem = $this->createSupply('Minor Catalog Item', 250, 20);
+        $majorItem = $this->createSupply('Major Catalog Item', 250, 20);
+        $majorItem->update(['requisition_tier' => 'major']);
+
+        foreach (['minor' => 2, 'major' => 3] as $tier => $quantity) {
+            $requisition = $this->createRequisition($requestor, 'pending');
+            $requisition->update(['request_type' => $tier]);
+
+            $this->actingAs($requestor)->get(route('requisitions.edit', $requisition))
+                ->assertOk()
+                ->assertViewHas('catalog', fn ($catalog) => $catalog->pluck('id')->sort()->values()->all()
+                    === [$minorItem->id, $majorItem->id]);
+
+            $this->patch(route('requisitions.update', $requisition), [
+                'purpose' => 'Updated classroom supply requirements',
+                'items' => [
+                    ['supply_id' => $minorItem->id, 'qty' => $quantity],
+                    ['supply_id' => $majorItem->id, 'qty' => $quantity],
+                ],
+            ])->assertSessionHasNoErrors()->assertRedirect(route('requests.index'));
+
+            $this->assertSame(500.0 * $quantity, (float) $requisition->fresh()->grand_total);
+            $this->assertSame(2, $requisition->items()->count());
+        }
+    }
+
     private function createRequisition(User $requestor, string $status): Requisition
     {
         return Requisition::create([

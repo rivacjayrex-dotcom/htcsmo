@@ -157,27 +157,40 @@ class RequisitionCatalogTest extends TestCase
         ]);
     }
 
-    public function test_item_cannot_be_submitted_through_the_wrong_tier(): void
+    public function test_catalog_items_can_be_submitted_in_either_tier(): void
     {
         $user = User::factory()->create();
-        $supply = Supply::create([
-            'item_name' => 'Projector',
+        $supplies = collect(['minor', 'major'])->map(fn (string $tier) => Supply::create([
+            'item_name' => ucfirst($tier).' Catalog Item',
             'category' => 'Office Supplies',
-            'requisition_tier' => 'major',
-            'specifications' => 'Full HD',
-            'quantity' => 2,
+            'requisition_tier' => $tier,
+            'quantity' => 10,
             'unit' => 'Unit(s)',
-            'unit_price' => 25000,
+            'unit_price' => 250,
             'min_stock_level' => 1,
-        ]);
+        ]));
 
-        $this->actingAs($user)->post(route('requisitions.store'), [
-            'request_type' => 'minor',
-            'purpose' => 'For classroom presentation use.',
-            'items' => [['supply_id' => $supply->id, 'qty' => 1]],
-        ])->assertSessionHasErrors('items');
+        $this->actingAs($user)->getJson(route('api.requisition-catalog'))
+            ->assertOk()->assertJsonCount(2)
+            ->assertJsonFragment(['id' => $supplies[0]->id])
+            ->assertJsonFragment(['id' => $supplies[1]->id]);
 
-        $this->assertDatabaseCount('requisitions', 0);
+        foreach (['minor' => 2, 'major' => 3] as $tier => $quantity) {
+            $this->post(route('requisitions.store'), [
+                'request_type' => $tier,
+                'purpose' => 'For classroom presentation use.',
+                'items' => $supplies->map(fn (Supply $supply) => [
+                    'supply_id' => $supply->id, 'qty' => $quantity,
+                ])->all(),
+            ])->assertSessionHasNoErrors()->assertRedirect(route('dashboard'));
+
+            $this->assertDatabaseHas('requisitions', [
+                'user_id' => $user->id, 'request_type' => $tier, 'grand_total' => 500 * $quantity,
+            ]);
+        }
+
+        $this->assertDatabaseCount('requisitions', 2);
+        $this->assertDatabaseCount('requisition_items', 4);
     }
 
     public function test_total_value_enforces_the_minor_and_major_boundary(): void

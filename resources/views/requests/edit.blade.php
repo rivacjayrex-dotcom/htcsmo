@@ -29,7 +29,7 @@
                     <div class="card border-0 shadow-sm rounded-4 overflow-hidden h-100">
                         <div class="card-header bg-white border-bottom p-4">
                             <div class="d-flex flex-column flex-md-row justify-content-between gap-3">
-                                <div><h6 class="fw-bold mb-1">Add from the approved catalog</h6><small class="text-muted">Only {{ strtoupper($requisition->request_type) }} items can be added.</small></div>
+                                <div><h6 class="fw-bold mb-1">Add from the approved catalog</h6><small class="text-muted">All catalog items are available in both tiers. Request total limits still apply.</small></div>
                                 <input type="search" x-model.debounce.150ms="search" class="form-control catalog-search" placeholder="Search catalog…" aria-label="Search catalog">
                             </div>
                         </div>

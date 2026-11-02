@@ -41,6 +41,44 @@ test('catalog starts in grid mode and restores a saved list preference', () => {
     assert.equal(cart({ saved: 'invalid' }).engine.catalogLayout, 'grid');
 });
 
+test('both tiers show the complete catalog, categories, counts, and search results', () => {
+    const { engine } = cart();
+    engine.refreshIcons = () => {};
+    engine.catalog = [
+        { id: 1, tier: 'minor', name: 'Paper', category: 'Office Supplies' },
+        { id: 2, tier: 'major', name: 'Projector', category: 'Equipment' },
+    ];
+
+    for (const tier of ['minor', 'major']) {
+        engine.setTier(tier);
+        assert.equal(engine.catalogCount(), 2);
+        assert.deepEqual(Array.from(engine.filteredItems, item => item.id), [1, 2]);
+        assert.deepEqual(Array.from(engine.categories), ['Equipment', 'Office Supplies']);
+        engine.category = 'Equipment';
+        assert.deepEqual(Array.from(engine.filteredItems, item => item.id), [2]);
+        engine.category = 'All';
+        engine.search = 'paper';
+        assert.deepEqual(Array.from(engine.filteredItems, item => item.id), [1]);
+    }
+});
+
+test('restoring a cart keeps items regardless of their inventory tier', () => {
+    const { engine } = cart();
+    engine.refreshIcons = () => {};
+    engine.catalog = [
+        { id: 1, tier: 'minor', stock: 10 },
+        { id: 2, tier: 'major', stock: 10 },
+    ];
+
+    for (const tier of ['minor', 'major']) {
+        engine.tier = tier;
+        engine.restorePreviousRequest({ tier, items: [
+            { supply_id: 1, qty: 2 }, { supply_id: 2, qty: 3 }, { supply_id: 99, qty: 1 },
+        ] });
+        assert.deepEqual(Array.from(engine.cart, item => [item.id, item.qty]), [[1, 2], [2, 3]]);
+    }
+});
+
 test('switching layouts preserves the cart, search, category, and purpose', () => {
     const { engine, values } = cart();
     engine.cart = [{ id: 12, qty: 2, price: 50 }];

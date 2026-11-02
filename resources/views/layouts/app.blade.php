@@ -756,15 +756,15 @@
 
                     this.cart = (previousRequest.items || []).map((submitted) => {
                         const item = this.catalog.find(catalogItem => catalogItem.id === Number(submitted.supply_id));
-                        if (!item || item.tier !== this.tier) return null;
+                        if (!item) return null;
                         const options = submitted.options || {};
                         return {...item, options, qty: Math.min(item.stock, Math.max(1, Number(submitted.qty) || 1)), key: item.id + ':' + JSON.stringify(options)};
                     }).filter(Boolean);
                     this.refreshIcons();
                 },
 
-                catalogCount(tier) {
-                    return this.catalog.filter(item => item.tier === tier).length;
+                catalogCount() {
+                    return this.catalog.length;
                 },
 
                 setTier(tier) {
@@ -907,11 +907,10 @@
                     this.$refs.requisitionForm?.removeAttribute('data-no-unload-loader');
                 },
                 get tierLabel() { return this.tier === 'major' ? 'Major requisition' : 'Minor requisition'; },
-                get tierItems() { return this.catalog.filter(item => item.tier === this.tier); },
-                get categories() { return [...new Set(this.tierItems.map(item => item.category))].sort(); },
+                get categories() { return [...new Set(this.catalog.map(item => item.category))].sort(); },
                 get filteredItems() {
                     const term = this.search.trim().toLowerCase();
-                    return this.tierItems.filter(item => {
+                    return this.catalog.filter(item => {
                         const optionText = Object.entries(item.options || {})
                             .flatMap(([label, choices]) => [label, ...(choices || [])])
                             .join(' ');

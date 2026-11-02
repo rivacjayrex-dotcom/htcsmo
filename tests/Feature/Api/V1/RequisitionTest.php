@@ -61,7 +61,7 @@ class RequisitionTest extends ApiTestCase
         $this->assertSame(20, $supply->fresh()->quantity);
     }
 
-    public function test_submission_rejects_wrong_tiers_invalid_options_and_combined_stock_overages(): void
+    public function test_submission_rejects_invalid_options_and_combined_stock_overages(): void
     {
         $token = $this->token(User::factory()->create());
         $supply = $this->supply(['quantity' => 5, 'configurable_options' => ['Size' => ['A4', 'Legal']]]);
@@ -74,10 +74,24 @@ class RequisitionTest extends ApiTestCase
         ] as $items) {
             $this->api('POST', '/requisitions', $base + ['items' => $items], $token)->assertUnprocessable()->assertJsonValidationErrors('items');
         }
-        $supply->update(['requisition_tier' => 'major']);
-        $this->api('POST', '/requisitions', $base + ['items' => [['supply_id' => $supply->id, 'qty' => 1]]], $token)
-            ->assertUnprocessable()->assertJsonValidationErrors('items');
         $this->assertDatabaseCount('requisitions', 0);
+    }
+
+    public function test_submission_accepts_items_from_either_inventory_tier(): void
+    {
+        Mail::fake();
+        $token = $this->token(User::factory()->create());
+        $supply = $this->supply(['requisition_tier' => 'major', 'unit_price' => 500]);
+        $data = ['request_type' => 'minor', 'purpose' => 'Printing classroom learning materials.',
+            'items' => [['supply_id' => $supply->id, 'qty' => 2]]];
+        $this->api('POST', '/requisitions', $data, $token)->assertCreated()
+            ->assertJsonPath('data.grand_total', '1000.00');
+
+        $supply->update(['requisition_tier' => 'minor']);
+        $data['request_type'] = 'major';
+        $data['items'][0]['qty'] = 3;
+        $this->api('POST', '/requisitions', $data, $token)->assertCreated()
+            ->assertJsonPath('data.grand_total', '1500.00');
     }
 
     public function test_minor_and_major_thresholds_and_executive_routing_are_preserved(): void

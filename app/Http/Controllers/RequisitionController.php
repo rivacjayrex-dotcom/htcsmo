@@ -68,7 +68,6 @@ class RequisitionController extends Controller
 
         $catalog = Supply::query()
             ->with(['supplyCategory', 'supplyUnit', 'options.values'])
-            ->where('requisition_tier', $requisition->request_type)
             ->orderBy(SupplyCategory::select('category_name')
                 ->whereColumn('supply_categories.id', 'supplies.supply_category_id'))
             ->orderBy('item_name')
@@ -122,7 +121,7 @@ class RequisitionController extends Controller
             'items.*.options.*' => 'nullable|string|max:100',
         ]);
 
-        $preparedItems = $submissions->prepareItems($validated['items'], $requisition->request_type);
+        $preparedItems = $submissions->prepareItems($validated['items']);
         $grandTotal = $preparedItems->sum('subtotal');
 
         if ($requisition->request_type === 'minor' && $grandTotal > 1000) {

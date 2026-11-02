@@ -61,14 +61,15 @@
     background: #fff;
     box-shadow: 0 24px 80px rgb(0 0 0 / 25%);
     font-family: inherit;
+    text-align: center;
 }
 .action-confirmation::backdrop { background: rgb(8 24 15 / 60%); }
 .action-confirmation[open] { animation: action-confirmation-in .18s ease-out; }
 .action-confirmation__body { padding: var(--space-32) var(--space-32) var(--space-16); }
-.action-confirmation__icon { display: grid; place-items: center; width: 44px; height: 44px; margin-bottom: var(--space-16); border-radius: 14px; background: #e8f4ec; color: #21633b; font-size: var(--text-heading-md); font-weight: 800; }
+.action-confirmation__icon { display: grid; place-items: center; width: 44px; height: 44px; margin: 0 auto var(--space-16); border-radius: 14px; background: #e8f4ec; color: #21633b; font-size: var(--text-heading-md); font-weight: 800; }
 .action-confirmation h2 { margin: 0 0 var(--space-12); font-size: var(--text-heading-md); font-weight: 800; }
 .action-confirmation p { margin: 0; color: #657269; font-size: var(--text-body); line-height: var(--line-body); overflow-wrap: anywhere; white-space: pre-line; }
-.action-confirmation__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-12); padding: var(--space-16) var(--space-32) var(--space-24); }
+.action-confirmation__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-12); padding: var(--space-16) var(--space-32) var(--space-24); }
 .action-confirmation__actions button { min-height: 44px; padding: var(--space-12) var(--space-16); border: 1px solid transparent; border-radius: 10px; font: inherit; font-size: var(--text-secondary); font-weight: 700; cursor: pointer; }
 .action-confirmation__cancel { background: #f3f6f4; color: #405247; border-color: #dce6df !important; }
 .action-confirmation__accept { background: #14532d; color: #fff; }
@@ -79,6 +80,13 @@
 .action-confirmation button:focus-visible { outline: 3px solid #80b593; outline-offset: 3px; }
 @keyframes action-confirmation-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { .action-confirmation[open] { animation: none; } }
+
+/* Shared modal alignment for headings, messages, and actions. */
+.modal-header { position: relative; justify-content: center; text-align: center; }
+.modal-header > :first-child { padding-inline: var(--space-32); }
+.modal-header .btn-close { position: absolute; top: 50%; inset-inline-end: var(--space-16); margin: 0; transform: translateY(-50%); }
+.modal-body > p { text-align: center; }
+.modal-footer { justify-content: center; }
 
 .component-button {
     display: inline-flex;
@@ -146,9 +154,9 @@
 .component-dropdown-visible { opacity: 1; transform: scale(1); }
 
 .component-modal-open { overflow-y: hidden; }
-.component-modal { position: fixed; inset: 0; z-index: 1055; overflow-y: auto; padding: var(--space-24) var(--space-16); }
+.component-modal { position: fixed; inset: 0; z-index: 1055; display: flex; flex-direction: column; overflow-y: auto; padding: var(--space-24) var(--space-16); }
 .component-modal-backdrop { position: fixed; inset: 0; background: rgb(107 114 128 / 75%); }
-.component-modal-panel { position: relative; width: 100%; margin: 0 auto var(--space-24); }
+.component-modal-panel { position: relative; flex: 0 0 auto; width: 100%; margin: auto; text-align: center; }
 .component-modal-enter { transition: opacity .3s ease-out, transform .3s ease-out; }
 .component-modal-leave { transition: opacity .2s ease-in, transform .2s ease-in; }
 .component-modal-hidden { opacity: 0; transform: translateY(1rem); }

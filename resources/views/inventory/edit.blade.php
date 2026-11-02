@@ -102,7 +102,7 @@
                                         <option value="minor" {{ old('requisition_tier', $item->requisition_tier ?? 'minor') === 'minor' ? 'selected' : '' }}>Minor — routine supplies up to ₱1,000</option>
                                         <option value="major" {{ old('requisition_tier', $item->requisition_tier) === 'major' ? 'selected' : '' }}>Major — equipment and high-value items</option>
                                     </select>
-                                    <small class="text-muted">Requestors only see this item inside the selected tier.</small>
+                                    <small class="text-muted">Inventory classification only. This item appears in both requisition tiers.</small>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label small fw-bold text-dark text-uppercase">Model / Series #</label>

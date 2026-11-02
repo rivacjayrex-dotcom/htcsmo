@@ -49,7 +49,7 @@ $maxWidth = [
     class="component-modal"
     role="dialog"
     aria-modal="true"
-    style="display: {{ $show ? 'block' : 'none' }};"
+    style="display: {{ $show ? 'flex' : 'none' }};"
 >
     <div
         x-show="show"

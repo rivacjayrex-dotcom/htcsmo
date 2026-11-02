@@ -21,7 +21,7 @@
             <div x-show="view === 'selection'" x-transition class="tier-stage p-4 p-lg-5">
                 <div class="text-center mb-4">
                     <h5 class="fw-bold mb-1">What type of request are you making?</h5>
-                    <p class="text-muted mb-0">Your choice determines the available catalog and approval route.</p>
+                    <p class="text-muted mb-0">Both tiers share the full catalog. Choose based on your request total and approval route.</p>
                 </div>
                 <div class="row g-4 justify-content-center">
                     <div class="col-md-5">
@@ -30,7 +30,7 @@
                             <span class="tier-kicker">Below 1000</span>
                             <strong>Minor requisition</strong>
                             <span>Office and daily-use supplies totaling up to ₱1,000.</span>
-                            <small><span x-text="catalogCount('minor') + ' items available'"></span> · Dept Head → VP Finance</small>
+                            <small><span x-text="catalogCount() + ' items available'"></span> · Dept Head → VP Finance</small>
                         </button>
                     </div>
                     <div class="col-md-5">
@@ -38,8 +38,8 @@
                             <span class="tier-icon"><i data-lucide="monitor-up"></i></span>
                             <span class="tier-kicker">Above 1000</span>
                             <strong>Major requisition</strong>
-                            <span>Equipment, high-value assets, and approved bulk items.</span>
-                            <small><span x-text="catalogCount('major') + ' items available'"></span> · Full approval chain</small>
+                            <span>Catalog items totaling more than ₱1,000.</span>
+                            <small><span x-text="catalogCount() + ' items available'"></span> · Full approval chain</small>
                         </button>
                     </div>
                 </div>

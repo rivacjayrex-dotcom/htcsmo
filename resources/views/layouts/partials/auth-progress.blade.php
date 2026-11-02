@@ -1,13 +1,14 @@
 <style>
     .auth-progress-dialog { width:min(360px, calc(100vw - 2rem)); margin:auto; padding:var(--space-24); border:1px solid #dce4de; border-radius:16px; color:#173b27; background:#fff; box-shadow:0 22px 60px rgb(8 34 19 / 24%); }
     .auth-progress-dialog::backdrop { background:rgb(10 29 18 / 46%); backdrop-filter:blur(2px); }
-    .auth-progress-dialog__content { display:flex; align-items:center; gap:var(--space-16); }
+    .auth-progress-dialog__content { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:var(--space-16); text-align:center; }
     .auth-progress-dialog h2 { margin:0; font-size:var(--text-heading-md); font-weight:700; line-height:var(--line-body); }
     .auth-progress-dialog p { margin:var(--space-4) 0 0; color:#66756c; font-size:var(--text-body); line-height:var(--line-body); }
-    .auth-progress-spinner { width:1.75rem; height:1.75rem; flex:0 0 1.75rem; border:3px solid #dbe9df; border-top-color:#198754; border-radius:50%; animation:auth-progress-spin .75s linear infinite; }
+    .auth-progress-spinner { display:block; width:2.75rem; height:2.75rem; flex:0 0 auto; border:4px solid #dbe9df; border-top-color:#198754; border-radius:50%; animation:auth-progress-spin .8s linear infinite; will-change:transform; }
     body:has(.auth-progress-dialog[open]) { overflow:hidden; }
-    @keyframes auth-progress-spin { to { transform:rotate(360deg); } }
-    @media(prefers-reduced-motion:reduce) { .auth-progress-spinner { animation:none; } }
+    @keyframes auth-progress-spin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
+    @keyframes auth-progress-pulse { 0%,100% { opacity:.45; } 50% { opacity:1; } }
+    @media(prefers-reduced-motion:reduce) { .auth-progress-spinner { animation:auth-progress-pulse 1.6s ease-in-out infinite; will-change:opacity; } }
 </style>
 <dialog id="authProgressDialog" class="auth-progress-dialog" aria-labelledby="authProgressTitle" aria-describedby="authProgressMessage" tabindex="-1">
     <div class="auth-progress-dialog__content">

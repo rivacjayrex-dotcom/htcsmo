@@ -34,8 +34,8 @@
     form[data-runtime-submitting='true'] { cursor: wait; }
     .runtime-logout-modal { position: fixed; inset: 0; z-index: 20001; display: grid; place-items: center; padding: var(--space-16); background: rgba(10, 29, 18, .46); backdrop-filter: blur(2px); }
     .runtime-logout-modal[hidden] { display: none !important; }
-    .runtime-logout-modal__dialog { display: flex; align-items: center; gap: var(--space-16); width: min(100%, 320px); padding: var(--space-16) var(--space-24); border: 1px solid rgba(255, 255, 255, .7); border-radius: 16px; background: #fff; color: #173b27; box-shadow: 0 22px 60px rgba(8, 34, 19, .24); }
-    .runtime-logout-modal__spinner { width: 1.5rem; height: 1.5rem; flex: 0 0 1.5rem; border: 3px solid #dbe9df; border-top-color: #198754; border-radius: 50%; animation: runtime-spin .75s linear infinite; }
+    .runtime-logout-modal__dialog { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-16); width: min(100%, 320px); padding: var(--space-24); border: 1px solid rgba(255, 255, 255, .7); border-radius: 16px; background: #fff; color: #173b27; text-align: center; box-shadow: 0 22px 60px rgba(8, 34, 19, .24); }
+    .runtime-logout-modal__spinner { display: block; width: 1.5rem; height: 1.5rem; flex: 0 0 auto; border: 3px solid #dbe9df; border-top-color: #198754; border-radius: 50%; animation: runtime-spin .75s linear infinite; }
     .runtime-logout-modal__title { display: block; font-size: var(--text-body); font-weight: 700; line-height: var(--line-heading); }
     .runtime-logout-modal__copy { display: block; margin-top: .15rem; color: #66756c; font-size: var(--text-caption); line-height: var(--line-body); }
     .runtime-action-modal { width: min(360px, calc(100vw - 2rem)); margin: auto; padding: var(--space-24); border: 1px solid #dce4de; border-radius: 18px; color: #173b27; background: #fff; text-align: center; box-shadow: 0 22px 60px rgba(8,34,19,.24); }

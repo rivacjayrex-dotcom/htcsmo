@@ -19,7 +19,7 @@ class RequisitionSubmissionService
     /** @return array{requisition: Requisition, notification_failed: bool} */
     public function submit(User $user, array $validated): array
     {
-        $preparedItems = $this->prepareItems($validated['items'], $validated['request_type']);
+        $preparedItems = $this->prepareItems($validated['items']);
 
         $calculatedGrandTotal = $preparedItems->sum('subtotal');
         if ($validated['request_type'] === 'minor' && $calculatedGrandTotal > 1000) {
@@ -187,18 +187,18 @@ class RequisitionSubmissionService
     }
 
     /** @return Collection<int, array<string, mixed>> */
-    public function prepareItems(array $submittedItems, string $requestType): Collection
+    public function prepareItems(array $submittedItems): Collection
     {
         $catalogItems = Supply::whereIn('id', collect($submittedItems)->pluck('supply_id'))
             ->get()
             ->keyBy('id');
 
-        $preparedItems = collect($submittedItems)->map(function (array $itemData) use ($catalogItems, $requestType) {
+        $preparedItems = collect($submittedItems)->map(function (array $itemData) use ($catalogItems) {
             $supply = $catalogItems->get($itemData['supply_id']);
 
-            if (! $supply || $supply->requisition_tier !== $requestType) {
+            if (! $supply) {
                 throw ValidationException::withMessages([
-                    'items' => 'One or more selected items do not belong to this requisition tier.',
+                    'items' => 'One or more selected items are no longer available in the catalog.',
                 ]);
             }
             if ($itemData['qty'] > $supply->quantity) {
