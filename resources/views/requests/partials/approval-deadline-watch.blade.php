@@ -29,7 +29,7 @@
             @endif
         </div>
         <div class="approval-deadline-heading__actions">
-            <a href="{{ $isSmoDeadlineView ? route('requests.index', ['status' => 'deadline']) : route('admin.approvals') }}" aria-label="{{ $isSmoDeadlineView ? 'See all deadline requests' : 'See all requests requiring your attention' }}">
+            <a href="{{ $isSmoDeadlineView ? route('requests.index', ['status' => 'deadline']).'#request-results' : route('admin.approvals') }}" @if($isSmoDeadlineView) data-filter-link @endif aria-label="{{ $isSmoDeadlineView ? 'See all deadline requests' : 'See all requests requiring your attention' }}">
                 See All <i data-lucide="arrow-up-right"></i>
             </a>
             <span class="approval-deadline-heading__icon"><i data-lucide="alarm-clock"></i></span>

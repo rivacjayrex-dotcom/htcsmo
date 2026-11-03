@@ -38,7 +38,7 @@ class ApprovalDeadlineReminderTest extends TestCase
             ->assertSee('Approvals needing follow-up')
             ->assertSee($requisition->tracking_code)
             ->assertSee('aria-label="See all deadline requests"', false)
-            ->assertSee('href="'.route('requests.index', ['status' => 'deadline']).'"', false)
+            ->assertSee('href="'.route('requests.index', ['status' => 'deadline']).'#request-results"', false)
             ->assertSee('Details')
             ->assertSee('View full request')
             ->assertSee(route('admin.requests.deadline-reminder', $requisition), false);

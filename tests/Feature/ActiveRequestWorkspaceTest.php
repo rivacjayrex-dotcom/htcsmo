@@ -100,6 +100,35 @@ class ActiveRequestWorkspaceTest extends TestCase
             ->assertSee('page=2', false);
     }
 
+    public function test_see_all_opens_the_complete_paginated_deadline_list(): void
+    {
+        $smo = User::factory()->create(['role' => 'smo']);
+        $requestor = User::factory()->create();
+        foreach (range(1, 17) as $index) {
+            $this->requisition($requestor, 'pending')->forceFill([
+                'sla_warning_at' => now()->subHour(),
+                'due_at' => now()->addDay(),
+            ])->saveQuietly();
+        }
+        $routine = $this->requisition($requestor, 'pending');
+        $archived = $this->requisition($requestor, 'completed');
+        $archived->forceFill(['sla_warning_at' => now()->subDay()])->saveQuietly();
+
+        $response = $this->actingAs($smo)->get(route('requests.index'))->assertOk()
+            ->assertViewHas('approvalDeadlineCount', 17)
+            ->assertViewHas('approvalDeadlineRequests', fn ($rows) => $rows->count() === 8);
+        $this->assertSame(1, preg_match('/<a href="([^"]+)"[^>]*aria-label="See all deadline requests"/', $response->getContent(), $matches));
+        $destination = html_entity_decode($matches[1]);
+        $this->assertSame(route('requests.index', ['status' => 'deadline']).'#request-results', $destination);
+
+        $this->get(explode('#', $destination)[0])->assertOk()
+            ->assertViewHas('activeRequests', fn ($rows) => $rows->total() === 17 && $rows->count() === 15)
+            ->assertDontSee($routine->tracking_code)->assertDontSee($archived->tracking_code)
+            ->assertSee('page=2', false)->assertSee('status=deadline', false);
+        $this->get(route('requests.index', ['status' => 'deadline', 'page' => 2]))->assertOk()
+            ->assertViewHas('activeRequests', fn ($rows) => $rows->total() === 17 && $rows->count() === 2);
+    }
+
     private function requisition(User $user, string $status): Requisition
     {
         return Requisition::create([

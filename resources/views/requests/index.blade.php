@@ -101,7 +101,8 @@
         .request-metric > div { min-width: 0; }
         .request-metric h3, .request-metric p { overflow-wrap: anywhere; white-space: normal; }
         .request-metric p { font-size: var(--text-secondary); }
-        @media(max-width:1599.98px) { .request-metrics { grid-template-columns: repeat(3,minmax(0,1fr)); } }
+        .request-workspace .request-metrics { grid-template-columns:repeat(5,minmax(180px,1fr)); overflow-x:auto; padding-bottom:var(--space-4); scrollbar-width:thin; }
+        .request-workspace .request-metrics > .request-metric { grid-column:auto; }
         @keyframes requestAlert { 0%,100%{box-shadow:0 6px 18px rgba(184,47,56,.06)}50%{box-shadow:0 8px 24px rgba(184,47,56,.18)} }
         @media(max-width:1399.98px){.request-filters{grid-template-columns:repeat(4,minmax(0,1fr))}.request-search{grid-column:span 2}.request-filters > button{align-self:end}}
         @media(max-width:991.98px){.request-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.request-filters{grid-template-columns:repeat(2,minmax(0,1fr))}.request-search{grid-column:1/-1}}

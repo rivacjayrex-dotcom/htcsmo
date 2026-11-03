@@ -157,6 +157,7 @@ class RequestController extends Controller
             : collect();
 
         $approvalDeadlineRequests = collect();
+        $approvalDeadlineCount = 0;
         if ($user->role === 'smo' || in_array($user->role, ['dept_head', 'vp_finance', 'vp_admin', 'provost', 'president'], true)) {
             $deadlineQuery = Requisition::query()
                 ->with(['items', 'user.academicDepartment'])
@@ -166,13 +167,14 @@ class RequestController extends Controller
                 $deadlineQuery->assignedToReviewer($user);
             }
 
+            $approvalDeadlineCount = (clone $deadlineQuery)->count();
             $approvalDeadlineRequests = $deadlineQuery
                 ->oldest('due_at')
                 ->take(8)
                 ->get();
         }
 
-        return view('requests.index', compact('activeRequests', 'requestStats', 'departments', 'approvalDeadlineRequests'));
+        return view('requests.index', compact('activeRequests', 'requestStats', 'departments', 'approvalDeadlineRequests', 'approvalDeadlineCount'));
     }
 
     public function sendApprovalDeadlineReminder(Request $request, Requisition $requisition, DeadlineNotificationService $deadlineNotifications)

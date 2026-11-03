@@ -103,11 +103,11 @@
         <div class="report-sheet-grid" tabindex="0" aria-label="Report spreadsheet; scroll to see all columns">
             <table class="report-table">
                 <thead>
-                    <tr><th scope="col" class="report-row-number">#</th>@foreach($columns as $column)<th scope="col" class="{{ in_array($column['type'], ['money', 'number']) ? 'is-numeric' : '' }}">{{ $column['label'] }}</th>@endforeach</tr></thead>
+                    <tr><th scope="col" class="report-row-number">#</th>@foreach($columns as $column)<th scope="col" data-column="{{ $column['key'] }}" class="{{ in_array($column['type'], ['money', 'number']) ? 'is-numeric' : '' }}">{{ $column['label'] }}</th>@endforeach</tr></thead>
                 <tbody>
                     @forelse($rows as $row)
                         <tr><th scope="row" class="report-row-number">{{ ($pagination?->firstItem() ?? 1) + $loop->index }}</th>
-                            @foreach($columns as $column)<td class="{{ in_array($column['type'], ['money', 'number']) ? 'is-numeric' : '' }}">@if($column['type'] === 'money')₱{{ number_format((float) ($row[$column['key']] ?? 0), 2) }}@elseif($column['type'] === 'number'){{ number_format((float) ($row[$column['key']] ?? 0)) }}@else{{ $row[$column['key']] ?? '—' }}@endif</td>@endforeach
+                            @foreach($columns as $column)<td data-column="{{ $column['key'] }}" class="{{ in_array($column['type'], ['money', 'number']) ? 'is-numeric' : '' }}">@if($column['type'] === 'money')₱{{ number_format((float) ($row[$column['key']] ?? 0), 2) }}@elseif($column['type'] === 'number'){{ number_format((float) ($row[$column['key']] ?? 0)) }}@else{{ $row[$column['key']] ?? '—' }}@endif</td>@endforeach
                         </tr>
                     @empty
                         <tr><td colspan="{{ count($columns) + 1 }}" class="report-empty"><i data-lucide="sheet" aria-hidden="true"></i><strong>No records for these filters</strong><span>Choose a different department or reporting period.</span></td></tr>

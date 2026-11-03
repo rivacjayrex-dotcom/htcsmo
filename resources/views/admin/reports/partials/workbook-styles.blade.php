@@ -45,7 +45,7 @@
     .report-sheet-grid { max-height:65dvh; overflow:auto; border-block:1px solid #d6e2da; scrollbar-width:thin; }
     .report-sheet-grid:focus-visible { outline:2px solid #74a487; outline-offset:-2px; }
     .report-table { width:100%; min-width:680px; border-collapse:separate; border-spacing:0; color:#34493c; font-size:var(--text-secondary); }
-    .report-table th,.report-table td { padding:var(--space-8) var(--space-12); border-right:1px solid #e2e8e3; border-bottom:1px solid #e2e8e3; vertical-align:top; line-height:var(--line-body); }
+    .report-table th,.report-table td { min-width:128px; padding:var(--space-8) var(--space-12); border-right:1px solid #e2e8e3; border-bottom:1px solid #e2e8e3; vertical-align:top; line-height:var(--line-body); white-space:nowrap; overflow-wrap:normal; word-break:normal; }
     .report-table thead { position:sticky; top:0; z-index:3; }
     .report-table thead th { background:#eef3ef; color:#526959; font-size:var(--text-caption); font-weight:750; white-space:nowrap; }
     .report-table tbody tr:nth-child(even) td { background:#fbfdfb; }
@@ -53,7 +53,9 @@
     .report-table .report-row-number { position:sticky; left:0; z-index:1; width:42px; min-width:42px; padding-inline:var(--space-8); background:#f1f5f2; color:#8b9b90; text-align:center; font-size:var(--text-caption); font-weight:500; }
     .report-table thead .report-row-number { z-index:4; }
     .report-table .is-numeric { text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
-    .report-table td { max-width:380px; overflow-wrap:anywhere; }
+    .report-table :is(th,td):is([data-column="tier"],[data-column="unit"]) { min-width:96px; }
+    .report-table td:is([data-column="purpose"],[data-column="item"],[data-column="specifications"],[data-column="remarks"],[data-column="device"],[data-column="action"]) { width:280px; min-width:240px; max-width:380px; white-space:normal; overflow-wrap:anywhere; }
+    .report-table td[data-column="specifications"] { width:360px; min-width:320px; }
     .report-table .report-empty { padding:var(--space-32) var(--space-16); text-align:center; color:#8c9c90; }
     .report-empty > svg { display:block; width:32px; height:32px; margin:0 auto var(--space-12); color:#a6b8ac; }
     .report-empty strong,.report-empty span { display:block; margin-block:var(--space-4); }
