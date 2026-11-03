@@ -51,6 +51,40 @@ class InventoryWorkspaceTest extends TestCase
         $this->assertSame([$minor->id, $major->id], $response->viewData('catalogSupplies')->pluck('id')->all());
     }
 
+    public function test_related_stock_records_render_as_one_product_with_a_variant_dropdown(): void
+    {
+        $smo = User::factory()->create(['role' => 'smo']);
+        $legacy = $this->supply('Bond Paper', 'minor', 92, 5, 150);
+        $short = Supply::create([
+            'item_name' => 'Bond Paper', 'category' => 'Office Supplies', 'brand' => 'Hard Copy',
+            'size' => 'Short', 'supplier' => 'Starbright', 'quantity' => 12, 'unit' => 'Ream(s)',
+            'unit_price' => 190, 'min_stock_level' => 5, 'specifications' => 'Short white bond paper',
+        ]);
+        $legal = Supply::create([
+            'item_name' => 'Bond Paper', 'category' => 'Office Supplies', 'brand' => 'Double A',
+            'size' => 'Legal', 'supplier' => 'Starbright', 'quantity' => 2, 'unit' => 'Ream(s)',
+            'unit_price' => 210, 'min_stock_level' => 5, 'specifications' => 'Legal white bond paper',
+        ]);
+        $response = $this->actingAs($smo)->get(route('inventory.index'))->assertOk();
+        $groups = $response->viewData('catalogGroups');
+        $this->assertCount(1, $groups);
+        $this->assertCount(3, $groups[0]['variants']);
+        $this->assertSame($legal->id, $groups[0]['variants'][0]['id'], 'Prioritize the variant that needs restocking.');
+        $this->assertSame(route('inventory.edit', $short), collect($groups[0]['variants'])->firstWhere('id', $short->id)['edit_url']);
+        $document = new \DOMDocument;
+        @$document->loadHTML($response->getContent());
+        $xpath = new \DOMXPath($document);
+        $this->assertCount(1, $xpath->query('//*[@id="inventory-results"]//tr[@data-inventory-product]'));
+        $this->assertCount(1, $xpath->query('//*[@id="inventory-results"]//select[@data-variant-picker]'));
+        $this->assertCount(3, $xpath->query('//*[@id="inventory-results"]//select[@data-variant-picker]/option'));
+        $this->assertSame(3, $response->viewData('catalogSupplies')->count());
+        $this->get(route('inventory.index', ['stock' => 'low']))->assertOk()
+            ->assertViewHas('catalogGroups', fn ($filtered) => count($filtered[0]['variants']) === 1 && $filtered[0]['variants'][0]['id'] === $legal->id);
+        $this->get(route('inventory.index', ['search' => 'Short']))->assertOk()
+            ->assertViewHas('catalogGroups', fn ($filtered) => count($filtered[0]['variants']) === 1 && $filtered[0]['variants'][0]['id'] === $short->id);
+        $this->assertSame(92, $legacy->fresh()->quantity);
+    }
+
     public function test_summary_cards_open_the_matching_catalog_and_preserve_the_forecast_period(): void
     {
         $smo = User::factory()->create(['role' => 'smo']);
@@ -60,7 +94,7 @@ class InventoryWorkspaceTest extends TestCase
         $response = $this->actingAs($smo)->get(route('inventory.index', [
             'search' => 'missing', 'stock' => 'healthy', 'forecast_period' => 'quarterly',
         ]))->assertOk();
-        $dom = new \DOMDocument();
+        $dom = new \DOMDocument;
         @$dom->loadHTML($response->getContent());
         $xpath = new \DOMXPath($dom);
         $this->assertSame(4, $xpath->query('//a[@data-inventory-summary]')->length);
@@ -106,7 +140,6 @@ class InventoryWorkspaceTest extends TestCase
         $response = $this->actingAs($smo)->post(route('inventory.store'), [
             'item_name' => 'Ballpoint Pen',
             'category' => 'Office Supplies',
-            'requisition_tier' => 'minor',
             'specifications' => 'Retractable writing pen',
             'quantity' => 100,
             'unit' => 'Piece(s)',

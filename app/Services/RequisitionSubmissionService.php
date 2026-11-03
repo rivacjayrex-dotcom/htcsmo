@@ -53,6 +53,9 @@ class RequisitionSubmissionService
                     'requisition_id' => $requisition->id,
                     'supply_id' => $item['supply']->id,
                     'item_name' => $item['supply']->item_name,
+                    'size' => $item['supply']->size ?? '',
+                    'supplier' => $item['supply']->supplier ?? '',
+                    'variant_attributes' => $item['supply']->pricedAttributes(),
                     'specifications' => $item['specifications'],
                     'quantity' => $item['quantity'],
                     'unit' => $item['supply']->unit,
@@ -193,7 +196,7 @@ class RequisitionSubmissionService
             $value = $selected[$label] ?? (count($choices) === 1 ? $choices[0] : null);
             if (! is_string($value) || ! in_array($value, $choices, true)) {
                 throw ValidationException::withMessages([
-                    'items' => "Please select a valid {$label} for {$supply->item_name}.",
+                    'items' => "Please select a valid {$label} for {$supply->display_name}.",
                 ]);
             }
             $clean[$label] = $value;
@@ -219,14 +222,14 @@ class RequisitionSubmissionService
             }
             if ($itemData['qty'] > $supply->quantity) {
                 throw ValidationException::withMessages([
-                    'items' => "Only {$supply->quantity} {$supply->unit} of {$supply->item_name} are currently available.",
+                    'items' => "Only {$supply->quantity} {$supply->unit} of {$supply->display_name} are currently available.",
                 ]);
             }
 
             // Item snapshots store prices in DECIMAL(10, 2).
             if ((float) $supply->unit_price > 99999999.99) {
                 throw ValidationException::withMessages([
-                    'items' => "The price of {$supply->item_name} exceeds the supported requisition price. Please contact the SMO.",
+                    'items' => "The price of {$supply->display_name} exceeds the supported requisition price. Please contact the SMO.",
                 ]);
             }
 
@@ -234,7 +237,9 @@ class RequisitionSubmissionService
             $optionSummary = collect($selectedOptions)
                 ->map(fn ($value, $label) => "{$label}: {$value}")
                 ->implode('; ');
-            $specifications = collect([$supply->specifications, $optionSummary])->filter()->implode(' | ');
+            $variantSummary = collect(['Size' => $supply->size, 'Supplier' => $supply->supplier])
+                ->filter()->map(fn ($value, $label) => "{$label}: {$value}")->implode('; ');
+            $specifications = collect([$supply->specifications, $variantSummary, $optionSummary])->filter()->implode(' | ');
 
             return [
                 'supply' => $supply,
@@ -248,7 +253,7 @@ class RequisitionSubmissionService
             $supply = $itemsForSupply->first()['supply'];
             if ($itemsForSupply->sum('quantity') > $supply->quantity) {
                 throw ValidationException::withMessages([
-                    'items' => "Only {$supply->quantity} {$supply->unit} of {$supply->item_name} are available across all selected options.",
+                    'items' => "Only {$supply->quantity} {$supply->unit} of {$supply->display_name} are available across all selected options.",
                 ]);
             }
         }

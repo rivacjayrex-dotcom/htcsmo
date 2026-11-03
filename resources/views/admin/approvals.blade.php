@@ -6,22 +6,6 @@
     <div class="container-fluid py-2 approval-workspace"
          x-data="approvalManager()" data-filter-workspace="approvals"
          @if($focusedRequest) data-focused-request-id="{{ $focusedRequest->id }}" @endif>
-        <!-- ALERTS -->
-        @if($errors->any())<div class="alert alert-danger" role="alert"><ul class="mb-0">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
-        @if(session('success'))
-            <div role="status" class="alert alert-success border-0 shadow-sm mb-4 rounded-4 d-flex align-items-center">
-                <i data-lucide="check-circle" class="me-2" style="width: 20px;"></i>
-                <div>{{ session('success') }}</div>
-            </div>
-        @endif
-
-        @if(session('error'))
-            <div role="alert" class="alert alert-danger border-0 shadow-sm mb-4 rounded-4 d-flex align-items-center">
-                <i data-lucide="alert-triangle" class="me-2" style="width: 20px;"></i>
-                <div>{{ session('error') }}</div>
-            </div>
-        @endif
-
         @include('admin.partials.approval-filters')
 
         <div id="approval-results" class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white" data-live-region="approval-queue" data-filter-region="queue" data-result-count="{{ $clarificationRequests->total() + (Auth::user()->role === 'smo' ? $pendingMinor->total() + $pendingMajor->total() + $activeWork->total() : $pendingRequests->total()) }}" data-filter-results tabindex="-1" aria-label="Approval queue results">

@@ -49,6 +49,36 @@
     .fs-6 { font-size: var(--text-body) !important; }
 }
 
+.feedback-modal {
+    width: min(420px, calc(100vw - 2rem));
+    max-height: calc(100dvh - 2rem);
+    margin: auto;
+    padding: 2rem;
+    overflow: auto;
+    border: 1px solid #dce6df;
+    border-radius: 20px;
+    background: #fff;
+    color: #203128;
+    box-shadow: 0 24px 80px rgb(0 0 0 / 25%);
+    font-family: inherit;
+    text-align: center;
+    --feedback-color: #21633b;
+    --feedback-tint: #e8f4ec;
+}
+.feedback-modal::backdrop { background: rgb(8 24 15 / 45%); }
+.feedback-modal[data-tone="error"] { --feedback-color: #a02c36; --feedback-tint: #fff0f1; }
+.feedback-modal[data-tone="warning"] { --feedback-color: #805e10; --feedback-tint: #fff6da; }
+.feedback-modal[data-tone="info"] { --feedback-color: #245a97; --feedback-tint: #edf4fe; }
+.feedback-modal__icon { display: grid; place-items: center; width: 60px; height: 60px; margin: 0 auto 1.25rem; border-radius: 50%; background: var(--feedback-tint); color: var(--feedback-color); font-size: var(--text-heading-lg); font-weight: 700; }
+.feedback-modal h2 { margin: 0 0 .75rem; font-size: 1.25rem; font-weight: 750; }
+.feedback-modal ul { margin: 0; padding: 0; list-style: none; color: #526158; font-size: .875rem; line-height: 1.65; overflow-wrap: anywhere; }
+.feedback-modal li + li { margin-top: .5rem; }
+.feedback-modal__expiry { margin: 1.25rem 0 1rem; color: #68766e; font-size: .75rem; }
+.feedback-modal__close { position: absolute; top: .5rem; right: .75rem; padding: .25rem .5rem; border: 0; background: transparent; color: #68766e; font-size: 1.5rem; line-height: 1; }
+.feedback-modal__dismiss { border: 0; border-radius: 10px; padding: .6rem 1.5rem; background: var(--feedback-color); color: #fff; font: inherit; font-size: .875rem; font-weight: 650; }
+.feedback-modal button:focus-visible { outline: 3px solid var(--feedback-color); outline-offset: 3px; }
+@media print { .feedback-modal { display: none !important; } }
+
 .action-confirmation {
     width: min(440px, calc(100vw - 2rem));
     max-height: calc(100dvh - 2rem);

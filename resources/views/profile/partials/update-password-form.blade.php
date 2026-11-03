@@ -3,16 +3,6 @@
         @csrf
         @method('put')
 
-        @if($errors->updatePassword->any())
-            <div class="alert alert-danger" role="alert" tabindex="-1" autofocus>
-                <p class="fw-bold mb-1">Your password was not changed.</p>
-                <ul class="mb-0 small">
-                    @foreach($errors->updatePassword->all() as $message)
-                        <li>{{ $message }}</li>
-                    @endforeach
-                </ul>
-            </div>
-        @endif
         <p id="password-help" class="small text-muted">Use a new password with 8–64 characters and confirm it below.</p>
 
         <div class="row g-4">
@@ -58,11 +48,6 @@
                 Update Security
             </button>
 
-            @if (session('status') === 'password-updated')
-                <p role="status" x-show.important="!edited" tabindex="-1" autofocus class="text-success small mb-0 fw-bold d-flex align-items-center">
-                    <i data-lucide="check-circle" class="me-1" style="width: 14px;"></i> {{ __('Password updated.') }}
-                </p>
-            @endif
         </div>
     </form>
 </section>

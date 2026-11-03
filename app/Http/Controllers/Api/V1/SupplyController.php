@@ -30,7 +30,11 @@ class SupplyController extends Controller
         ]);
 
         $supplies = Supply::query()->with(self::RELATIONS)
-            ->when($filters['search'] ?? null, fn ($query, $search) => $query->where('item_name', 'like', '%'.$search.'%'))
+            ->when($filters['search'] ?? null, fn ($query, $search) => $query->where(fn ($matches) => $matches
+                ->where('item_name', 'like', '%'.$search.'%')
+                ->orWhere('size', 'like', '%'.$search.'%')
+                ->orWhere('supplier', 'like', '%'.$search.'%')
+                ->orWhereHas('options.values', fn ($values) => $values->where('value', 'like', '%'.$search.'%'))))
             ->when($filters['requisition_tier'] ?? null, fn ($query, $tier) => $query->where('requisition_tier', $tier))
             ->when($request->boolean('in_stock'), fn ($query) => $query->where('quantity', '>', 0))
             ->orderBy('item_name')->orderBy('id')->paginate($filters['per_page'] ?? 20)->withQueryString();

@@ -11,12 +11,6 @@
 @endphp
 
 <section class="approval-deadline-watch" aria-labelledby="approvalDeadlineHeading">
-    @if(session('success'))
-        <div class="alert alert-success border-0 rounded-4 shadow-sm mb-3" role="status">{{ session('success') }}</div>
-    @endif
-    @if(session('error'))
-        <div class="alert alert-danger border-0 rounded-4 shadow-sm mb-3" role="alert">{{ session('error') }}</div>
-    @endif
 
     <div class="approval-deadline-heading">
         <div>

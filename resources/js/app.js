@@ -3,6 +3,7 @@ import * as bootstrap from 'bootstrap';
 
 import './bootstrap';
 import './confirmations';
+import {initializeFeedback} from './feedback';
 import {initializeDynamicSearch} from './dynamic-search';
 
 import Alpine from 'alpinejs';
@@ -12,3 +13,4 @@ window.bootstrap = bootstrap;
 
 Alpine.start();
 initializeDynamicSearch();
+initializeFeedback();

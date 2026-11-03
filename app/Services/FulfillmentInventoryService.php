@@ -30,7 +30,8 @@ class FulfillmentInventoryService
                 if (! array_key_exists($name, $legacy)) {
                     // Legacy lines resolve by exact name, never LIKE wildcards.
                     $query = Supply::whereRaw('LOWER(item_name) = ?', [$name])->orderBy('id');
-                    $legacy[$name] = ($lock ? $query->lockForUpdate() : $query)->first();
+                    $matches = ($lock ? $query->lockForUpdate() : $query)->get();
+                    $legacy[$name] = $matches->count() === 1 ? $matches->first() : null;
                 }
                 $supply = $legacy[$name];
             }
@@ -48,7 +49,7 @@ class FulfillmentInventoryService
         foreach ($plans as $plan) {
             $supply = $plan['supply'];
             if ($supply->quantity < $plan['quantity']) {
-                $errors[] = "Insufficient stock for '{$supply->item_name}'. Available: {$supply->quantity}, Requested: {$plan['quantity']}.";
+                $errors[] = "Insufficient stock for '{$supply->display_name}'. Available: {$supply->quantity}, Requested: {$plan['quantity']}.";
             }
         }
         foreach ($lines as &$line) {

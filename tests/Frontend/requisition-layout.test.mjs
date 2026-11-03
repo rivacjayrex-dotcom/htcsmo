@@ -18,6 +18,9 @@ function cart({ saved, blocked = false, confirm = async () => false } = {}) {
     let hides = 0;
     const modal = {};
     const window = {
+        clearTimeout() {},
+        setTimeout() { return 1; },
+        matchMedia() { return { matches: false }; },
         async htcConfirm(options) { decisions.push(options); return confirm(options); },
         bootstrap: { Modal: { getOrCreateInstance(element) {
             assert.equal(element, modal);
@@ -26,6 +29,7 @@ function cart({ saved, blocked = false, confirm = async () => false } = {}) {
     };
     const engine = vm.runInNewContext(`(${source})()`, { localStorage: storage, window });
     engine.$refs = {};
+    engine.$nextTick = callback => callback();
     engine.init();
     const closeEvent = () => ({
         currentTarget: modal,
@@ -39,6 +43,97 @@ test('catalog starts in grid mode and restores a saved list preference', () => {
     assert.equal(cart().engine.catalogLayout, 'grid');
     assert.equal(cart({ saved: 'list' }).engine.catalogLayout, 'list');
     assert.equal(cart({ saved: 'invalid' }).engine.catalogLayout, 'grid');
+});
+
+test('size and supplier selection uses separate prices, quantities and cart lines', () => {
+    const { engine } = cart();
+    engine.refreshIcons = () => {};
+    engine.catalog = [
+        { id: 1, name: 'Bond Paper', size: 'A4', supplier: 'Supplier A', category: 'Office', price: 200, stock: 3, options: {} },
+        { id: 2, name: 'Bond Paper', size: 'Letter', supplier: 'Supplier B', category: 'Office', price: 180, stock: 5, options: {} },
+    ];
+    engine.openProduct(engine.catalog[0]);
+    assert.equal(engine.productVariants.length, 2);
+    engine.productQty = 2;
+    engine.addConfiguredItem();
+    engine.openProduct(engine.catalog[1]);
+    engine.addConfiguredItem();
+    assert.equal(engine.cart.length, 2);
+    assert.equal(engine.grandTotal, 580);
+    assert.deepEqual(Array.from(engine.cart, item => [item.id, item.size, item.supplier, item.qty]), [
+        [1, 'A4', 'Supplier A', 2], [2, 'Letter', 'Supplier B', 1],
+    ]);
+    engine.search = 'letter';
+    assert.deepEqual(Array.from(engine.filteredItems, item => item.id), [2]);
+    engine.search = 'supplier a';
+    assert.deepEqual(Array.from(engine.filteredItems, item => item.id), [1]);
+    engine.openProduct(engine.catalog[0]);
+    assert.equal(engine.remainingStock(engine.selectedItem), 1);
+    engine.productQty = 2;
+    assert.equal(engine.canAddProduct, false);
+    engine.addConfiguredItem();
+    assert.equal(engine.cart[0].qty, 2);
+    engine.productQty = 1;
+    engine.addConfiguredItem();
+    assert.equal(engine.cart[0].qty, 3);
+    engine.openProduct(engine.catalog[0]);
+    assert.equal(engine.canAddProduct, false);
+});
+
+test('different options share the stock limit within one size and supplier', () => {
+    const { engine } = cart();
+    engine.refreshIcons = () => {};
+    const item = { id: 1, name: 'Paper', size: 'A4', supplier: 'Supplier A', stock: 3, options: { Brand: ['One', 'Two'] } };
+    engine.openProduct(item);
+    engine.selectedOptions = { Brand: 'One' };
+    engine.productQty = 2;
+    engine.addConfiguredItem();
+    engine.openProduct(item);
+    engine.selectedOptions = { Brand: 'Two' };
+    engine.productQty = 2;
+    assert.equal(engine.canAddProduct, false);
+    engine.productQty = 1.5;
+    assert.equal(engine.canAddProduct, false);
+    engine.productQty = 1;
+    assert.equal(engine.canAddProduct, true);
+    engine.addConfiguredItem();
+    assert.equal(engine.remainingStock(item), 0);
+});
+
+test('style and size buttons resolve real combinations and update price, attributes and stock together', () => {
+    const { engine } = cart();
+    engine.refreshIcons = () => {};
+    engine.catalog = [
+        { id: 1, name: 'Pants', category: 'Clothing', size: 'Large', supplier: 'A', price: 450, stock: 20, attributes: { Brand: 'HTC', Style: 'Black', Quality: 'Standard' }, options: { Brand: ['HTC'], Style: ['Black'], Quality: ['Standard'] } },
+        { id: 2, name: 'Pants', category: 'Clothing', size: 'Large', supplier: 'A', price: 650, stock: 10, attributes: { Brand: 'HTC', Style: 'Vintage', Quality: 'Premium' }, options: { Brand: ['HTC'], Style: ['Vintage'], Quality: ['Premium'] } },
+        { id: 3, name: 'Pants', category: 'Clothing', size: 'Medium', supplier: 'A', price: 600, stock: 15, attributes: { Brand: 'HTC', Style: 'Vintage', Quality: 'Premium' }, options: { Brand: ['HTC'], Style: ['Vintage'], Quality: ['Premium'] } },
+    ];
+    engine.openProduct(engine.catalog[0]);
+    engine.chooseVariant('Style', 'Vintage');
+    assert.equal(engine.selectedItem.id, 2);
+    assert.equal(engine.selectedItem.price, 650);
+    assert.equal(engine.selectedOptions.Quality, 'Premium');
+    assert.deepEqual(Array.from(engine.variantDimensions.find(dimension => dimension.name === 'Size').values), ['Large', 'Medium']);
+    assert.deepEqual(Object.keys(engine.customizationOptions), []);
+    engine.addConfiguredItem();
+    engine.openProduct(engine.catalog[1]);
+    engine.chooseVariant('Size', 'Medium');
+    assert.equal(engine.selectedItem.id, 3);
+    assert.equal(engine.selectedItem.price, 600);
+    engine.chooseVariant('Style', 'Black');
+    assert.equal(engine.selectedItem.id, 1);
+    assert.equal(engine.selectedItem.size, 'Large');
+    assert.equal(engine.selectedItem.price, 450);
+    assert.deepEqual(Array.from(engine.variantDimensions.find(dimension => dimension.name === 'Size').values), ['Large']);
+    engine.chooseVariant('Size', 'Missing');
+    assert.equal(engine.selectedItem.id, 1);
+    engine.addConfiguredItem();
+    assert.equal(engine.cart.length, 2);
+    assert.equal(engine.grandTotal, 1100);
+    assert.equal(engine.cart[0].attributes.Style, 'Vintage');
+    assert.equal(engine.cart[1].attributes.Style, 'Black');
+    engine.search = 'premium';
+    assert.deepEqual(Array.from(engine.filteredItems, item => item.id), [2, 3]);
 });
 
 test('both tiers show the complete catalog, categories, counts, and search results', () => {

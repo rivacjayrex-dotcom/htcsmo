@@ -23,8 +23,6 @@
                         <p>Enter the email address associated with your account. We’ll send a secure reset link if it matches an account.</p>
                     </header>
 
-                    <x-auth-session-status class="alert alert-success py-2 small mb-3" :status="session('status')" />
-
                     <form method="POST" action="{{ route('password.email') }}">
                         @csrf
 

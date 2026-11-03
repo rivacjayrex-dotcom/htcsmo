@@ -16,7 +16,6 @@
             <a href="{{ route('admin.reports.index', $overviewPeriod) }}" class="report-analytics-link"><i data-lucide="chart-no-axes-combined" aria-hidden="true"></i> Operational Analytics</a>
         </header>
         <div data-filter-region="context">
-        @error('download_pdf')<div class="alert alert-warning" role="alert">{{ $message }}</div>@enderror
         @if(in_array($reportType, ['inventory_movements', 'item_usage']) && request('supply_id'))
             <div class="alert alert-light border d-flex flex-wrap justify-content-between gap-2">
                 <span>Item filter: <strong>{{ $rows->first()['item'] ?? 'Selected catalog item' }}</strong></span>

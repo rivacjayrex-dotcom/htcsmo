@@ -11,12 +11,17 @@ class RequisitionItem extends Model
         'requisition_id',
         'supply_id', // <--- ADD THIS
         'item_name',
+        'size',
+        'supplier',
+        'variant_attributes',
         'specifications',
         'quantity',
         'unit',
         'unit_price',
         'subtotal',
     ];
+
+    protected $casts = ['variant_attributes' => 'array'];
 
     public function requisition(): BelongsTo
     {

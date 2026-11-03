@@ -14,12 +14,6 @@
             <a href="{{ route('requests.index') }}" class="btn btn-light border rounded-pill px-3">Cancel</a>
         </div>
 
-        @if($errors->any())
-            <div class="alert alert-danger border-0 rounded-3 shadow-sm">
-                <div class="fw-bold mb-1">Please correct the following:</div>
-                <ul class="mb-0 small">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>
-            </div>
-        @endif
 
         <form action="{{ route('requisitions.update', $requisition) }}" method="POST" data-confirm="Save the updated purpose and requested items for {{ $requisition->tracking_code }}?" data-confirm-title="Save requisition changes?" data-confirm-accept="Save changes">
             @csrf
@@ -42,6 +36,7 @@
                                 <template x-for="(choices, label) in (selectedItem?.options || {})" :key="label">
                                     <div class="mb-3"><label class="form-label mini-label" x-text="label"></label><select class="form-select" x-model="selectedOptions[label]"><option value="">Select an option</option><template x-for="choice in choices" :key="choice"><option :value="choice" x-text="choice"></option></template></select></div>
                                 </template>
+                                <p class="small text-muted" x-text="variantCaption(selectedItem)"></p>
                                 <div class="row g-3 align-items-end">
                                     <div class="col-sm-4"><label class="form-label mini-label">Quantity</label><input type="number" class="form-control" min="1" :max="selectedItem?.stock" x-model.number="selectedQty"></div>
                                     <div class="col-sm-4"><span class="mini-label d-block mb-2">Live catalog price</span><strong class="text-success" x-text="'PHP ' + money(selectedItem?.price)"></strong></div>
@@ -52,7 +47,7 @@
                             <div class="catalog-grid">
                                 <template x-for="item in filteredCatalog" :key="item.id">
                                     <button type="button" class="catalog-item" :disabled="item.stock < 1" @click="configureItem(item)">
-                                        <span><small x-text="item.category"></small><strong x-text="item.name"></strong><em x-text="item.specs || 'Standard specification'"></em></span>
+                                        <span><small x-text="item.category"></small><strong x-text="item.name"></strong><em x-text="variantCaption(item)"></em><em x-text="item.specs || 'Standard specification'"></em></span>
                                         <span class="text-end"><b x-text="'PHP ' + money(item.price)"></b><small x-text="item.stock + ' ' + item.unit + ' available'"></small></span>
                                     </button>
                                 </template>
@@ -69,7 +64,7 @@
                             <template x-for="(item, index) in cart" :key="item.key">
                                 <div class="cart-row">
                                     <div class="d-flex justify-content-between gap-3">
-                                        <div><strong x-text="item.name"></strong><small x-text="optionSummary(item.selected_options) || item.specs || 'Standard specification'"></small></div>
+                                        <div><strong x-text="item.name"></strong><small x-text="variantCaption(item)"></small><small x-text="optionSummary(item.selected_options, item.attributes || {}) || item.specs || 'Standard specification'"></small></div>
                                         <button type="button" class="btn btn-sm btn-light border text-danger" @click="removeItem(index)" aria-label="Remove item"><i data-lucide="trash-2"></i></button>
                                     </div>
                                     <div class="row g-2 align-items-end mt-1">
@@ -165,10 +160,11 @@
                 },
                 removeItem(index) { this.cart.splice(index, 1); this.refreshIcons(); },
                 itemKey(id, options) { return `${id}:${JSON.stringify(options || {})}`; },
-                optionSummary(options) { return Object.entries(options || {}).map(([label, value]) => `${label}: ${value}`).join(' · '); },
+                optionSummary(options, fixed = {}) { return Object.entries(options || {}).filter(([label]) => !(label in fixed)).map(([label, value]) => `${label}: ${value}`).join(' · '); },
+                variantCaption(item) { return [...Object.entries(item?.attributes || {}).map(([name, value]) => `${name}: ${value}`), item?.size && `Size: ${item.size}`, item?.supplier && `Supplier: ${item.supplier}`].filter(Boolean).join(' · '); },
                 money(value) { return Number(value || 0).toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2}); },
                 refreshIcons() { window.setTimeout(() => window.lucide?.createIcons(), 20); },
-                get filteredCatalog() { const term = this.search.trim().toLowerCase(); return this.catalog.filter(item => !term || `${item.name} ${item.category} ${item.brand || ''} ${item.specs || ''}`.toLowerCase().includes(term)); },
+                get filteredCatalog() { const term = this.search.trim().toLowerCase(); return this.catalog.filter(item => !term || `${item.name} ${this.variantCaption(item)} ${item.category} ${item.brand || ''} ${item.specs || ''}`.toLowerCase().includes(term)); },
                 get allOptionsSelected() { return this.selectedItem && Object.keys(this.selectedItem.options || {}).every(label => this.selectedOptions[label]); },
                 get canSaveConfigured() { return this.allOptionsSelected && this.selectedQty >= 1 && this.selectedQty <= (this.selectedItem?.stock || 0); },
                 get grandTotal() { return this.cart.reduce((total, item) => total + (Number(item.qty) * Number(item.price)), 0); },

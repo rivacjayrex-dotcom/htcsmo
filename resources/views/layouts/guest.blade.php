@@ -13,6 +13,7 @@
 </head>
 <body>
     @include('layouts.partials.session-recovery')
+    @include('layouts.partials.feedback-messages')
     <main class="login-card">
         {{ $slot }}
     </main>

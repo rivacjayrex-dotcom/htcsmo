@@ -102,8 +102,8 @@
                     @php($item = $prediction['supply'])
                     <tr>
                         <td>
-                            <div class="item">{{ $item->item_name }}</div>
-                            <div class="muted">{{ strtoupper($item->requisition_tier ?? 'minor') }} &bull; {{ $item->category }} &bull; {{ $item->unit }}</div>
+                            <div class="item">{{ $item->display_name }}</div>
+                            <div class="muted">{{ $item->category }} &bull; {{ $item->unit }}</div>
                         </td>
                         <td><span class="priority {{ $prediction['urgency'] }}">{{ str_replace('_', ' ', $prediction['urgency']) }}</span><div class="muted">{{ ucfirst($prediction['confidence']) }} confidence</div></td>
                         <td class="right">{{ number_format($item->quantity) }}</td>

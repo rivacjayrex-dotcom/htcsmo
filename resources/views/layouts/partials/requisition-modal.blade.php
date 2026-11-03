@@ -48,22 +48,14 @@
             <form x-ref="requisitionForm" x-cloak x-show="view !== 'selection'" class="requisition-form" action="{{ route('requisitions.store') }}" method="POST" data-no-loader @submit="handleRequisitionSubmit($event)" @htc:session-check-failed="submitting = false; submissionConfirmed = false">
                 @csrf
                 <input type="hidden" name="request_type" :value="tier">
-                @if($errors->any() && old('request_type'))
-                    <div class="alert alert-danger rounded-0 border-0 border-bottom mb-0 px-4 py-3" role="alert">
-                        <div class="fw-bold mb-1"><i data-lucide="circle-alert" style="width:16px"></i> We could not submit your requisition</div>
-                        <ul class="small mb-0 ps-3">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>
-                    </div>
-                @endif
                 <div class="requisition-workspace" :class="{ 'is-reviewing-cart': cartOpen }">
                     <section class="catalog-pane" x-ref="catalogPane" tabindex="-1" aria-label="Supply catalog">
                         <div x-show="view === 'catalog'">
                             <div class="catalog-toolbar">
                                 <button type="button" class="btn btn-sm btn-light border rounded-pill" @click="backToTiers()"><i data-lucide="chevron-left"></i> Tier</button>
                                 <div class="tier-pill" :class="tier" x-text="tierLabel"></div>
-                                <div class="catalog-search"><i data-lucide="search"></i><input type="search" x-model.debounce.150ms="search" placeholder="Search items, brands, models, or categories…" aria-label="Search catalog"></div>
+                                <div class="catalog-search"><i data-lucide="search"></i><input type="search" x-model.debounce.150ms="search" placeholder="Search items, sizes, suppliers, or brands…" aria-label="Search catalog"></div>
                             </div>
-
-                            <div x-cloak x-show="notice" x-transition class="catalog-notice" role="status"><i data-lucide="check-circle-2"></i><span x-text="notice"></span></div>
 
                             <div class="category-chips">
                                 <button type="button" :class="category === 'All' ? 'active' : ''" @click="category = 'All'">All items</button>
@@ -86,7 +78,7 @@
                                     <button type="button" class="product-card" @click="openProduct(item)">
                                         <span class="product-visual"><i data-lucide="package"></i><em x-text="item.category"></em></span>
                                         <span class="product-body">
-                                            <small x-text="brandCaption(item)"></small><strong x-text="item.name"></strong><span class="product-spec" x-text="item.specs"></span>
+                                            <small x-text="brandCaption(item)"></small><strong x-text="item.name"></strong><span class="product-spec" x-text="variantCaption(item)"></span><span class="product-spec" x-text="item.specs"></span>
                                             <span class="product-meta"><b x-text="'₱' + formatMoney(item.price)"></b><em x-text="item.stock + ' ' + item.unit + ' available'"></em></span>
                                         </span>
                                     </button>
@@ -105,11 +97,29 @@
                                     <div class="text-muted mb-3" x-text="selectedItem?.options?.Brand?.length > 1 ? 'Choose your preferred brand and specifications' : selectedItem?.brand"></div>
                                     <h4 class="text-success fw-bold" x-text="'₱' + formatMoney(selectedItem?.price)"></h4>
                                     <p class="product-description" x-text="selectedItem?.specs"></p>
-                                    <template x-for="(choices, label) in (selectedItem?.options || {})" :key="label">
+                                    <div class="option-group" x-show="productVariants.length > 1">
+                                        <label for="request-stock-variant">Available combination</label>
+                                        <select id="request-stock-variant" class="form-select" :value="selectedItem?.id" @change="openProduct(productVariants.find(item => item.id === Number($event.target.value)))">
+                                            <template x-for="variant in productVariants" :key="variant.id"><option :value="variant.id" :selected="variant.id === selectedItem?.id" x-text="(variantCaption(variant) || 'Standard') + ' — ₱' + formatMoney(variant.price) + ' / ' + variant.unit + ' — ' + variant.stock + ' available'"></option></template>
+                                        </select>
+                                    </div>
+                                    <p class="small text-muted" x-text="variantCaption(selectedItem)"></p>
+                                    <template x-for="dimension in variantDimensions" :key="dimension.name">
+                                        <div class="option-group" x-show="dimension.values.length > 1">
+                                            <label x-text="dimension.name"></label>
+                                            <div role="group" :aria-label="dimension.name">
+                                                <template x-for="value in dimension.values" :key="value">
+                                                    <button type="button" :class="variantValue(selectedItem, dimension.name) === value ? 'active' : ''" :aria-pressed="variantValue(selectedItem, dimension.name) === value" @click="chooseVariant(dimension.name, value)" x-text="value || 'Standard'"></button>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </template>
+                                    <p class="small text-success" role="status" x-text="remainingStock(selectedItem) + ' ' + (selectedItem?.unit || '') + ' available to add'"></p>
+                                    <template x-for="(choices, label) in customizationOptions" :key="label">
                                         <div class="option-group"><label x-text="'Choose ' + label"></label><div><template x-for="choice in choices" :key="choice"><button type="button" :class="selectedOptions[label] === choice ? 'active' : ''" @click="selectedOptions[label] = choice" x-text="choice"></button></template></div></div>
                                     </template>
                                     <div class="d-flex align-items-end gap-3 mt-4">
-                                        <div><label class="mini-label d-block" x-text="'Quantity (' + (selectedItem?.unit || 'pc') + ')'">Quantity</label><div class="quantity-picker"><button type="button" @click="productQty = Math.max(1, productQty - 1)">−</button><input type="number" min="1" :max="selectedItem?.stock" x-model.number="productQty"><button type="button" @click="productQty = Math.min(selectedItem.stock, productQty + 1)">+</button></div></div>
+                                        <div><label class="mini-label d-block" x-text="'Quantity (' + (selectedItem?.unit || 'pc') + ')'">Quantity</label><div class="quantity-picker"><button type="button" @click="productQty = Math.max(1, productQty - 1)">−</button><input type="number" min="1" :max="remainingStock(selectedItem)" x-model.number="productQty"><button type="button" :disabled="productQty >= remainingStock(selectedItem)" @click="productQty = Math.min(remainingStock(selectedItem), productQty + 1)">+</button></div></div>
                                         <button type="button" class="btn btn-htc flex-grow-1 py-3 fw-bold rounded-3" :disabled="!canAddProduct" @click="addConfiguredItem()"><i data-lucide="shopping-cart"></i> Add to cart</button>
                                     </div>
                                     <small x-show="!allOptionsSelected" class="text-warning d-block mt-2"><i data-lucide="info" style="width:13px"></i> Select every required option before adding this item.</small>
@@ -126,8 +136,9 @@
                                 <template x-for="(item, index) in cart" :key="item.key">
                                     <div class="cart-item" :class="{ 'is-recently-added': item.key === lastAddedKey }" :data-cart-key="item.key">
                                         <div class="cart-item-heading"><strong x-text="item.name"></strong><button type="button" class="cart-remove" @click="removeItem(index)" :aria-label="'Remove ' + item.name"><i data-lucide="x" aria-hidden="true"></i></button></div>
-                                        <small x-text="optionSummary(item.options) || item.specs"></small>
-                                        <div class="cart-item-controls"><div class="mini-quantity" role="group" :aria-label="'Quantity for ' + item.name"><button type="button" @click="item.qty = Math.max(1, item.qty - 1)" :disabled="item.qty <= 1 || submitting" :aria-label="'Decrease quantity of ' + item.name">&minus;</button><span x-text="item.qty" aria-live="polite"></span><button type="button" @click="item.qty = Math.min(item.stock, item.qty + 1)" :disabled="item.qty >= item.stock || submitting" :aria-label="'Increase quantity of ' + item.name">+</button></div><b x-text="'₱' + formatMoney(item.qty * item.price)"></b></div>
+                                        <small x-text="variantCaption(item)"></small>
+                                        <small x-text="optionSummary(item.options, item.attributes || {}) || item.specs"></small>
+                                        <div class="cart-item-controls"><div class="mini-quantity" role="group" :aria-label="'Quantity for ' + item.name"><button type="button" @click="item.qty = Math.max(1, item.qty - 1)" :disabled="item.qty <= 1 || submitting" :aria-label="'Decrease quantity of ' + item.name">&minus;</button><span x-text="item.qty" aria-live="polite"></span><button type="button" @click="item.qty = Math.min(item.stock, item.qty + 1)" :disabled="remainingStock(item) < 1 || submitting" :aria-label="'Increase quantity of ' + item.name">+</button></div><b x-text="'₱' + formatMoney(item.qty * item.price)"></b></div>
                                         <small class="cart-unit-price" x-text="'₱' + formatMoney(item.price) + ' / ' + item.unit"></small>
                                         <input type="hidden" :name="'items['+index+'][supply_id]'" :value="item.id"><input type="hidden" :name="'items['+index+'][qty]'" :value="item.qty">
                                         <template x-for="(value, label) in item.options" :key="label"><input type="hidden" :name="'items['+index+'][options]['+label+']'" :value="value"></template>

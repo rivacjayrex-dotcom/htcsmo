@@ -31,12 +31,25 @@ The project is intended to support transparent electronic records and approval w
 - Approve, reject, and office-clarification decisions
 - Digital approval records with SHA-256 signature tokens
 - Inventory management and release deductions
+- Separate stock, prices and restock thresholds for each item size and supplier
 - Inventory transaction logs and low-stock monitoring
 - In-app and email notifications
 - Day 2 warning and Day 3 overdue SLA alerts
 - Filterable reports and PDF generation
 - User registration, account approval, and role management
 - Request and administrative archives
+
+### Sizes and suppliers
+
+Manage Stock groups records with the same item name and category into one product row. Use its variant dropdown to view a combination's stock, price and details; Edit and Delete apply to that selected variant. A product checkbox selects all its matching variants, and bulk selection counts individual variants. Search and stock filters show the matching combinations within each product.
+
+In **Manage Stock → Register new item**, use the same item name for related stock and enter one size and one supplier per record. For example, register `Bond Paper / A4 / Supplier A` and `Bond Paper / Letter / Supplier B` with their own quantities and unit prices. Supplier means the supplying company; Brand remains the product brand.
+
+For prices that also vary by brand, color, style or quality, enable **Different prices for different selections**. Name up to five attribute columns (Brand is included), then enter one combination per row, with its size, supplier, unit price, stock and restock threshold. Use **Copy** to add a similar row, or **Add combination** for another selection. All rows share the item name, category, description and unit. Enter one value in each cell; for example, `HTC / Black / Standard / Large / Supplier A` at PHP 450 and `HTC / Vintage / Premium / Large / Supplier A` at PHP 650. Each resulting stock record can be edited separately in Manage Stock.
+
+The cart identifies each stock record by its supply ID. Its selection buttons only offer recorded combinations and update the displayed price and available stock. Selecting a different style preserves the current size when that combination exists; otherwise it selects an available size. Submitted requests retain the selected attributes, size, supplier and price, and release deducts only the linked stock. Duplicate combinations are rejected regardless of attribute column order; update the existing record to restock it.
+
+Existing records keep their stock and request history. SMO must count and split any previously pooled sizes into separate records using the actual quantities, prices and suppliers; the migration does not guess this allocation. New inventory saves reject multiple Size or Supplier choices in a shared record. Records already linked to requisitions retain their size/supplier identity; register a new record for a different combination. Older request lines without a supply ID can only resolve by name when exactly one active stock record matches.
 
 ## Approval workflow
 

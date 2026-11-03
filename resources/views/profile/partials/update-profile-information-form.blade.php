@@ -3,16 +3,6 @@
         @csrf
         @method('patch')
 
-        @if($errors->getBag('default')->any())
-            <div class="alert alert-danger" role="alert" tabindex="-1" autofocus>
-                <p class="fw-bold mb-1">Please check the highlighted fields.</p>
-                <ul class="mb-0 small">
-                    @foreach($errors->getBag('default')->all() as $message)
-                        <li>{{ $message }}</li>
-                    @endforeach
-                </ul>
-            </div>
-        @endif
 
         <div class="profile-photo-row d-flex align-items-center mb-4">
             <div class="position-relative">
@@ -76,9 +66,6 @@
                 Save Changes
             </button>
 
-            @if (session('status') === 'profile-updated')
-                <p class="text-success small ms-3 mb-0 fw-bold" role="status" x-show="!edited" tabindex="-1" autofocus>Saved successfully!</p>
-            @endif
         </div>
     </form>
 </section>

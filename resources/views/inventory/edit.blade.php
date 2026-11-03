@@ -19,19 +19,6 @@
                 </div>
 
                 <!-- ERROR ALERT BANNER -->
-                @if($errors->any())
-                    <div class="alert alert-danger border-0 shadow-sm rounded-4 mb-4 p-3">
-                        <div class="d-flex align-items-center mb-2">
-                            <i data-lucide="alert-triangle" class="me-2 text-danger" style="width: 20px;"></i>
-                            <strong class="text-danger">Failed to save changes:</strong>
-                        </div>
-                        <ul class="mb-0 small ps-4 text-danger">
-                            @foreach($errors->all() as $error)
-                                <li>{{ $error }}</li>
-                            @endforeach
-                        </ul>
-                    </div>
-                @endif
 
                 <form action="{{ route('inventory.update', $item->id) }}" method="POST" data-confirm="Save changes to {{ $item->item_name }}? Updated stock, pricing, and options will apply to the request catalog." data-confirm-title="Update inventory item?" data-confirm-accept="Save changes">
                     @csrf
@@ -73,13 +60,14 @@
                             </div>
 
                             <div class="row g-4">
+                                @include('inventory.partials.variant-fields')
                                 <div class="col-12">
                                     <label class="form-label small fw-bold text-dark text-uppercase">Item Name <span class="text-danger">*</span></label>
                                     <input type="text" name="item_name" class="form-control border-0 bg-light py-2 rounded-3 shadow-none @error('item_name') is-invalid @enderror" value="{{ old('item_name', $item->item_name) }}" required>
                                     @error('item_name') <span class="text-danger small">{{ $message }}</span> @enderror
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label small fw-bold text-dark text-uppercase">Institutional Category <span class="text-danger">*</span></label>
+                                    <label class="form-label small fw-bold text-dark text-uppercase">Category <span class="text-danger">*</span></label>
                                     <select name="category" class="form-select border-0 bg-light py-2 rounded-3 shadow-none @error('category') is-invalid @enderror" required>
                                         <option value="">-- Select Category --</option>
                                         @foreach([
@@ -95,14 +83,6 @@
                                         @endforeach
                                     </select>
                                     @error('category') <span class="text-danger small">{{ $message }}</span> @enderror
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label small fw-bold text-dark text-uppercase">Requisition Tier <span class="text-danger">*</span></label>
-                                    <select name="requisition_tier" class="form-select border-0 bg-light py-2 rounded-3 shadow-none" required>
-                                        <option value="minor" {{ old('requisition_tier', $item->requisition_tier ?? 'minor') === 'minor' ? 'selected' : '' }}>Minor — routine supplies up to ₱1,000</option>
-                                        <option value="major" {{ old('requisition_tier', $item->requisition_tier) === 'major' ? 'selected' : '' }}>Major — equipment and high-value items</option>
-                                    </select>
-                                    <small class="text-muted">Inventory classification only. This item appears in both requisition tiers.</small>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label small fw-bold text-dark text-uppercase">Model / Series #</label>
@@ -136,8 +116,8 @@
                             <div class="mt-4" x-data="{ rows: {{ Illuminate\Support\Js::from($optionRows) }} }">
                                 <div class="inventory-options-header d-flex justify-content-between align-items-center mb-2 gap-2">
                                     <div>
-                                        <label class="form-label mini-label mb-0">Requestor Choices</label>
-                                        <div class="small text-muted">Brand is required. These choices appear after a requestor clicks this item.</div>
+                                        <label class="form-label mini-label mb-0">{{ $item->variant_key ? 'Combination attributes' : 'Requestor Choices' }}</label>
+                                        <div class="small text-muted">{{ $item->variant_key ? 'Enter one value per attribute. Update the price and stock below. Register another combination for different selections.' : 'Brand is required. Use choices only when they share the same price and stock. Enter size and supplier above.' }}</div>
                                     </div>
                                     <button type="button" class="btn btn-sm btn-outline-success rounded-pill" @click="rows.length < 5 && rows.push({name: '', values: ''})">
                                         <i data-lucide="plus" style="width:14px"></i> Add option

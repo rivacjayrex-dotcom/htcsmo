@@ -17,6 +17,7 @@
 </head>
 <body data-runtime-scope="{{ $workspaceScope }}" data-runtime-version="{{ $workspaceVersion }}">
     @include('layouts.partials.session-recovery')
+    @include('layouts.partials.feedback-messages')
     <div class="d-flex">
         <button type="button" class="sidebar-backdrop" id="sidebarBackdrop" aria-label="Close navigation"></button>
         <!-- SIDEBAR -->
@@ -677,8 +678,6 @@
                 cartOpen: false,
                 lastAddedKey: null,
                 purpose: previousRequest.purpose || '',
-                notice: '',
-                noticeTimer: null,
                 confirmationOpen: false,
                 submissionConfirmed: false,
                 submitting: false,
@@ -807,16 +806,14 @@
                     const key = this.selectedItem.id + ':' + JSON.stringify(options);
                     const existing = this.cart.find(item => item.key === key);
                     if (existing) {
-                        existing.qty = Math.min(existing.stock, existing.qty + this.productQty);
+                        existing.qty += this.productQty;
                     } else {
                         this.cart.push({...this.selectedItem, key, options, qty: this.productQty});
                     }
                     this.lastAddedKey = key;
                     this.cartOpen = false;
                     this.view = 'catalog';
-                    this.notice = `${this.selectedItem.name} was added to your requisition.`;
-                    window.clearTimeout(this.noticeTimer);
-                    this.noticeTimer = window.setTimeout(() => this.notice = '', 3500);
+                    window.htcFeedback?.show({tone: 'success', message: `${this.selectedItem.name} was added to your requisition.`});
                     this.refreshIcons();
                     this.$nextTick(() => {
                         if (!window.matchMedia('(min-width: 992px)').matches) return;
@@ -826,7 +823,28 @@
                     });
                 },
                 removeItem(index) { this.cart.splice(index, 1); },
-                optionSummary(options) { return Object.entries(options || {}).map(([label, value]) => `${label}: ${value}`).join(' · '); },
+                remainingStock(item) {
+                    if (!item) return 0;
+                    return Math.max(0, item.stock - this.cart.filter(line => line.id === item.id).reduce((sum, line) => sum + Number(line.qty), 0));
+                },
+                variantCaption(item) {
+                    return [...Object.entries(item?.attributes || {}).map(([name, value]) => `${name}: ${value}`), item?.size && `Size: ${item.size}`, item?.supplier && `Supplier: ${item.supplier}`].filter(Boolean).join(' · ');
+                },
+                variantValue(item, label) {
+                    if (label === 'Size') return item?.size || '';
+                    if (label === 'Supplier') return item?.supplier || '';
+                    return item?.attributes?.[label] || '';
+                },
+                chooseVariant(label, value) {
+                    const dimensions = this.variantDimensions.map(dimension => dimension.name);
+                    const preceding = dimensions.slice(0, dimensions.indexOf(label));
+                    const candidates = this.productVariants.filter(item => this.variantValue(item, label) === value
+                        && preceding.every(name => this.variantValue(item, name) === this.variantValue(this.selectedItem, name)));
+                    const score = item => dimensions.reduce((sum, name) => sum + (this.variantValue(item, name) === this.variantValue(this.selectedItem, name) ? 1 : 0), 0);
+                    candidates.sort((a, b) => score(b) - score(a));
+                    if (candidates[0]) this.openProduct(candidates[0]);
+                },
+                optionSummary(options, fixed = {}) { return Object.entries(options || {}).filter(([label]) => !(label in fixed)).map(([label, value]) => `${label}: ${value}`).join(' · '); },
                 brandCaption(item) {
                     const brands = item?.options?.Brand || [];
                     return brands.length > 1 ? `${brands.length} brands available` : (brands[0] || item?.brand || 'HTC catalog');
@@ -896,7 +914,6 @@
                     this.lastAddedKey = null;
                     this.selectedItem = null;
                     this.purpose = '';
-                    this.notice = '';
                     this.confirmationOpen = false;
                     this.submissionConfirmed = false;
                     this.submitting = false;
@@ -914,7 +931,7 @@
                         const optionText = Object.entries(item.options || {})
                             .flatMap(([label, choices]) => [label, ...(choices || [])])
                             .join(' ');
-                        const searchableText = `${item.name || ''} ${item.brand || ''} ${item.model || ''} ${item.category || ''} ${item.specs || ''} ${optionText}`.toLowerCase();
+                        const searchableText = `${item.name || ''} ${item.size || ''} ${item.supplier || ''} ${this.variantCaption(item)} ${item.brand || ''} ${item.model || ''} ${item.category || ''} ${item.specs || ''} ${optionText}`.toLowerCase();
 
                         return (this.category === 'All' || item.category === this.category)
                             && (!term || searchableText.includes(term));
@@ -923,7 +940,23 @@
                 get allOptionsSelected() {
                     return this.selectedItem && Object.keys(this.selectedItem.options || {}).every(label => this.selectedOptions[label]);
                 },
-                get canAddProduct() { return this.allOptionsSelected && this.productQty >= 1 && this.productQty <= (this.selectedItem?.stock || 0); },
+                get productVariants() {
+                    return this.selectedItem ? this.catalog.filter(item => item.name === this.selectedItem.name && item.category === this.selectedItem.category) : [];
+                },
+                get variantDimensions() {
+                    const variants = this.productVariants;
+                    const names = [...new Set(variants.flatMap(item => Object.keys(item.attributes || {})))];
+                    if (variants.some(item => item.size)) names.push('Size');
+                    if (variants.some(item => item.supplier)) names.push('Supplier');
+                    return names.map((name, index) => {
+                        const compatible = variants.filter(item => names.slice(0, index).every(label => this.variantValue(item, label) === this.variantValue(this.selectedItem, label)));
+                        return {name, values: [...new Set(compatible.map(item => this.variantValue(item, name)))]};
+                    });
+                },
+                get customizationOptions() {
+                    return Object.fromEntries(Object.entries(this.selectedItem?.options || {}).filter(([name]) => !(name in (this.selectedItem?.attributes || {}))));
+                },
+                get canAddProduct() { return this.allOptionsSelected && Number.isInteger(this.productQty) && this.productQty >= 1 && this.productQty <= this.remainingStock(this.selectedItem); },
                 get grandTotal() { return this.cart.reduce((sum, item) => sum + (item.qty * item.price), 0); },
                 get cartQuantity() { return this.cart.reduce((sum, item) => sum + item.qty, 0); },
                 get purposeIsValid() { return this.purpose.trim().length >= 10; },

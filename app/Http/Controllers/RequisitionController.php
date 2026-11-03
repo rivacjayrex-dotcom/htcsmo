@@ -31,6 +31,9 @@ class RequisitionController extends Controller
         return [
             'id' => $supply->id,
             'name' => $supply->item_name,
+            'size' => $supply->size,
+            'supplier' => $supply->supplier,
+            'attributes' => (object) $supply->pricedAttributes(),
             'brand' => $supply->brand,
             'category' => $supply->category,
             'tier' => $supply->requisition_tier ?? 'minor',
@@ -150,6 +153,9 @@ class RequisitionController extends Controller
                 $lockedRequisition->items()->create([
                     'supply_id' => $item['supply']->id,
                     'item_name' => $item['supply']->item_name,
+                    'size' => $item['supply']->size ?? '',
+                    'supplier' => $item['supply']->supplier ?? '',
+                    'variant_attributes' => $item['supply']->pricedAttributes(),
                     'specifications' => $item['specifications'],
                     'quantity' => $item['quantity'],
                     'unit' => $item['supply']->unit,

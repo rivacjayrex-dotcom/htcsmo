@@ -19,6 +19,9 @@ class Supply extends Model
         'supply_category_id',
         'supply_unit_id',
         'item_name',
+        'size',
+        'supplier',
+        'variant_key',
         'brand',
         'model_number',
         'category', // Virtual compatibility input; persisted as supply_category_id.
@@ -43,6 +46,30 @@ class Supply extends Model
                 $supply->pendingOptions = null;
             }
         });
+    }
+
+    public function getDisplayNameAttribute(): string
+    {
+        $attributes = collect($this->pricedAttributes())->map(fn ($value, $name) => "{$name}: {$value}")->implode(', ');
+
+        return collect([$this->item_name, $attributes, $this->size, $this->supplier])->filter()->implode(' · ');
+    }
+
+    /** Fixed selections that identify this independently priced stock record. */
+    public function pricedAttributes(): array
+    {
+        return filled($this->variant_key)
+            ? collect($this->requestOptions())->map(fn ($values) => $values[0])->all()
+            : [];
+    }
+
+    public static function combinationKey(array $options): string
+    {
+        $canonical = collect($options)->mapWithKeys(fn ($values, $name) => [
+            mb_strtolower(trim($name)) => mb_strtolower(trim($values[0])),
+        ])->sortKeys()->all();
+
+        return hash('sha256', json_encode($canonical, JSON_THROW_ON_ERROR));
     }
 
     /**

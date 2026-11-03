@@ -19,13 +19,13 @@ class InventoryAlertService
 
         $alert = $isOut
             ? [
-                'title' => "Out of Stock: {$supply->item_name}",
-                'message' => "{$supply->item_name} has reached zero stock. Review its demand forecast and arrange replenishment before the next request.",
+                'title' => "Out of Stock: {$supply->display_name}",
+                'message' => "{$supply->display_name} has reached zero stock. Review its demand forecast and arrange replenishment before the next request.",
                 'icon' => 'package-x',
                 'type' => 'danger',
             ]
             : [
-                'title' => "Low Stock Warning: {$supply->item_name}",
+                'title' => "Low Stock Warning: {$supply->display_name}",
                 'message' => "Only {$supply->quantity} {$supply->unit} remain; the restock threshold is {$supply->min_stock_level}. Review the forecast and replenish soon.",
                 'icon' => 'triangle-alert',
                 'type' => 'warning',

@@ -20,8 +20,6 @@
                         <p>Sign in with your username or school ID to continue.</p>
                     </header>
 
-                    <x-auth-session-status class="alert alert-success py-2 small mb-3" :status="session('status')" />
-
                     <form method="POST" action="{{ route('login') }}" data-auth-progress="login">
                         @csrf
 

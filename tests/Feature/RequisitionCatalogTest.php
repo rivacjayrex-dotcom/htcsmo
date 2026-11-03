@@ -105,7 +105,7 @@ class RequisitionCatalogTest extends TestCase
 
         $catalogItem = $response->json()[0];
         $this->assertSame([
-            'id', 'name', 'brand', 'category', 'model', 'tier', 'specs', 'unit', 'price', 'stock', 'options',
+            'id', 'name', 'size', 'supplier', 'attributes', 'brand', 'category', 'model', 'tier', 'specs', 'unit', 'price', 'stock', 'options',
         ], array_keys($catalogItem));
         $this->assertSame($supply->id, $catalogItem['id']);
         $this->assertSame('BP-A4-80', $catalogItem['model']);

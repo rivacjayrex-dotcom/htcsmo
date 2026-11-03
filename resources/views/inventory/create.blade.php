@@ -6,21 +6,8 @@
             <div class="col-xl-10 col-lg-11">
 
                 <!-- ANY VALIDATION ERRORS DISPLAY -->
-                @if($errors->any())
-                    <div class="alert alert-danger border-0 shadow-sm rounded-4 mb-4 p-3">
-                        <div class="d-flex align-items-center mb-2">
-                            <i data-lucide="alert-triangle" class="me-2 text-danger" style="width: 20px;"></i>
-                            <strong class="text-danger">Please correct the following errors:</strong>
-                        </div>
-                        <ul class="mb-0 small ps-4 text-danger">
-                            @foreach($errors->all() as $err)
-                                <li>{{ $err }}</li>
-                            @endforeach
-                        </ul>
-                    </div>
-                @endif
 
-                <form action="{{ route('inventory.store') }}" method="POST" data-confirm="Add this item to the inventory and request catalog with the details you entered?" data-confirm-title="Add inventory item?" data-confirm-accept="Add item">
+                <form action="{{ route('inventory.store') }}" method="POST" x-data="inventoryVariantBuilder(@js(old('variant_names', ['Brand', 'Color'])), @js(old('variants', [])))" data-confirm="Add this item and its stock combinations to the inventory with the details you entered?" data-confirm-title="Add inventory item?" data-confirm-accept="Add item">
                     @csrf
 
                     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -39,8 +26,15 @@
                                     <input type="text" name="item_name" value="{{ old('item_name') }}" class="form-control border-0 bg-light py-2 shadow-none @error('item_name') is-invalid @enderror" placeholder="e.g. Bond Paper or Ballpen" required>
                                     @error('item_name') <span class="text-danger small">{{ $message }}</span> @enderror
                                 </div>
+                                <div class="col-12">
+                                    <label class="form-check form-switch"><input type="checkbox" class="form-check-input" x-model="enabled"><span class="form-check-label fw-bold">Different prices for different selections</span></label>
+                                    <small class="text-muted">Enable to enter combinations of brand, color, style, quality and size, each with its own price and stock.</small>
+                                </div>
+                                <div class="col-12" x-show="!enabled"><fieldset :disabled="enabled"><div class="row g-3">
+                                    @include('inventory.partials.variant-fields')
+                                </div></fieldset></div>
                                 <div class="col-md-6">
-                                    <label class="form-label mini-label">Institutional Category <span class="text-danger">*</span></label>
+                                    <label class="form-label mini-label">Category <span class="text-danger">*</span></label>
                                     <select name="category" class="form-select border-0 bg-light py-2 shadow-none @error('category') is-invalid @enderror" required>
                                         <option value="">-- Select Category --</option>
                                         @foreach([
@@ -58,14 +52,6 @@
                                     @error('category') <span class="text-danger small">{{ $message }}</span> @enderror
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label mini-label">Requisition Tier <span class="text-danger">*</span></label>
-                                    <select name="requisition_tier" class="form-select border-0 bg-light py-2 shadow-none @error('requisition_tier') is-invalid @enderror" required>
-                                        <option value="minor" {{ old('requisition_tier', 'minor') === 'minor' ? 'selected' : '' }}>Minor — routine supplies up to ₱1,000</option>
-                                        <option value="major" {{ old('requisition_tier') === 'major' ? 'selected' : '' }}>Major — equipment and high-value items</option>
-                                    </select>
-                                    <small class="text-muted">Inventory classification only. This item appears in both requisition tiers.</small>
-                                </div>
-                                <div class="col-md-6">
                                     <label class="form-label mini-label">Model / Part Number</label>
                                     <input type="text" name="model_number" value="{{ old('model_number') }}" class="form-control border-0 bg-light py-2 shadow-none" placeholder="e.g. L-3210 or 80GSM">
                                 </div>
@@ -81,8 +67,9 @@
                                 @error('specifications') <span class="text-danger small">{{ $message }}</span> @enderror
                             </div>
 
+                            <fieldset x-show="!enabled" :disabled="enabled">
                             @php
-                                $oldNames = old('option_names', ['Brand', 'Size', 'Color']);
+                                $oldNames = old('option_names', ['Brand', 'Color']);
                                 $oldValues = old('option_values', ['', '', '']);
                                 $optionRows = collect($oldNames)->map(fn ($name, $i) => ['name' => $name, 'values' => $oldValues[$i] ?? ''])->values();
                             @endphp
@@ -110,20 +97,21 @@
                                     </div>
                                 </template>
                             </div>
+                            </fieldset>
                         </div>
 
                         <!-- SECTION 3: FINANCIALS -->
                         <div class="card-body p-4">
                             <div class="nav-section-label mb-3 text-primary">III. Stock & Financial Parameters</div>
                             <div class="row g-3">
-                                <div class="col-md-3">
+                                <div class="col-md-3" x-show="!enabled">
                                     <label class="form-label mini-label text-success">Unit Price (₱) <span class="text-danger">*</span></label>
-                                    <input type="number" step="0.01" name="unit_price" value="{{ old('unit_price') }}" class="form-control border-0 bg-light py-2 fw-bold text-success shadow-none @error('unit_price') is-invalid @enderror" placeholder="0.00" required>
+                                    <input type="number" step="0.01" name="unit_price" :disabled="enabled" :required="!enabled" value="{{ old('unit_price') }}" class="form-control border-0 bg-light py-2 fw-bold text-success shadow-none @error('unit_price') is-invalid @enderror" placeholder="0.00">
                                     @error('unit_price') <span class="text-danger small">{{ $message }}</span> @enderror
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-md-3" x-show="!enabled">
                                     <label class="form-label mini-label">Initial Quantity <span class="text-danger">*</span></label>
-                                    <input type="number" name="quantity" value="{{ old('quantity', 0) }}" class="form-control border-0 bg-light py-2 shadow-none @error('quantity') is-invalid @enderror" min="0" required>
+                                    <input type="number" name="quantity" :disabled="enabled" :required="!enabled" value="{{ old('quantity', 0) }}" class="form-control border-0 bg-light py-2 shadow-none @error('quantity') is-invalid @enderror" min="0">
                                     @error('quantity') <span class="text-danger small">{{ $message }}</span> @enderror
                                 </div>
                                 <div class="col-md-3">
@@ -136,12 +124,13 @@
                                     </select>
                                     @error('unit') <span class="text-danger small">{{ $message }}</span> @enderror
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-md-3" x-show="!enabled">
                                     <label class="form-label mini-label text-danger">Restock Threshold <span class="text-danger">*</span></label>
-                                    <input type="number" name="min_stock_level" value="{{ old('min_stock_level', 5) }}" class="form-control border-0 bg-danger-subtle py-2 text-danger fw-bold shadow-none @error('min_stock_level') is-invalid @enderror" min="0" required>
+                                    <input type="number" name="min_stock_level" :disabled="enabled" :required="!enabled" value="{{ old('min_stock_level', 5) }}" class="form-control border-0 bg-danger-subtle py-2 text-danger fw-bold shadow-none @error('min_stock_level') is-invalid @enderror" min="0">
                                     @error('min_stock_level') <span class="text-danger small">{{ $message }}</span> @enderror
                                 </div>
                             </div>
+                            @include('inventory.partials.combination-builder')
                         </div>
                     </div>
 
@@ -155,4 +144,5 @@
             </div>
         </div>
     </div>
+    @include('inventory.partials.combination-builder-script')
 </x-app-layout>

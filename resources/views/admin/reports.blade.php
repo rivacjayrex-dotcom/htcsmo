@@ -30,7 +30,6 @@
         </section>
 
         <section class="analytics-period-panel" aria-labelledby="periodHeading">
-            @if($errors->any())<div class="alert alert-danger" role="alert"><ul class="mb-0">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
             <form id="analyticsFilters" method="GET" action="{{ route('admin.reports.index') }}#analytics-results" class="analytics-period-form" data-dynamic-search>
                 <div><label for="analyticsPeriod">Reporting period</label><select id="analyticsPeriod" name="period" class="form-select">
                     @foreach(['current_semester' => 'Current semester', 'this_month' => 'This month', 'this_year' => 'This calendar year', 'custom' => 'Custom date range'] as $key => $label)

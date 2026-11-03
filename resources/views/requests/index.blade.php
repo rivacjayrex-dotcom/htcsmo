@@ -7,7 +7,6 @@
             <header class="personal-list-heading">
                 <div><h2>My active requests</h2></div>
             </header>
-            @if($errors->any())<div class="alert alert-warning" role="alert"><strong>Request filters were not applied.</strong> {{ $errors->first() }} <a href="{{ route('requests.index') }}">Clear filters</a></div>@endif
         @endif
         <section class="request-metrics" data-filter-region="metrics">
             <article class="request-metric total"><span><i data-lucide="layers-3"></i></span><div><strong>{{ $requestStats['total'] }}</strong><h3>All active</h3><p>Currently in the pipeline</p></div></article>

@@ -167,7 +167,7 @@ class ProfileTest extends TestCase
         ])->assertSessionHasErrors('username')->assertRedirect('/profile');
         Storage::disk('public')->assertExists('profile-photos/old.png');
         $this->assertSame('profile-photos/old.png', $user->fresh()->profile_photo);
-        $this->get('/profile')->assertSee('Please check the highlighted fields.');
+        $this->get('/profile')->assertSee('Please check your entries');
     }
 
     public function test_profile_photo_is_saved_without_submitting_read_only_fields(): void

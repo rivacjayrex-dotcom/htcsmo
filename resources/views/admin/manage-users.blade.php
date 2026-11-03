@@ -81,23 +81,7 @@
             </div>
         </div>
 
-        @if(session('success'))
-            <div class="alert alert-success border-0 shadow-sm rounded-4 d-flex align-items-center mb-4">
-                <i data-lucide="check-circle" class="me-2" style="width: 18px;"></i>
-                {{ session('success') }}
-            </div>
-        @endif
 
-        @if($errors->any())
-            <div class="alert alert-danger border-0 shadow-sm rounded-4 mb-4">
-                <div class="fw-bold mb-1">The personnel record could not be updated.</div>
-                <ul class="small mb-0">
-                    @foreach($errors->all() as $error)
-                        <li>{{ $error }}</li>
-                    @endforeach
-                </ul>
-            </div>
-        @endif
 
         <div class="row g-3 mb-4" data-filter-region="summary">
             <div class="col-md-4">

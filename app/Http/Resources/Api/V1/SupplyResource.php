@@ -12,6 +12,9 @@ class SupplyResource extends JsonResource
         return [
             'id' => $this->id,
             'item_name' => $this->item_name,
+            'size' => $this->size,
+            'supplier' => $this->supplier,
+            'attributes' => (object) $this->pricedAttributes(),
             'brand' => $this->brand,
             'category' => $this->category,
             'requisition_tier' => $this->requisition_tier,

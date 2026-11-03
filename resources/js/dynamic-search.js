@@ -222,6 +222,7 @@ export function initializeDynamicSearch(browser = window, doc = document) {
                 revealResults(updatedTarget, {typing, window: browser});
                 if (!focused?.isConnected && focused?.name && typing) root.querySelector(`[name="${focused.name}"]`)?.focus({preventScroll: true});
             }
+            browser.htcFeedback?.consume(nextDoc);
         } catch (error) {
             if (sequence !== state.sequence || browser.htcSession?.expired || error.name === 'SessionExpiredError') return;
             if (error.name === 'AbortError' && controller.signal.reason !== 'timeout') return;

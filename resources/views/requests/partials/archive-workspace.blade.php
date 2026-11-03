@@ -13,8 +13,6 @@
             <a class="btn btn-htc" href="{{ route($archiveRoute, [...$archiveFilters, 'print' => 1]) }}" target="_blank" rel="noopener"><i data-lucide="printer" aria-hidden="true"></i>Print filtered archive</a>
         </div>
     </header>
-    @if(session('success'))<p class="alert alert-success" role="status">{{ session('success') }}</p>@endif
-    @if($errors->any())<p class="alert alert-warning" role="alert"><strong>Archive filters were not applied.</strong> {{ $errors->first() }}</p>@endif
 
     <nav class="archive-categories archive-screen-only" aria-label="Archive outcomes" data-filter-region="categories" data-filter-links>
         @foreach($categoryLabels as $key => $label)

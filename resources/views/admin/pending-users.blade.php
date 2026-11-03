@@ -14,15 +14,6 @@
             </form>
         </div>
 
-        @if(session('success'))
-            <div class="alert alert-success" role="status">{{ session('success') }}</div>
-        @endif
-        @if($errors->any())
-            <div class="alert alert-danger" role="alert">
-                <strong>The request could not be processed.</strong>
-                <ul class="small mb-0 mt-1">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>
-            </div>
-        @endif
 
         <div class="row g-4">
             <div class="col-xl-9" id="registration-results" data-filter-results data-filter-region="results" data-result-count="{{ $users->total() }}" tabindex="-1" aria-label="Matching registrations">

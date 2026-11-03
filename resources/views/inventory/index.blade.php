@@ -15,15 +15,12 @@
             return [
                 'id' => $item->id,
                 'status' => $status,
-                'text' => strtolower(implode(' ', [$item->item_name, $item->brand, $item->model_number, $item->category, $item->specifications])),
+                'text' => strtolower(implode(' ', [$item->display_name, $item->brand, $item->model_number, $item->category, $item->specifications])),
             ];
         })->values();
     @endphp
 
     <div class="inventory-workspace" data-filter-workspace="inventory" x-data="inventoryWorkspace({{ Illuminate\Support\Js::from($catalogSelectionData) }})" @htc:filters-applied="syncFilters($event.detail.url)">
-        @if(session('success'))
-            <div class="alert alert-success border-0 shadow-sm mb-4 rounded-4 d-flex align-items-center gap-2"><i data-lucide="check-circle" style="width:18px"></i>{{ session('success') }}</div>
-        @endif
 
         <div class="inventory-page-header">
             <div>
@@ -99,7 +96,7 @@
                                 </span>
                                 <span class="forecast-confidence {{ $prediction['confidence'] }}">{{ ucfirst($prediction['confidence']) }} confidence</span>
                             </div>
-                            <div class="forecast-item-name">{{ $item->item_name }}</div>
+                            <div class="forecast-item-name">{{ $item->display_name }}</div>
                             <small>{{ $item->category }}</small>
                             <div class="forecast-quantity"><span>Suggested purchase</span><strong>{{ $prediction['recommended_order'] }} <em>{{ $item->unit }}</em></strong></div>
                             <div class="forecast-facts">
@@ -132,7 +129,7 @@
                            class="restock-card {{ $item->quantity <= 0 ? 'out' : 'low' }}"
                            @if($loop->index >= 4) x-cloak x-show="showAllRestock" x-transition.opacity @endif>
                             <span class="restock-status">{{ $item->quantity <= 0 ? 'Out of stock' : 'Low stock' }}</span>
-                            <strong>{{ $item->item_name }}</strong>
+                            <strong>{{ $item->display_name }}</strong>
                             <small>{{ $item->category }}</small>
                             <div><b>{{ $item->quantity }} {{ $item->unit }}</b><span>Threshold: {{ $item->min_stock_level }}</span></div>
                             <em>Update stock <i data-lucide="arrow-up-right"></i></em>
@@ -156,21 +153,21 @@
             <div class="catalog-controls">
                 <div>
                     <h5>Stock catalog</h5>
-                    <p>Out-of-stock and low-stock items always appear at the top of each list.</p>
+                    <p>One row per product. Choose a variant to view its stock, price and actions.</p>
                 </div>
                 <form id="inventoryFilters" class="inventory-filters" method="GET" action="{{ route('inventory.index') }}#inventory-results" data-dynamic-search data-filter-target="#inventory-results">
                     <input type="hidden" name="forecast_period" value="{{ $forecast['period'] }}">
-                    <div class="inventory-search"><i data-lucide="search"></i><input type="search" name="search" maxlength="100" value="{{ request('search') }}" placeholder="Search item, brand, model, category, or specifications…" aria-label="Search inventory"></div>
+                    <div class="inventory-search"><i data-lucide="search"></i><input type="search" name="search" maxlength="100" value="{{ request('search') }}" placeholder="Search item, size, supplier, brand, or specifications…" aria-label="Search inventory"></div>
                     <select name="stock" aria-label="Filter by stock status">@foreach(['all' => 'All stock', 'attention' => 'Needs attention', 'out' => 'Out of stock', 'low' => 'Low stock', 'healthy' => 'Healthy stock'] as $key => $label)<option value="{{ $key }}" @selected(request('stock', 'all') === $key)>{{ $label }}</option>@endforeach</select>
                     <a href="{{ route('inventory.index', ['forecast_period' => $forecast['period']]) }}#inventory-results" data-filter-link data-filter-region="reset" data-filter-target="#inventory-results" class="btn btn-light border">Clear</a>
                     <x-filter-submit />
                 </form>
             </div>
 
-            <div id="inventory-results" data-filter-results data-filter-region="catalog" data-filter-catalog="{{ $catalogSelectionData->whereIn('id', $catalogSupplies->pluck('id'))->values()->toJson() }}" data-result-count="{{ $catalogSupplies->count() }}" tabindex="-1" aria-label="Matching catalog items">
+            <div id="inventory-results" data-filter-results data-filter-region="catalog" data-filter-catalog="{{ $catalogSelectionData->whereIn('id', $catalogSupplies->pluck('id'))->values()->toJson() }}" data-result-count="{{ $catalogGroups->count() }}" data-result-label="products" tabindex="-1" aria-label="Matching catalog products">
             <div class="inventory-display-bar">
-                <label class="inventory-select-all"><input type="checkbox" class="inventory-select" :checked="allMatchingSelected()" :indeterminate="someMatchingSelected()" @change="toggleMatching()"> Select all matching items</label>
-                <span class="inventory-result-count">{{ $catalogSupplies->count() }} items</span>
+                <label class="inventory-select-all"><input type="checkbox" class="inventory-select" :checked="allMatchingSelected()" x-effect="$el.indeterminate = someMatchingSelected()" @change="toggleMatching()"> Select all matching variants</label>
+                <span class="inventory-result-count">{{ $catalogGroups->count() }} {{ Str::plural('product', $catalogGroups->count()) }} · {{ $catalogSupplies->count() }} {{ Str::plural('variant', $catalogSupplies->count()) }}</span>
                 <div class="inventory-layout-toggle" role="group" aria-label="Catalog layout">
                     <button type="button" :class="{ active: catalogLayout === 'tiles' }" :aria-pressed="catalogLayout === 'tiles'" @click="setCatalogLayout('tiles')"><i data-lucide="layout-grid" aria-hidden="true"></i> Tiles</button>
                     <button type="button" :class="{ active: catalogLayout === 'list' }" :aria-pressed="catalogLayout === 'list'" @click="setCatalogLayout('list')"><i data-lucide="list" aria-hidden="true"></i> List</button>
@@ -180,7 +177,7 @@
             <div class="inventory-bulk-bar" x-cloak x-show="selected.length > 0" x-transition>
                 <div>
                     <span class="bulk-count" x-text="selected.length"></span>
-                    <strong x-text="selected.length === 1 ? 'item selected' : 'items selected'"></strong>
+                    <strong x-text="selected.length === 1 ? 'variant selected' : 'variants selected'"></strong>
                     <small>Selection is kept when changing views or filters.</small>
                 </div>
                 <div class="inventory-bulk-actions">
@@ -190,7 +187,7 @@
             </div>
 
             <div class="inventory-catalog" :class="{ 'is-tiles': catalogLayout === 'tiles' }">
-                @include('inventory.partials.catalog-table', ['items' => $catalogSupplies])
+                @include('inventory.partials.catalog-table')
             </div>
             </div>
         </section>
@@ -208,7 +205,7 @@
                             <thead><tr><th scope="col">Item</th><th scope="col">On hand</th><th scope="col" class="text-end">Unit cost</th><th scope="col" class="text-end">Stock value</th></tr></thead>
                             <tbody>
                                 @forelse($supplies as $item)
-                                    <tr><td>{{ $item->item_name }}</td><td>{{ $item->quantity }} {{ $item->unit }}</td><td class="text-end">₱{{ number_format((float) $item->unit_price, 2) }}</td><td class="text-end">₱{{ number_format($item->quantity * (float) $item->unit_price, 2) }}</td></tr>
+                                    <tr><td>{{ $item->display_name }}</td><td>{{ $item->quantity }} {{ $item->unit }}</td><td class="text-end">₱{{ number_format((float) $item->unit_price, 2) }}</td><td class="text-end">₱{{ number_format($item->quantity * (float) $item->unit_price, 2) }}</td></tr>
                                 @empty
                                     <tr><td colspan="4" class="text-center">No inventory items yet.</td></tr>
                                 @endforelse
@@ -233,7 +230,7 @@
     <div class="modal fade" id="bulkDeleteModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-sm"><div class="modal-content border-0 shadow-lg rounded-4"><div class="modal-body p-4 text-center">
             <div class="delete-icon"><i data-lucide="trash-2"></i></div><h5 class="fw-bold">Remove selected items?</h5>
-            <p class="text-muted small">This removes <strong x-text="selected.length"></strong> selected <span x-text="selected.length === 1 ? 'item' : 'items'"></span> from the request catalog.</p>
+            <p class="text-muted small">This removes <strong x-text="selected.length"></strong> selected <span x-text="selected.length === 1 ? 'variant' : 'variants'"></span> from the request catalog.</p>
             <form method="POST" action="{{ route('inventory.bulk-destroy') }}">
                 @csrf
                 @method('DELETE')
@@ -304,6 +301,10 @@
         .inventory-table thead th { padding-top: var(--space-12); padding-bottom: var(--space-12); border-bottom: 1px solid #e8eeea; background: #fff; color: #8a978f; font-size: var(--text-caption); letter-spacing: var(--tracking-label); text-transform: uppercase; }.inventory-table td { padding-top: var(--space-16); padding-bottom: var(--space-16); border-color: #edf1ef; }.inventory-row:hover { background: #fafcfb; }.stock-out-row { background: #fffafa; }.stock-low-row { background: #fffdf8; }
         .inventory-item-icon { width: 40px; height: 40px; flex: 0 0 40px; display: grid; place-items: center; border-radius: 11px; }.inventory-item-icon svg { width: 19px; }.inventory-item-icon { color: #17643d; background: #e8f5ed; }.item-specification { max-width: 280px; margin-top: var(--space-4); color: #8a958f; font-size: var(--text-caption); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .inventory-category { display: inline-block; padding: var(--space-4) var(--space-8); border-radius: 999px; background: #f0f3f1; color: #536159; font-size: var(--text-caption); font-weight: 700; }.option-preview { display: flex; flex-direction: column; gap: .15rem; margin-top: var(--space-8); color: #859189; font-size: var(--text-caption); }
+        .inventory-product-identity { min-width: 0; width: 100%; max-width: 360px; }
+        .inventory-variant-label { display: block; margin-top: var(--space-4); margin-bottom: var(--space-4); color: #738078; font-size: var(--text-caption); }
+        .inventory-variant-picker { width: 100%; max-width: 360px; min-height: 36px; font-size: var(--text-caption); border-color: #dce4df; background-color: #f9fbfa; }
+        .inventory-variant-summary { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; max-width: 240px; }
         .inventory-select-cell { width: 44px; text-align: center; }.inventory-select { width: 17px; height: 17px; cursor: pointer; accent-color: var(--htc-green); }.inventory-row.is-selected { background: #f0f8f3; box-shadow: inset 3px 0 #237149; }
         .inventory-bulk-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-16); padding: var(--space-12) var(--space-24); border-top: 1px solid #d8e7dd; border-bottom: 1px solid #d8e7dd; background: #f1f8f4; }.inventory-bulk-bar > div:first-child { display: flex; align-items: center; gap: var(--space-8); }.inventory-bulk-bar strong { color: #294638; font-size: var(--text-caption); }.inventory-bulk-bar small { margin-left: var(--space-4); color: #78877f; font-size: var(--text-caption); }.bulk-count { min-width: 27px; height: 27px; display: inline-grid; place-items: center; padding: 0 var(--space-8); border-radius: 999px; background: var(--htc-green); color: #fff; font-size: var(--text-caption); font-weight: 900; }.inventory-bulk-actions { display: flex; gap: var(--space-8); }.inventory-bulk-actions .btn { min-height: 34px; padding: var(--space-8) var(--space-12); border-radius: 8px; font-size: var(--text-caption); font-weight: 800; }.bulk-clear { border: 1px solid #ccdbd1; color: #52675a; background: #fff; }.bulk-delete { display: inline-flex; align-items: center; gap: var(--space-4); color: #fff; background: #b82f38; }.bulk-delete:hover { color: #fff; background: #9f222b; }.bulk-delete svg { width: 13px; }
         .stock-badge { display: inline-flex; align-items: center; gap: var(--space-4); padding: var(--space-4) var(--space-8); border-radius: 999px; font-size: var(--text-caption); font-weight: 800; }.stock-badge svg { width: 13px; }.stock-badge.out { color: #ac2730; background: #fde9ea; }.stock-badge.low { color: #96610a; background: #fff0cc; }.stock-badge.healthy { color: #17643d; background: #e5f5eb; }.stock-threshold { display: block; margin-top: var(--space-4); color: #9aa39e; font-size: var(--text-caption); }
@@ -388,7 +389,7 @@
         .inventory-catalog.is-tiles .inventory-table tbody td.inventory-primary > * { justify-self: auto; }
         .inventory-catalog.is-tiles .inventory-table tbody td[colspan] { display: block; }
         .inventory-catalog.is-tiles .inventory-table tbody td[colspan]::before { display: none; }
-        .inventory-catalog.is-tiles .inventory-table tbody td.inventory-select-cell { display: flex; justify-content: flex-end; width: 100%; }.inventory-catalog.is-tiles .inventory-table tbody td.inventory-select-cell::before { content: 'Select item'; margin-right: auto; }.inventory-catalog.is-tiles .inventory-table tbody td.inventory-select-cell .inventory-select { justify-self: auto; }
+        .inventory-catalog.is-tiles .inventory-table tbody td.inventory-select-cell { display: flex; justify-content: flex-end; width: 100%; }.inventory-catalog.is-tiles .inventory-table tbody td.inventory-select-cell::before { content: 'Select variants'; margin-right: auto; }.inventory-catalog.is-tiles .inventory-table tbody td.inventory-select-cell .inventory-select { justify-self: auto; }
         .inventory-catalog.is-tiles .item-specification { max-width: 100%; white-space: normal; }
         .inventory-catalog.is-tiles .option-preview { align-items: flex-end; }
         .inventory-catalog.is-tiles .inventory-row-actions { justify-content: flex-end; }
@@ -409,6 +410,16 @@
     @endPushOnce
 
     <script>
+        function inventoryProductRow(variants) {
+            return {
+                variants,
+                chosenId: variants[0]?.id,
+                get matchingVariants() { return this.variants.filter(variant => this.matches(variant.text, variant.status)); },
+                get variantIds() { return this.matchingVariants.map(variant => variant.id); },
+                get activeVariant() { return this.matchingVariants.find(variant => variant.id === this.chosenId) || this.matchingVariants[0] || this.variants[0]; },
+            };
+        }
+
         function inventoryWorkspace(catalog) {
             return {
                 query: new URL(window.location.href).searchParams.get('search') || '',
@@ -447,15 +458,19 @@
                         .map(item => item.id);
                 },
                 allMatchingSelected() {
-                    const ids = this.matchingIds();
-                    return ids.length > 0 && ids.every(id => this.selected.includes(id));
+                    return this.allSelected(this.matchingIds());
                 },
                 someMatchingSelected() {
                     const ids = this.matchingIds();
-                    return ids.some(id => this.selected.includes(id)) && !ids.every(id => this.selected.includes(id));
+                    return this.someSelected(ids) && !this.allSelected(ids);
                 },
                 toggleMatching() {
-                    const ids = this.matchingIds();
+                    this.toggleIds(this.matchingIds());
+                },
+                allSelected(ids) { return ids.length > 0 && ids.every(id => this.selected.includes(id)); },
+                someSelected(ids) { return ids.some(id => this.selected.includes(id)); },
+                formatMoney(value) { return Number(value || 0).toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2}); },
+                toggleIds(ids) {
                     if (ids.every(id => this.selected.includes(id))) {
                         this.selected = this.selected.filter(id => !ids.includes(id));
                     } else {
