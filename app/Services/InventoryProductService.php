@@ -51,7 +51,7 @@ class InventoryProductService
         ], JSON_THROW_ON_ERROR));
     }
 
-    /** @return array{variants: Collection, before: array} */
+    /** @return array{variants: Collection, before: array, removed: int} */
     public function update(User $user, Supply $anchor, array $input): array
     {
         return DB::transaction(function () use ($user, $anchor, $input) {
@@ -66,11 +66,19 @@ class InventoryProductService
                 throw ValidationException::withMessages(['item_name' => 'Another product already uses this name and category. Choose a different name.']);
             }
             $linked = RequisitionItem::whereIn('supply_id', $existing->keys())->pluck('supply_id')->flip();
-            $prepared = $seen = $before = [];
+            $prepared = $seen = $before = $removed = [];
             foreach ($input['variants'] as $index => $row) {
                 $supply = filled($row['id'] ?? null) ? $existing->get((int) $row['id']) : null;
                 if ($supply && ! hash_equals($this->version($supply), $row['version'] ?? '')) {
                     throw ValidationException::withMessages(["variants.{$index}.quantity" => 'Variant '.($index + 1).' changed while this form was open. Reload to use the latest stock and prices.']);
+                }
+                if ($row['remove'] ?? false) {
+                    if (! $supply) {
+                        throw ValidationException::withMessages(["variants.{$index}.id" => 'Only saved variants can be marked for removal.']);
+                    }
+                    $removed[] = $supply;
+
+                    continue;
                 }
                 try {
                     $data = $this->prepare($row, $supply, $input, $categoryId, $supply && $linked->has($supply->id));
@@ -87,6 +95,9 @@ class InventoryProductService
                 }
                 $seen[$key] = true;
                 $prepared[] = compact('supply', 'data');
+            }
+            foreach ($removed as $supply) {
+                $supply->delete();
             }
             $updated = collect();
             foreach ($prepared as ['supply' => $supply, 'data' => $data]) {
@@ -110,7 +121,7 @@ class InventoryProductService
                 $updated->push($supply->fresh(['supplyUnit', 'options.values']));
             }
 
-            return ['variants' => $updated, 'before' => $before];
+            return ['variants' => $updated, 'before' => $before, 'removed' => count($removed)];
         });
     }
 

@@ -194,6 +194,104 @@ class InventoryProductEditTest extends TestCase
         $this->assertSame(92, $this->legacy->fresh()->quantity);
     }
 
+    public function test_saved_variant_removal_preserves_history_and_saves_other_variant_edits(): void
+    {
+        $request = Requisition::create(['user_id' => $this->smo->id, 'request_type' => 'minor', 'purpose' => 'Paper for official operations', 'status' => 'completed', 'grand_total' => 190]);
+        $line = $request->items()->create(['supply_id' => $this->fixed->id, 'item_name' => 'Bond Paper', 'size' => 'A4', 'supplier' => 'Starbright', 'quantity' => 1, 'unit' => 'Ream(s)', 'unit_price' => 190, 'subtotal' => 190]);
+        $log = SupplyInventoryLog::create(['supply_id' => $this->fixed->id, 'user_id' => $this->smo->id, 'transaction_type' => 'manual_adjustment', 'quantity_change' => 12, 'balance_after' => 12]);
+        $payload = $this->payload();
+        $payload['variants'][0]['unit_price'] = 165;
+        $payload['variants'][1] = ['id' => $this->fixed->id, 'version' => $payload['variants'][1]['version'], 'remove' => '1'];
+
+        $this->patch(route('inventory.products.update', $this->legacy), $payload)
+            ->assertSessionHasNoErrors()->assertRedirect(route('inventory.index'))
+            ->assertSessionHas('success', 'Product changes saved. 1 variant removed.');
+
+        $this->assertSoftDeleted($this->fixed);
+        $this->assertSame('165.00', $this->legacy->fresh()->unit_price);
+        $this->assertNotSoftDeleted($this->other);
+        $this->assertEquals(190, $line->fresh()->unit_price);
+        $this->assertSame($this->fixed->id, $line->fresh()->supply->id);
+        $this->assertSame($this->fixed->id, $log->fresh()->supply->id);
+        $this->assertSame(12, $log->fresh()->balance_after);
+        $this->getJson(route('api.requisition-catalog'))->assertJsonMissing(['id' => $this->fixed->id]);
+        $page = $this->get(route('inventory.products.edit', $this->legacy))->assertOk();
+        $this->assertCount(1, $page->viewData('rows'));
+    }
+
+    public function test_marking_all_variants_for_removal_removes_the_product_from_active_inventory(): void
+    {
+        $payload = $this->payload();
+        foreach ($payload['variants'] as &$row) {
+            $row = ['id' => $row['id'], 'version' => $row['version'], 'remove' => 1];
+        }
+        unset($row);
+        $this->patch(route('inventory.products.update', $this->legacy), $payload)
+            ->assertSessionHasNoErrors()->assertRedirect(route('inventory.index'));
+        $this->assertSoftDeleted($this->legacy);
+        $this->assertSoftDeleted($this->fixed);
+        $this->assertNotSoftDeleted($this->other);
+        $this->assertSame(1, Supply::count());
+        $this->get(route('inventory.products.edit', $this->legacy))->assertNotFound();
+    }
+
+    public function test_an_invalid_remaining_variant_prevents_any_removals(): void
+    {
+        $payload = $this->payload();
+        $payload['variants'][0]['remove'] = 1;
+        $payload['variants'][1]['quantity'] = -1;
+        $this->patch(route('inventory.products.update', $this->legacy), $payload)->assertSessionHasErrors('variants.1.quantity');
+        $this->assertNotSoftDeleted($this->legacy);
+        $this->assertNotSoftDeleted($this->fixed);
+    }
+
+    public function test_a_stale_form_cannot_remove_a_variant_whose_stock_has_changed(): void
+    {
+        $payload = $this->payload();
+        $payload['variants'][1]['remove'] = 1;
+        $payload['variants'][0]['unit_price'] = 165;
+        $this->fixed->decrement('quantity', 1);
+        $this->patch(route('inventory.products.update', $this->legacy), $payload)->assertSessionHasErrors('variants.1.quantity');
+        $this->assertNotSoftDeleted($this->fixed);
+        $this->assertSame('150.00', $this->legacy->fresh()->unit_price);
+    }
+
+    public function test_removal_requires_an_existing_variant_from_this_product_and_its_version(): void
+    {
+        $payload = $this->payload();
+        $payload['variants'][1] = ['id' => $this->other->id, 'version' => $payload['variants'][1]['version'], 'remove' => 1];
+        $this->patch(route('inventory.products.update', $this->legacy), $payload)->assertSessionHasErrors('variants');
+        $payload = $this->payload();
+        $payload['variants'][1] = ['id' => $this->fixed->id, 'remove' => 1];
+        $this->patch(route('inventory.products.update', $this->legacy), $payload)->assertSessionHasErrors('variants.1.quantity');
+        $payload = $this->payload();
+        $payload['variants'][] = ['id' => null, 'remove' => 1];
+        $this->patch(route('inventory.products.update', $this->legacy), $payload)->assertSessionHasErrors('variants.2.id');
+        $this->assertSame(3, Supply::count());
+    }
+
+    public function test_a_save_failure_restores_variants_marked_for_removal(): void
+    {
+        $payload = $this->payload();
+        $payload['variants'][0]['remove'] = 1;
+        $payload['variants'][1]['quantity'] = 5;
+        $events = SupplyInventoryLog::getEventDispatcher();
+        SupplyInventoryLog::setEventDispatcher(clone $events);
+        SupplyInventoryLog::creating(fn () => throw new \RuntimeException('Simulated movement log failure'));
+        $this->withoutExceptionHandling();
+        try {
+            $this->patch(route('inventory.products.update', $this->legacy), $payload);
+            $this->fail('Expected the movement log to fail.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('Simulated movement log failure', $exception->getMessage());
+        } finally {
+            SupplyInventoryLog::setEventDispatcher($events);
+        }
+        $this->assertNotSoftDeleted($this->legacy);
+        $this->assertNotSoftDeleted($this->fixed);
+        $this->assertSame(12, $this->fixed->fresh()->quantity);
+    }
+
     private function payload(): array
     {
         $page = $this->get(route('inventory.products.edit', $this->legacy))->assertOk();

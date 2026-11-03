@@ -20,8 +20,15 @@ test('one product form holds independent prices and stock for all existing varia
     assert.equal(editor.rows[0].quantity, 12);
     assert.equal(originals[0].unit_price, '190.00');
     assert.equal(editor.rows[0].version, 'version-1');
-    editor.removeNewVariant(0);
-    assert.equal(editor.rows.length, 2, 'Existing variants cannot disappear from a product save.');
+    editor.removeVariant(0);
+    assert.equal(editor.rows.length, 2, 'Saved rows retain their ID and version until the whole product is saved.');
+    assert.equal(editor.rows[0].remove, true);
+    assert.equal(editor.removalCount, 1);
+    assert.match(editor.saveConfirmation, /remove 1 marked variant/);
+    editor.removeVariant(0);
+    assert.equal(editor.rows[0].remove, false);
+    assert.equal(editor.rows[0].unit_price, '200.00', 'Undo preserves unsaved edits.');
+    assert.equal(editor.removalCount, 0);
 });
 
 test('copying creates a separate new variant without copying the stock quantity or request link', () => {
@@ -35,7 +42,7 @@ test('copying creates a separate new variant without copying the stock quantity 
     assert.equal(copy.unit_price, '190.00');
     copy.options[0].values = 'PaperOne';
     assert.equal(editor.rows[0].options[0].values, 'Hard Copy');
-    editor.removeNewVariant(2);
+    editor.removeVariant(2);
     editor.addVariant();
     assert.notEqual(editor.rows[2].key, copy.key);
     assert.equal(editor.rows[2].unit, 'Ream(s)');
@@ -45,8 +52,12 @@ test('a validation return restores entered values and keeps authoritative identi
     const previous = initial();
     previous[0].unit_price = '205.50';
     previous[0].locked = false;
+    previous[0].remove = '1';
+    previous[1].remove = '0';
     const editor = createEditor(initial(), previous);
     assert.equal(editor.rows[0].unit_price, '205.50');
     assert.equal(editor.rows[0].locked, true);
     assert.equal(editor.rows[0].detailsOpen, true);
+    assert.equal(editor.rows[0].remove, true);
+    assert.equal(editor.rows[1].remove, false);
 });

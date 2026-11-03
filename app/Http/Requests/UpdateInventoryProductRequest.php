@@ -13,14 +13,15 @@ class UpdateInventoryProductRequest extends FormRequest
 
     public function rules(): array
     {
-        return [
+        $rules = [
             'item_name' => 'required|string|max:255',
             'category' => 'required|exists:supply_categories,category_name',
             'apply_description' => 'sometimes|boolean',
             'shared_specifications' => 'exclude_unless:apply_description,1|required|string|min:3|max:10000',
             'variants' => 'required|array|min:1|max:100',
-            'variants.*.id' => 'nullable|integer|min:1|distinct',
+            'variants.*.id' => 'required_if:variants.*.remove,1|nullable|integer|min:1|distinct',
             'variants.*.version' => 'nullable|string|size:64',
+            'variants.*.remove' => 'sometimes|boolean',
             'variants.*.size' => 'nullable|string|max:100',
             'variants.*.supplier' => 'nullable|string|max:255',
             'variants.*.unit' => 'required|string|max:50',
@@ -33,5 +34,14 @@ class UpdateInventoryProductRequest extends FormRequest
             'variants.*.options.*.name' => ['required', 'string', 'max:50', 'regex:/^[A-Za-z0-9 _-]+$/'],
             'variants.*.options.*.values' => 'required|string|max:500',
         ];
+
+        // Removed rows retain their identity and version, but need no editable fields.
+        foreach ($rules as $field => $rule) {
+            if (str_starts_with($field, 'variants.*.') && ! in_array($field, ['variants.*.id', 'variants.*.version', 'variants.*.remove'], true)) {
+                $rules[$field] = ['exclude_if:variants.*.remove,1', ...(is_array($rule) ? $rule : explode('|', $rule))];
+            }
+        }
+
+        return $rules;
     }
 }

@@ -234,7 +234,14 @@ class SupplyController extends Controller
             }
         }
 
-        return redirect()->route('inventory.index')->with('success', 'Product and all '.$result['variants']->count().' variants saved.'.($warning ? ' Some stock alerts could not be sent.' : ''));
+        $message = 'Product and all '.$result['variants']->count().' variants saved.';
+        if ($result['removed']) {
+            $message = $result['variants']->isEmpty()
+                ? 'Product removed from inventory.'
+                : 'Product changes saved. '.$result['removed'].' '.($result['removed'] === 1 ? 'variant removed.' : 'variants removed.');
+        }
+
+        return redirect()->route('inventory.index')->with('success', $message.($warning ? ' Some stock alerts could not be sent.' : ''));
     }
 
     /**

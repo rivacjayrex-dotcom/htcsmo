@@ -65,7 +65,7 @@
                             <div class="catalog-heading">
                                 <div><h5 class="fw-bold mb-1" x-text="tierLabel + ' catalog'"></h5><p class="text-muted small mb-0">Curated and maintained by the SMO in-charge.</p></div>
                                 <div class="catalog-display-controls">
-                                    <span class="small text-muted" x-text="filteredItems.length + ' available'" aria-live="polite"></span>
+                                    <span class="small text-muted" x-text="filteredProducts.length + ' available'" aria-live="polite"></span>
                                     <div class="catalog-layout-toggle" role="group" aria-label="Catalog layout">
                                         <button type="button" :class="{ active: catalogLayout === 'grid' }" :aria-pressed="catalogLayout === 'grid'" @click="setCatalogLayout('grid')"><i data-lucide="layout-grid" aria-hidden="true"></i> Grid</button>
                                         <button type="button" :class="{ active: catalogLayout === 'list' }" :aria-pressed="catalogLayout === 'list'" @click="setCatalogLayout('list')"><i data-lucide="list" aria-hidden="true"></i> List</button>
@@ -74,17 +74,17 @@
                             </div>
 
                             <div class="catalog-grid" :class="{ 'is-list': catalogLayout === 'list' }">
-                                <template x-for="item in filteredItems" :key="item.id">
-                                    <button type="button" class="product-card" @click="openProduct(item)">
-                                        <span class="product-visual"><i data-lucide="package"></i><em x-text="item.category"></em></span>
+                                <template x-for="product in filteredProducts" :key="product.key">
+                                    <button type="button" class="product-card" @click="openProduct(product.item)">
+                                        <span class="product-visual"><i data-lucide="package"></i><em x-text="product.category"></em></span>
                                         <span class="product-body">
-                                            <small x-text="brandCaption(item)"></small><strong x-text="item.name"></strong><span class="product-spec" x-text="variantCaption(item)"></span><span class="product-spec" x-text="item.specs"></span>
-                                            <span class="product-meta"><b x-text="'₱' + formatMoney(item.price)"></b><em x-text="item.stock + ' ' + item.unit + ' available'"></em></span>
+                                            <small x-text="product.variants.length > 1 ? product.variants.length + ' variants available' : brandCaption(product.item)"></small><strong x-text="product.name"></strong><span class="product-spec" x-text="product.variants.length > 1 ? 'Choose your preferred options' : variantCaption(product.item)"></span><span class="product-spec" x-show="product.variants.length === 1" x-text="product.item.specs"></span>
+                                            <span class="product-meta"><b x-text="(product.hasPriceRange ? 'From ' : '') + '₱' + formatMoney(product.price)"></b><em x-text="product.stockSummary"></em></span>
                                         </span>
                                     </button>
                                 </template>
                             </div>
-                            <div x-cloak x-show="!catalogLoading && !catalogError && filteredItems.length === 0" class="empty-catalog"><i data-lucide="package-search"></i><strong>No matching items</strong><span>Try another search or category. Only SMO-listed items appear here.</span></div>
+                            <div x-cloak x-show="!catalogLoading && !catalogError && filteredProducts.length === 0" class="empty-catalog"><i data-lucide="package-search"></i><strong>No matching items</strong><span>Try another search or category. Only SMO-listed items appear here.</span></div>
                         </div>
 
                         <div x-cloak x-show="view === 'product' && selectedItem" x-transition class="product-configurator">
@@ -97,12 +97,6 @@
                                     <div class="text-muted mb-3" x-text="selectedItem?.options?.Brand?.length > 1 ? 'Choose your preferred brand and specifications' : selectedItem?.brand"></div>
                                     <h4 class="text-success fw-bold" x-text="'₱' + formatMoney(selectedItem?.price)"></h4>
                                     <p class="product-description" x-text="selectedItem?.specs"></p>
-                                    <div class="option-group" x-show="productVariants.length > 1">
-                                        <label for="request-stock-variant">Available combination</label>
-                                        <select id="request-stock-variant" class="form-select" :value="selectedItem?.id" @change="openProduct(productVariants.find(item => item.id === Number($event.target.value)))">
-                                            <template x-for="variant in productVariants" :key="variant.id"><option :value="variant.id" :selected="variant.id === selectedItem?.id" x-text="(variantCaption(variant) || 'Standard') + ' — ₱' + formatMoney(variant.price) + ' / ' + variant.unit + ' — ' + variant.stock + ' available'"></option></template>
-                                        </select>
-                                    </div>
                                     <p class="small text-muted" x-text="variantCaption(selectedItem)"></p>
                                     <template x-for="dimension in variantDimensions" :key="dimension.name">
                                         <div class="option-group" x-show="dimension.values.length > 1">

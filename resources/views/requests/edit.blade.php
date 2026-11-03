@@ -33,7 +33,17 @@
                                     <div><span class="badge bg-success-subtle text-success mb-2" x-text="selectedItem?.category"></span><h5 class="fw-bold mb-1" x-text="selectedItem?.name"></h5><p class="small text-muted mb-0" x-text="selectedItem?.specs || 'Standard specification'"></p></div>
                                     <button type="button" class="btn-close" @click="cancelConfigure()" aria-label="Close item configuration"></button>
                                 </div>
-                                <template x-for="(choices, label) in (selectedItem?.options || {})" :key="label">
+                                <template x-for="dimension in variantDimensions" :key="dimension.name">
+                                    <div class="mb-3" x-show="dimension.values.length > 1">
+                                        <label class="form-label mini-label" x-text="dimension.name"></label>
+                                        <div class="d-flex flex-wrap gap-2" role="group" :aria-label="dimension.name">
+                                            <template x-for="value in dimension.values" :key="value">
+                                                <button type="button" class="btn btn-sm btn-outline-success" :class="{active: variantValue(selectedItem, dimension.name) === value}" :aria-pressed="variantValue(selectedItem, dimension.name) === value" @click="chooseVariant(dimension.name, value)" x-text="value || 'Standard'"></button>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </template>
+                                <template x-for="(choices, label) in customizationOptions" :key="label">
                                     <div class="mb-3"><label class="form-label mini-label" x-text="label"></label><select class="form-select" x-model="selectedOptions[label]"><option value="">Select an option</option><template x-for="choice in choices" :key="choice"><option :value="choice" x-text="choice"></option></template></select></div>
                                 </template>
                                 <p class="small text-muted" x-text="variantCaption(selectedItem)"></p>
@@ -45,14 +55,14 @@
                             </div>
 
                             <div class="catalog-grid">
-                                <template x-for="item in filteredCatalog" :key="item.id">
-                                    <button type="button" class="catalog-item" :disabled="item.stock < 1" @click="configureItem(item)">
-                                        <span><small x-text="item.category"></small><strong x-text="item.name"></strong><em x-text="variantCaption(item)"></em><em x-text="item.specs || 'Standard specification'"></em></span>
-                                        <span class="text-end"><b x-text="'PHP ' + money(item.price)"></b><small x-text="item.stock + ' ' + item.unit + ' available'"></small></span>
+                                <template x-for="product in filteredProducts" :key="product.key">
+                                    <button type="button" class="catalog-item" :disabled="product.stock < 1" @click="configureItem(product.item)">
+                                        <span><small x-text="product.category"></small><strong x-text="product.name"></strong><em x-text="product.variants.length > 1 ? product.variants.length + ' variants · Choose options' : variantCaption(product.item)"></em><em x-show="product.variants.length === 1" x-text="product.item.specs || 'Standard specification'"></em></span>
+                                        <span class="text-end"><b x-text="(product.hasPriceRange ? 'From ' : '') + 'PHP ' + money(product.price)"></b><small x-text="product.stockSummary"></small></span>
                                     </button>
                                 </template>
                             </div>
-                            <div x-cloak x-show="filteredCatalog.length === 0" class="text-center text-muted py-5">No catalog items match your search.</div>
+                            <div x-cloak x-show="filteredProducts.length === 0" class="text-center text-muted py-5">No catalog items match your search.</div>
                         </div>
                     </div>
                 </section>
@@ -141,6 +151,23 @@
                     this.selectedOptions = Object.fromEntries(Object.entries(item.options || {}).filter(([, choices]) => choices.length === 1).map(([label, choices]) => [label, choices[0]]));
                     this.selectedQty = 1; this.editingIndex = null;
                 },
+                variantValue(item, label) {
+                    if (label === 'Size') return item?.size || '';
+                    if (label === 'Supplier') return item?.supplier || '';
+                    return item?.attributes?.[label] || '';
+                },
+                chooseVariant(label, value) {
+                    const dimensions = this.variantDimensions.map(dimension => dimension.name);
+                    const preceding = dimensions.slice(0, dimensions.indexOf(label));
+                    const candidates = this.productVariants.filter(item => this.variantValue(item, label) === value
+                        && preceding.every(name => this.variantValue(item, name) === this.variantValue(this.selectedItem, name)));
+                    const score = item => dimensions.reduce((sum, name) => sum + (this.variantValue(item, name) === this.variantValue(this.selectedItem, name) ? 1 : 0), 0);
+                    candidates.sort((a, b) => score(b) - score(a));
+                    const item = candidates[0];
+                    if (!item) return;
+                    this.selectedItem = item;
+                    this.selectedOptions = Object.fromEntries(Object.entries(item.options || {}).filter(([, choices]) => choices.length === 1).map(([label, choices]) => [label, choices[0]]));
+                },
                 configureCartItem(index) {
                     const item = this.cart[index];
                     this.selectedItem = this.catalog.find(entry => entry.id === item.id) || item;
@@ -165,6 +192,19 @@
                 money(value) { return Number(value || 0).toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2}); },
                 refreshIcons() { window.setTimeout(() => window.lucide?.createIcons(), 20); },
                 get filteredCatalog() { const term = this.search.trim().toLowerCase(); return this.catalog.filter(item => !term || `${item.name} ${this.variantCaption(item)} ${item.category} ${item.brand || ''} ${item.specs || ''}`.toLowerCase().includes(term)); },
+                get filteredProducts() { return groupRequisitionProducts(this.catalog, this.filteredCatalog); },
+                get productVariants() { return this.selectedItem ? this.catalog.filter(item => requisitionProductKey(item) === requisitionProductKey(this.selectedItem)) : []; },
+                get variantDimensions() {
+                    const variants = this.productVariants;
+                    const names = [...new Set(variants.flatMap(item => Object.keys(item.attributes || {})))];
+                    if (variants.some(item => item.size)) names.push('Size');
+                    if (variants.some(item => item.supplier)) names.push('Supplier');
+                    return names.map((name, index) => {
+                        const compatible = variants.filter(item => names.slice(0, index).every(label => this.variantValue(item, label) === this.variantValue(this.selectedItem, label)));
+                        return {name, values: [...new Set(compatible.map(item => this.variantValue(item, name)))]};
+                    });
+                },
+                get customizationOptions() { return Object.fromEntries(Object.entries(this.selectedItem?.options || {}).filter(([name]) => !(name in (this.selectedItem?.attributes || {})))); },
                 get allOptionsSelected() { return this.selectedItem && Object.keys(this.selectedItem.options || {}).every(label => this.selectedOptions[label]); },
                 get canSaveConfigured() { return this.allOptionsSelected && this.selectedQty >= 1 && this.selectedQty <= (this.selectedItem?.stock || 0); },
                 get grandTotal() { return this.cart.reduce((total, item) => total + (Number(item.qty) * Number(item.price)), 0); },

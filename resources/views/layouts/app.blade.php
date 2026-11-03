@@ -653,6 +653,8 @@
             };
         }
 
+        @include('layouts.partials.requisition-products-script')
+
         // Cart Engine
         function cartSystem() {
             const previousRequest = {{ Illuminate\Support\Js::from([
@@ -764,7 +766,7 @@
                 },
 
                 catalogCount() {
-                    return this.catalog.length;
+                    return groupRequisitionProducts(this.catalog).length;
                 },
 
                 setTier(tier) {
@@ -961,8 +963,11 @@
                 get allOptionsSelected() {
                     return this.selectedItem && Object.keys(this.selectedItem.options || {}).every(label => this.selectedOptions[label]);
                 },
+                get filteredProducts() {
+                    return groupRequisitionProducts(this.catalog, this.filteredItems);
+                },
                 get productVariants() {
-                    return this.selectedItem ? this.catalog.filter(item => item.name === this.selectedItem.name && item.category === this.selectedItem.category) : [];
+                    return this.selectedItem ? this.catalog.filter(item => requisitionProductKey(item) === requisitionProductKey(this.selectedItem)) : [];
                 },
                 get variantDimensions() {
                     const variants = this.productVariants;

@@ -4,6 +4,7 @@ import test from 'node:test';
 import vm from 'node:vm';
 
 const layout = readFileSync(new URL('../../resources/views/layouts/app.blade.php', import.meta.url), 'utf8');
+const productGrouping = readFileSync(new URL('../../resources/views/layouts/partials/requisition-products-script.blade.php', import.meta.url), 'utf8');
 const source = layout.slice(layout.indexOf('function cartSystem()'), layout.indexOf('const requisitionModal ='))
     .replace(/const previousRequest = [\s\S]*?;\r?\n/, 'const previousRequest = {};\n')
     .replace("@json(route('api.requisition-catalog'))", "'/api/requisition-catalog'");
@@ -28,7 +29,7 @@ function cart({ saved, blocked = false, confirm = async () => false } = {}) {
             return { hide() { hides++; } };
         } } },
     };
-    const engine = vm.runInNewContext(`(${source})()`, { localStorage: storage, window });
+    const engine = vm.runInNewContext(`${productGrouping}\n(${source})()`, { localStorage: storage, window });
     engine.$refs = {};
     engine.$nextTick = callback => callback();
     engine.init();
@@ -99,6 +100,76 @@ test('different options share the stock limit within one size and supplier', () 
     assert.equal(engine.canAddProduct, true);
     engine.addConfiguredItem();
     assert.equal(engine.remainingStock(item), 0);
+});
+
+test('each product has one card in both tiers, including five Bond Paper variants and other products', () => {
+    const { engine } = cart();
+    engine.refreshIcons = () => {};
+    engine.catalog = [
+        ...[150, 160.15, 190, 190, 190].map((price, index) => ({
+            id: index + 1, name: index === 4 ? ' bond paper ' : 'Bond Paper', category: 'Office',
+            size: index % 2 ? 'A4' : 'Legal', supplier: 'Supplier ' + index,
+            price, stock: index === 0 ? 92 : 12, unit: 'Ream(s)', options: {},
+        })),
+        { id: 6, name: 'Pants', category: 'Clothing', price: 400, stock: 5, unit: 'Piece(s)', options: {} },
+        { id: 7, name: 'Pants', category: 'Clothing', price: 650, stock: 10, unit: 'Piece(s)', options: {} },
+    ];
+    for (const tier of ['minor', 'major']) {
+        engine.setTier(tier);
+        assert.equal(engine.catalogCount(), 2);
+        assert.deepEqual(Array.from(engine.filteredProducts, product => product.name), ['Bond Paper', 'Pants']);
+        const paper = engine.filteredProducts[0];
+        assert.equal(paper.variants.length, 5);
+        assert.equal(paper.price, 150);
+        assert.equal(paper.hasPriceRange, true);
+        assert.equal(paper.stockSummary, '140 Ream(s) available');
+        engine.openProduct(paper.item);
+        assert.equal(engine.productVariants.length, 5);
+        engine.openProduct(engine.productVariants.find(item => item.id === 2));
+        engine.addConfiguredItem();
+        engine.openProduct(engine.filteredProducts[0].item);
+        engine.addConfiguredItem();
+        assert.deepEqual(Array.from(engine.cart, item => item.id), [2, 1]);
+        assert.equal(engine.grandTotal, 310.15);
+        assert.equal(engine.filteredProducts.length, 2, 'Adding variants never creates additional product cards.');
+    }
+});
+
+test('search finds a matching variant once while retaining all selections inside the product', () => {
+    const { engine } = cart();
+    engine.refreshIcons = () => {};
+    engine.catalog = [
+        { id: 1, name: 'Paper', category: 'Office', size: 'A4', supplier: 'A', price: 150, stock: 4, unit: 'Ream(s)', options: {} },
+        { id: 2, name: 'Paper', category: 'Office', size: 'Letter', supplier: 'B', price: 175, stock: 8, unit: 'Ream(s)', options: {} },
+        { id: 3, name: 'Paper', category: 'Office', size: 'Letter', supplier: 'C', price: 200, stock: 3, unit: 'Ream(s)', options: {} },
+        { id: 4, name: 'Paper', category: 'Crafts', price: 25, stock: 10, unit: 'Pack(s)', options: {} },
+    ];
+    const productKey = engine.filteredProducts[0].key;
+    engine.search = 'letter';
+    assert.equal(engine.filteredProducts.length, 1);
+    const product = engine.filteredProducts[0];
+    assert.equal(product.key, productKey);
+    assert.equal(product.item.id, 2);
+    engine.openProduct(product.item);
+    assert.deepEqual(Array.from(engine.productVariants, item => item.id), [1, 2, 3]);
+    engine.search = '';
+    engine.category = 'Crafts';
+    assert.equal(engine.filteredProducts.length, 1);
+    assert.equal(engine.filteredProducts[0].item.id, 4, 'Same names in different categories remain distinct products.');
+    assert.equal(engine.filteredProducts[0].hasPriceRange, false);
+    engine.search = 'missing';
+    assert.equal(engine.filteredProducts.length, 0);
+});
+
+test('grouped cards do not add quantities measured in different units', () => {
+    const { engine } = cart();
+    engine.catalog = [
+        { id: 1, name: 'Paper', category: 'Office', price: 150, stock: 4, unit: 'Ream(s)' },
+        { id: 2, name: 'Paper', category: 'Office', price: 150, stock: 8, unit: 'Box(es)' },
+    ];
+    assert.equal(engine.filteredProducts.length, 1);
+    assert.equal(engine.filteredProducts[0].stockSummary, 'Stock varies by option');
+    assert.equal(engine.filteredProducts[0].hasPriceRange, false);
 });
 
 test('style and size buttons resolve real combinations and update price, attributes and stock together', () => {
