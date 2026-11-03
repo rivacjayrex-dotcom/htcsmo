@@ -349,7 +349,6 @@ test('a new employee request updates the open notification center and shows the 
         assert.equal(options.history, 'none');
         refreshes++;
         feed.innerHTML = 'New Requisition Submitted';
-        feed.scrollTop = 0;
     }};
     const template = readFileSync(new URL('../../resources/views/notifications.blade.php', import.meta.url), 'utf8');
     vm.runInContext(template.slice(template.indexOf('<script>') + 8, template.lastIndexOf('</script>')), context);

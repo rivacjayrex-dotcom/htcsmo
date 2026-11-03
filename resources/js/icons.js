@@ -144,7 +144,7 @@ import {
     X,
     XCircle,
     Zap,
-} from 'lucide';
+} from "lucide";
 
 const icons = {
     AlarmClock,
@@ -293,5 +293,7 @@ const icons = {
 };
 
 // Preserve the API used by Alpine components and live workspace replacements.
-window.lucide = {createIcons: options => createIcons({...options, icons})};
+window.lucide = {
+    createIcons: (options) => createIcons({ ...options, icons }),
+};
 window.lucide.createIcons();

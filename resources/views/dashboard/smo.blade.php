@@ -21,7 +21,7 @@
     </nav>
     <div class="smo-tab-content">
         <section id="smo-panel-recent" role="tabpanel" aria-labelledby="smo-tab-recent" tabindex="0" @if($selectedTab !== 'recent') hidden @endif>
-            <section class="dashboard-panel queue-panel">c
+            <section class="dashboard-panel queue-panel">
                 <div class="panel-heading">
                     <div>
                         <h3>Recent requisitions</h3>

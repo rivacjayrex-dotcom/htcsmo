@@ -83,6 +83,12 @@ export function initializeDynamicSearch(browser = window, doc = document) {
             input.disabled = field.hidden;
             input.required = !field.hidden;
         });
+        form.querySelectorAll('[data-semester-field]').forEach(field => {
+            const input = field.querySelector('select');
+            field.hidden = period.value !== 'semester';
+            input.disabled = field.hidden;
+            input.required = !field.hidden;
+        });
     };
     const validate = (form, root) => {
         customDates(form);
@@ -148,6 +154,7 @@ export function initializeDynamicSearch(browser = window, doc = document) {
     const refresh = async (root, destination, options = {}) => {
         const url = new URL(destination, browser.location.href);
         if (url.origin !== browser.location.origin || exportKeys.some(key => url.searchParams.has(key))) return;
+        if (typeof root.refreshNotifications === 'function') return root.refreshNotifications(url, options);
         if (options.background && (stateFor(root).controller || stateFor(root).timer || ['invalid', 'error'].includes(root.dataset.filterState))) return;
         const target = targetFor(root, options.target);
         const fallback = anchored(url, target);

@@ -84,10 +84,8 @@
         .notification-category-link:hover { background:#f0f6f2; color:var(--htc-green); }
         .notification-category-link.is-active { background:var(--htc-green); color:#fff; box-shadow:0 5px 13px rgba(24,91,59,.2); }
         .notification-category-link svg { width:18px; height:18px; flex:0 0 18px; }
-        .notification-category-details { display:flex; align-items:center; gap:var(--space-8); max-width:0; margin-inline-start:0; overflow:hidden; opacity:0; transition:max-width .28s ease,margin-inline-start .28s ease,opacity .18s ease; }
-        .notification-category-link.is-active .notification-category-details { max-width:12rem; margin-inline-start:var(--space-8); opacity:1; }
-        .notification-category-link.is-expanding .notification-category-details { animation:notification-category-reveal .28s ease both; }
-        @keyframes notification-category-reveal { from { max-width:0; margin-inline-start:0; opacity:0; } to { max-width:12rem; margin-inline-start:var(--space-8); opacity:1; } }
+        .notification-category-details { display:flex; align-items:center; gap:var(--space-8); max-width:0; margin-inline-start:0; overflow:hidden; transition:max-width .18s ease,margin-inline-start .18s ease; }
+        .notification-category-link.is-active .notification-category-details { max-width:12rem; margin-inline-start:var(--space-8); }
         .notification-category-link b { min-width:21px; padding:.15rem var(--space-4); border-radius:999px; background:#eef3f0; color:#5e7166; font-size:var(--text-caption); text-align:center; }
         .notification-category-link.is-active b { background:rgba(255,255,255,.18); color:#fff; }
         .notification-center-grid { display:grid; grid-template-columns:minmax(0,1fr); gap:var(--space-16); align-items:start; }
@@ -99,9 +97,7 @@
         .notification-panel-heading h2 { margin:.12rem 0 0; color:var(--note-ink); font-size:var(--text-heading-sm); font-weight:800; }
         .notification-live-label { display:inline-flex; align-items:center; gap:var(--space-4); color:#3c7655; font-size:var(--text-secondary); font-weight:800; text-transform:uppercase; }
         .notification-live-label svg { width:13px; height:13px; }
-        .notification-feed-container { position:relative; flex:1; min-height:0; overflow-y:auto; overscroll-behavior-y:contain; scrollbar-gutter:stable; transition:opacity .15s ease; }
-        .notification-center-page.is-loading .notification-feed-container { opacity:.38; pointer-events:none; }
-        .notification-center-page.is-loading .notification-activity-panel { cursor:progress; }
+        .notification-feed-container { position:relative; flex:1; min-height:0; overflow-y:auto; overscroll-behavior-y:contain; scrollbar-gutter:stable; }
         .notification-feed-list { display:grid; gap:var(--space-12); padding:var(--space-12); background:#f6f9f7; }
         .notification-feed-item { position:relative; display:grid; grid-template-columns:42px minmax(0,1fr); gap:var(--space-12); padding:var(--space-16); border:1px solid #e1e9e4; border-radius:13px; background:#fff; transition:border-color .18s ease,transform .18s ease,box-shadow .18s ease; }
         .notification-feed-item:hover { border-color:#bfd2c5; transform:translateY(-1px); box-shadow:0 7px 16px rgba(24,70,43,.06); }
@@ -140,7 +136,7 @@
             .notification-toolbar-actions{margin-left:0}
         }
         @media(max-width:575.98px){.notification-center-page{padding-top:var(--space-4)}.notification-category-nav{gap:var(--space-4)}.notification-category-link{padding:var(--space-8)}.notification-center-grid{gap:var(--space-12)}.notification-feed-item{grid-template-columns:36px minmax(0,1fr);padding:var(--space-12)}.notification-feed-icon{width:36px;height:36px}.notification-feed-meta{align-items:flex-start;flex-direction:column;gap:.1rem}.notification-panel-heading{padding:var(--space-12)}.notification-live-label{display:none}}
-        @media(prefers-reduced-motion:reduce){.notification-feed-item,.notification-feed-container,.notification-category-link,.notification-category-details{transition:none}.notification-category-link.is-expanding .notification-category-details{animation:none}}
+        @media(prefers-reduced-motion:reduce){.notification-feed-item,.notification-category-link,.notification-category-details{transition:none}}
     </style>
     @endPushOnce
 
@@ -149,20 +145,12 @@
             const center = document.querySelector('[data-notification-center]');
             if (!center) return;
 
-            let displayedCategory = center.querySelector('.notification-category-link.is-active')?.dataset.notificationCategory;
-            center.addEventListener('htc:filters-applied', () => {
-                const activeTab = center.querySelector('.notification-category-link.is-active');
-                const nextCategory = activeTab?.dataset.notificationCategory;
-                if (nextCategory && displayedCategory && nextCategory !== displayedCategory) {
-                    activeTab.classList.add('is-expanding');
-                }
-                displayedCategory = nextCategory;
-            });
-
-
+            let displayedCategory = center.querySelector('.notification-category-link.is-active')?.dataset.notificationCategory || 'all';
+            let feedSequence = 0;
+            let feedController = null;
+            let liveRefreshPending = false;
+            const feedCache = new Map();
             const unreadSyncKey = `htc-notification-unread-sync-${center.dataset.notificationAccount}`;
-
-
             const refreshIcons = () => window.lucide?.createIcons();
             const updateUnreadCount = (count, broadcast = false) => {
                 const normalized = Math.max(0, Number(count) || 0);
@@ -183,17 +171,122 @@
                 }
             };
 
+            const selectCategory = category => {
+                center.querySelectorAll('[data-notification-category]').forEach(tab => {
+                    const selected = tab.dataset.notificationCategory === category;
+                    tab.classList.toggle('is-active', selected);
+                    if (selected) tab.setAttribute('aria-current', 'page');
+                    else tab.removeAttribute('aria-current');
+                    if (selected) center.querySelector('[data-current-category]').textContent = tab.dataset.categoryLabel;
+                });
+            };
+
+            // Keep the tab bar mounted and fetch only feed HTML, not the page shell.
+            center.refreshNotifications = async (destination, options = {}) => {
+                if (window.htcSession?.expired) return false;
+                const url = new URL(destination, window.location.href);
+                url.hash = '';
+                const category = url.searchParams.get('category') || 'all';
+                const background = Boolean(options.background);
+                const feed = center.querySelector('[data-notification-feed]');
+                if (background) {
+                    feedCache.clear();
+                    if (feedController) {
+                        liveRefreshPending = true;
+                        return false;
+                    }
+                }
+                feedController?.abort();
+                const sequence = ++feedSequence;
+                if (!background) selectCategory(category);
+
+                const applyFeed = data => {
+                    const scrollTop = feed.scrollTop;
+                    feed.innerHTML = data.html;
+                    displayedCategory = data.category;
+                    selectCategory(data.category);
+                    center.querySelectorAll('[data-notification-category]').forEach(tab => {
+                        tab.querySelector('[data-category-count]').textContent = data.category_counts[tab.dataset.notificationCategory] || 0;
+                    });
+                    updateUnreadCount(data.unread_count);
+                    center.dataset.resultCount = data.category_counts[data.category] || 0;
+                    center.querySelector('[data-notification-feed-error]')?.remove();
+                    feed.scrollTop = background ? scrollTop : 0;
+                    const historyMode = options.history || 'push';
+                    if (historyMode !== 'none' && url.href !== window.location.href) {
+                        window.history[historyMode === 'replace' ? 'replaceState' : 'pushState']({htcFilters: true}, '', url.href);
+                    }
+                    refreshIcons();
+                };
+
+                const cached = !background && feedCache.get(url.href);
+                if (cached && Date.now() - cached.at < 10000) {
+                    feedController = null;
+                    feed.removeAttribute('aria-busy');
+                    applyFeed(cached.data);
+                    if (liveRefreshPending && !window.htcSession?.expired) {
+                        liveRefreshPending = false;
+                        loadFeed(window.location.href, false);
+                    }
+                    return true;
+                }
+
+                const controller = new AbortController();
+                feedController = controller;
+                const timeout = window.setTimeout(() => controller.abort(), 20000);
+                feed.setAttribute('aria-busy', 'true');
+                try {
+                    const response = await window.fetch(url, {
+                        headers: {Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest'},
+                        credentials: 'same-origin', signal: controller.signal,
+                    });
+                    if (!response.ok || response.redirected) throw new Error('Notification request failed.');
+                    const data = await response.json();
+                    if (sequence !== feedSequence || window.htcSession?.expired || controller.signal.aborted) return false;
+                    if (typeof data.html !== 'string' || data.category !== category || !data.category_counts) {
+                        throw new Error('Invalid notification response.');
+                    }
+                    feedCache.set(url.href, {data, at: Date.now()});
+                    applyFeed(data);
+                    return true;
+                } catch (error) {
+                    if (sequence !== feedSequence || window.htcSession?.expired || error.name === 'SessionExpiredError') return false;
+                    selectCategory(displayedCategory);
+                    let status = center.querySelector('[data-notification-feed-error]');
+                    if (!status) {
+                        status = document.createElement('p');
+                        status.dataset.notificationFeedError = '';
+                        status.setAttribute('role', 'alert');
+                        center.prepend(status);
+                    }
+                    status.textContent = 'Notifications could not be updated. Select a tab to try again.';
+                    return false;
+                } finally {
+                    window.clearTimeout(timeout);
+                    if (sequence === feedSequence) {
+                        feedController = null;
+                        feed.removeAttribute('aria-busy');
+                        if (liveRefreshPending && !window.htcSession?.expired) {
+                            liveRefreshPending = false;
+                            loadFeed(window.location.href, false);
+                        }
+                    }
+                }
+            };
+
             const loadFeed = async (url, pushState = true) => {
-                const scrollTop = center.querySelector('[data-notification-feed]')?.scrollTop || 0;
-                const scrollLeft = center.querySelector('.notification-category-nav')?.scrollLeft || 0;
-                await window.htcFilters?.refresh(center, url, {
+                const previousFeed = center.querySelector('[data-notification-feed]');
+                const previousTabs = center.querySelector('.notification-category-nav');
+                const scrollTop = previousFeed?.scrollTop || 0;
+                const scrollLeft = previousTabs?.scrollLeft || 0;
+                const refreshed = await window.htcFilters?.refresh(center, url, {
                     history: pushState ? 'push' : 'none', orient: pushState, background: !pushState,
                 });
-                if (!pushState) {
+                if (!pushState && refreshed !== false) {
                     const feed = center.querySelector('[data-notification-feed]');
                     const tabs = center.querySelector('.notification-category-nav');
-                    if (feed) feed.scrollTop = scrollTop;
-                    if (tabs) tabs.scrollLeft = scrollLeft;
+                    if (feed && feed !== previousFeed) feed.scrollTop = scrollTop;
+                    if (tabs && tabs !== previousTabs) tabs.scrollLeft = scrollLeft;
                 }
             };
             center.addEventListener('submit', async event => {
@@ -216,6 +309,7 @@
                     });
                     if (!response.ok) throw new Error(`Read action failed with HTTP ${response.status}`);
                     const data = await response.json();
+                    feedCache.clear();
 
                     if (readAllForm) {
                         center.querySelectorAll('.notification-feed-item.is-unread').forEach(item => {
@@ -254,6 +348,7 @@
             window.addEventListener('storage', event => {
                 if (event.key !== unreadSyncKey || !event.newValue) return;
                 try {
+                    feedCache.clear();
                     updateUnreadCount(JSON.parse(event.newValue).count);
                     loadFeed(window.location.href, false);
                 } catch (error) {
@@ -268,9 +363,17 @@
                 updateUnreadCount(data.unread_count);
                 const signature = `${data.latest_id}:${data.unread_count}:${data.versions?.dashboard || ''}`;
                 if (signature !== lastRuntimeSignature && (lastRuntimeSignature !== null || data.notifications?.length)) {
+                    feedCache.clear();
                     loadFeed(window.location.href, false);
                 }
                 lastRuntimeSignature = signature;
+            });
+            document.addEventListener('htc:session-expired', () => {
+                feedSequence++;
+                feedController?.abort();
+                feedController = null;
+                feedCache.clear();
+                center.querySelector('[data-notification-feed]')?.removeAttribute('aria-busy');
             });
         })();
     </script>

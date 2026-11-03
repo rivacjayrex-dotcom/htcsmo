@@ -1,0 +1,184 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="3000" height="2200" viewBox="0 0 3000 2200"><defs><marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#151515"/></marker></defs><rect width="100%" height="100%" fill="white"/>
+<text x="1500" y="49" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="36" font-weight="700" fill="#151515"><tspan x="1500" dy="0">Figure 3. Level 1 Data Flow Diagram</tspan></text>
+<text x="1500" y="94" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="25" font-weight="400" fill="#151515"><tspan x="1500" dy="0">Supply Management Office Request Tracking and Inventory System</tspan></text>
+<polyline points="290,322 635,322" fill="none" stroke="#151515" stroke-width="2.3" marker-end="url(#arrow)"/>
+<rect x="350.5" y="270.5" width="224" height="55" fill="white"/>
+<text x="462.5" y="285" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#151515"><tspan x="462.5" dy="0">Personal and</tspan><tspan x="462.5" dy="26">registration details</tspan></text>
+<polyline points="635,402 290,402" fill="none" stroke="#151515" stroke-width="2.3" marker-end="url(#arrow)"/>
+<rect x="355.65" y="363" width="213.70000000000002" height="30" fill="white"/>
+<text x="462.5" y="378" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#151515"><tspan x="462.5" dy="0">Registration result</tspan></text>
+<polyline points="1245,325 905,325" fill="none" stroke="#151515" stroke-width="2.3" marker-end="url(#arrow)"/>
+<rect x="957.85" y="286" width="234.3" height="30" fill="white"/>
+<text x="1075" y="301" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#151515"><tspan x="1075" dy="0">Existing account data</tspan></text>
+<polyline points="905,375 1245,375" fill="none" stroke="#151515" stroke-width="2.3" marker-end="url(#arrow)"/>
+<rect x="973.3" y="384" width="203.4" height="30" fill="white"/>
+<text x="1075" y="399" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#151515"><tspan x="1075" dy="0">New account record</tspan></text>
+<polyline points="1780,322 2125,322" fill="none" stroke="#151515" stroke-width="2.3" marker-end="url(#arrow)"/>
+<rect x="1855.95" y="283" width="193.10000000000002" height="30" fill="white"/>
+<text x="1952.5" y="298" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#151515"><tspan x="1952.5" dy="0">Login credentials</tspan></text>
+<polyline points="2125,402 1780,402" fill="none" stroke="#151515" stroke-width="2.3" marker-end="url(#arrow)"/>
+<rect x="1835.35" y="363" width="234.3" height="30" fill="white"/>
+<text x="1952.5" y="378" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#151515"><tspan x="1952.5" dy="0">Authentication result</tspan></text>
+<polyline points="2395,325 2735,325" fill="none" stroke="#151515" stroke-width="2.3" marker-end="url(#arrow)"/>
+<rect x="2437.55" y="286" width="254.9" height="30" fill="white"/>
+<text x="2565" y="301" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#151515"><tspan x="2565" dy="0">Account lookup criteria</tspan></text>
+<polyline points="2735,375 2395,375" fill="none" stroke="#151515" stroke-width="2.3" marker-end="url(#arrow)"/>
+<rect x="2453" y="371.5" width="224" height="55" fill="white"/>
+<text x="2565" y="386" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#151515"><tspan x="2565" dy="0">Credential, role and</tspan><tspan x="2565" dy="26">account-status data</tspan></text>
+<polyline points="290,802 635,802" fill="none" stroke="#151515" stroke-width="2.3" marker-end="url(#arrow)"/>
+<rect x="340.2" y="763" width="244.60000000000002" height="30" fill="white"/>
+<text x="462.5" y="778" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#151515"><tspan x="462.5" dy="0">Supply request details</tspan></text>
+<polyline points="635,882 290,882" fill="none" stroke="#151515" stroke-width="2.3" marker-end="url(#arrow)"/>
+<rect x="335.05" y="843" width="254.9" height="30" fill="white"/>
+<text x="462.5" y="858" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#151515"><tspan x="462.5" dy="0">Submission confirmation</tspan></text>
+<polyline points="905,830 1245,830" fill="none" stroke="#151515" stroke-width="2.3" marker-end="url(#arrow)"/>
+<rect x="937.25" y="839" width="275.5" height="30" fill="white"/>
+<text x="1075" y="854" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#151515"><tspan x="1075" dy="0">New supply request record</tspan></text>
+<polyline points="1780,802 2125,802" fill="none" stroke="#151515" stroke-width="2.3" marker-end="url(#arrow)"/>
+<rect x="1855.95" y="750.5" width="193.10000000000002" height="55" fill="white"/>
+<text x="1952.5" y="765" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#151515"><tspan x="1952.5" dy="0">Approval decision</tspan><tspan x="1952.5" dy="26">and remarks</tspan></text>
+<polyline points="2125,882 1780,882" fill="none" stroke="#151515" stroke-width="2.3" marker-end="url(#arrow)"/>
+<rect x="1840.5" y="830.5" width="224" height="55" fill="white"/>
+<text x="1952.5" y="845" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#151515"><tspan x="1952.5" dy="0">Pending requests and</tspan><tspan x="1952.5" dy="26">review details</tspan></text>
+<polyline points="2735,805 2395,805" fill="none" stroke="#151515" stroke-width="2.3" marker-end="url(#arrow)"/>
+<rect x="2458.15" y="753.5" width="213.70000000000002" height="55" fill="white"/>
+<text x="2565" y="768" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#151515"><tspan x="2565" dy="0">Request details and</tspan><tspan x="2565" dy="26">approval history</tspan></text>
+<polyline points="2395,855 2735,855" fill="none" stroke="#151515" stroke-width="2.3" marker-end="url(#arrow)"/>
+<rect x="2442.7" y="851.5" width="244.60000000000002" height="55" fill="white"/>
+<text x="2565" y="866" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#151515"><tspan x="2565" dy="0">Approval decision and</tspan><tspan x="2565" dy="26">current approval stage</tspan></text>
+<polyline points="290,1270 635,1270" fill="none" stroke="#151515" stroke-width="2.3" marker-end="url(#arrow)"/>
+<rect x="355.65" y="1218.5" width="213.70000000000002" height="55" fill="white"/>
+<text x="462.5" y="1233" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#151515"><tspan x="462.5" dy="0">Validation decision</tspan><tspan x="462.5" dy="26">and remarks</tspan></text>
+<polyline points="635,1340 290,1340" fill="none" stroke="#151515" stroke-width="2.3" marker-end="url(#arrow)"/>
+<rect x="335.05" y="1288.5" width="254.9" height="55" fill="white"/>
+<text x="462.5" y="1303" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#151515"><tspan x="462.5" dy="0">Fully approved requests</tspan><tspan x="462.5" dy="26">for validation</tspan></text>
+<polyline points="710,1400 710,1467 290,1467" fill="none" stroke="#151515" stroke-width="2.3" marker-end="url(#arrow)"/>
+<rect x="403.45" y="1428" width="193.10000000000002" height="30" fill="white"/>
+<text x="500" y="1443" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#151515"><tspan x="500" dy="0">Validation result</tspan></text>
+<polyline points="1245,1285 905,1285" fill="none" stroke="#151515" stroke-width="2.3" marker-end="url(#arrow)"/>
+<rect x="993.9" y="1233.5" width="162.20000000000002" height="55" fill="white"/>
+<text x="1075" y="1248" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#151515"><tspan x="1075" dy="0">Fully approved</tspan><tspan x="1075" dy="26">request data</tspan></text>
+<polyline points="905,1335 1245,1335" fill="none" stroke="#151515" stroke-width="2.3" marker-end="url(#arrow)"/>
+<rect x="978.45" y="1331.5" width="193.10000000000002" height="55" fill="white"/>
+<text x="1075" y="1346" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#151515"><tspan x="1075" dy="0">Validation status</tspan><tspan x="1075" dy="26">and remarks</tspan></text>
+<polyline points="1780,1270 2125,1270" fill="none" stroke="#151515" stroke-width="2.3" marker-end="url(#arrow)"/>
+<rect x="1825.05" y="1218.5" width="254.9" height="55" fill="white"/>
+<text x="1952.5" y="1233" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#151515"><tspan x="1952.5" dy="0">Fulfillment details and</tspan><tspan x="1952.5" dy="26">stock adjustments</tspan></text>
+<polyline points="2125,1340 1780,1340" fill="none" stroke="#151515" stroke-width="2.3" marker-end="url(#arrow)"/>
+<rect x="1825.05" y="1301" width="254.9" height="30" fill="white"/>
+<text x="1952.5" y="1316" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#151515"><tspan x="1952.5" dy="0">Processing confirmation</tspan></text>
+<polyline points="2200,1400 2200,1467 1780,1467" fill="none" stroke="#151515" stroke-width="2.3" marker-end="url(#arrow)"/>
+<rect x="1836.8" y="1428" width="306.40000000000003" height="30" fill="white"/>
+<text x="1990" y="1443" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#151515"><tspan x="1990" dy="0">Fulfillment / release update</tspan></text>
+<polyline points="2735,1185 2395,1265" fill="none" stroke="#151515" stroke-width="2.3" marker-end="url(#arrow)"/>
+<rect x="2463.3" y="1163.5" width="203.4" height="55" fill="white"/>
+<text x="2565" y="1178" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#151515"><tspan x="2565" dy="0">Validated requests</tspan><tspan x="2565" dy="26">for fulfillment</tspan></text>
+<polyline points="2395,1305 2735,1235" fill="none" stroke="#151515" stroke-width="2.3" marker-end="url(#arrow)"/>
+<rect x="2427.25" y="1276.5" width="275.5" height="55" fill="white"/>
+<text x="2565" y="1291" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#151515"><tspan x="2565" dy="0">Processing / fulfillment</tspan><tspan x="2565" dy="26">status and release record</tspan></text>
+<polyline points="2735,1430 2395,1345" fill="none" stroke="#151515" stroke-width="2.3" marker-end="url(#arrow)"/>
+<rect x="2442.7" y="1338.5" width="244.60000000000002" height="30" fill="white"/>
+<text x="2565" y="1353.5" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#151515"><tspan x="2565" dy="0">Current inventory data</tspan></text>
+<polyline points="2395,1385 2735,1480" fill="none" stroke="#151515" stroke-width="2.3" marker-end="url(#arrow)"/>
+<rect x="2468.45" y="1439" width="193.10000000000002" height="55" fill="white"/>
+<text x="2565" y="1453.5" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#151515"><tspan x="2565" dy="0">Stock changes and</tspan><tspan x="2565" dy="26">issuance data</tspan></text>
+<polyline points="290,1762 635,1762" fill="none" stroke="#151515" stroke-width="2.3" marker-end="url(#arrow)"/>
+<rect x="340.2" y="1710.5" width="244.60000000000002" height="55" fill="white"/>
+<text x="462.5" y="1725" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#151515"><tspan x="462.5" dy="0">Request ID and</tspan><tspan x="462.5" dy="26">status lookup criteria</tspan></text>
+<polyline points="635,1842 290,1842" fill="none" stroke="#151515" stroke-width="2.3" marker-end="url(#arrow)"/>
+<rect x="340.2" y="1790.5" width="244.60000000000002" height="55" fill="white"/>
+<text x="462.5" y="1805" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#151515"><tspan x="462.5" dy="0">Current request status</tspan><tspan x="462.5" dy="26">and progress details</tspan></text>
+<polyline points="905,1765 1245,1765" fill="none" stroke="#151515" stroke-width="2.3" marker-end="url(#arrow)"/>
+<rect x="947.55" y="1726" width="254.9" height="30" fill="white"/>
+<text x="1075" y="1741" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#151515"><tspan x="1075" dy="0">Request lookup criteria</tspan></text>
+<polyline points="1245,1815 905,1815" fill="none" stroke="#151515" stroke-width="2.3" marker-end="url(#arrow)"/>
+<rect x="973.3" y="1811.5" width="203.4" height="55" fill="white"/>
+<text x="1075" y="1826" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#151515"><tspan x="1075" dy="0">Request status and</tspan><tspan x="1075" dy="26">progress records</tspan></text>
+<polyline points="2125,1800 1780,1800" fill="none" stroke="#151515" stroke-width="2.3" marker-end="url(#arrow)"/>
+<rect x="1773.55" y="1748.5" width="357.90000000000003" height="55" fill="white"/>
+<text x="1952.5" y="1763" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#151515"><tspan x="1952.5" dy="0">Approval / status notification;</tspan><tspan x="1952.5" dy="26">deadline warning or overdue alert</tspan></text>
+<polyline points="2735,1690 2475,1690 2475,1760 2395,1760" fill="none" stroke="#151515" stroke-width="2.3" marker-end="url(#arrow)"/>
+<rect x="2447.85" y="1638.5" width="234.3" height="55" fill="white"/>
+<text x="2565" y="1653" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#151515"><tspan x="2565" dy="0">Recipient account and</tspan><tspan x="2565" dy="26">contact data</tspan></text>
+<polyline points="2735,1935 2475,1935 2475,1840 2395,1840" fill="none" stroke="#151515" stroke-width="2.3" marker-end="url(#arrow)"/>
+<rect x="2411.8" y="1883.5" width="306.40000000000003" height="55" fill="white"/>
+<text x="2565" y="1898" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#151515"><tspan x="2565" dy="0">Approval / request status,</tspan><tspan x="2565" dy="26">submission and due-date data</tspan></text>
+<rect x="635" y="280" width="270" height="160" rx="18" fill="white" stroke="#151515" stroke-width="2.5"/><path d="M635,323 H905" stroke="#151515" stroke-width="2"/>
+<text x="770" y="303" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#151515"><tspan x="770" dy="0">1.0</tspan></text>
+<text x="770" y="383" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#151515"><tspan x="770" dy="0">Register Account</tspan></text>
+<rect x="40" y="265" width="250" height="190" fill="white" stroke="#151515" stroke-width="2.5"/>
+<text x="165" y="360" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#151515"><tspan x="165" dy="0">Requestor</tspan></text>
+<path d="M1485,305 H1245 V395 H1485 M1300,305 V395" fill="white" stroke="#151515" stroke-width="2.5"/>
+<text x="1272" y="350" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#151515"><tspan x="1272" dy="0">D1</tspan></text>
+<text x="1392.5" y="350" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#151515"><tspan x="1392.5" dy="0">Accounts</tspan></text>
+<rect x="2125" y="280" width="270" height="160" rx="18" fill="white" stroke="#151515" stroke-width="2.5"/><path d="M2125,323 H2395" stroke="#151515" stroke-width="2"/>
+<text x="2260" y="303" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#151515"><tspan x="2260" dy="0">2.0</tspan></text>
+<text x="2260" y="383" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#151515"><tspan x="2260" dy="0">Authenticate Account</tspan></text>
+<rect x="1530" y="265" width="250" height="190" fill="white" stroke="#151515" stroke-width="2.5"/>
+<text x="1655" y="334" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#151515"><tspan x="1655" dy="0">System Users</tspan><tspan x="1655" dy="26">Requestor / Signatory /</tspan><tspan x="1655" dy="26">SMO In-Charge</tspan></text>
+<path d="M2975,305 H2735 V395 H2975 M2790,305 V395" fill="white" stroke="#151515" stroke-width="2.5"/>
+<text x="2762" y="350" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#151515"><tspan x="2762" dy="0">D1</tspan></text>
+<text x="2882.5" y="350" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#151515"><tspan x="2882.5" dy="0">Accounts</tspan></text>
+<rect x="635" y="760" width="270" height="160" rx="18" fill="white" stroke="#151515" stroke-width="2.5"/><path d="M635,803 H905" stroke="#151515" stroke-width="2"/>
+<text x="770" y="783" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#151515"><tspan x="770" dy="0">3.0</tspan></text>
+<text x="770" y="848.05" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#151515"><tspan x="770" dy="0">Submit Supply</tspan><tspan x="770" dy="29.900000000000002">Request</tspan></text>
+<rect x="40" y="745" width="250" height="190" fill="white" stroke="#151515" stroke-width="2.5"/>
+<text x="165" y="827" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#151515"><tspan x="165" dy="0">Requestor /</tspan><tspan x="165" dy="26">Authorized Admin</tspan></text>
+<path d="M1485,785 H1245 V875 H1485 M1300,785 V875" fill="white" stroke="#151515" stroke-width="2.5"/>
+<text x="1272" y="830" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#151515"><tspan x="1272" dy="0">D2</tspan></text>
+<text x="1392.5" y="830" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#151515"><tspan x="1392.5" dy="0">Supply Requests</tspan></text>
+<rect x="2125" y="760" width="270" height="160" rx="18" fill="white" stroke="#151515" stroke-width="2.5"/><path d="M2125,803 H2395" stroke="#151515" stroke-width="2"/>
+<text x="2260" y="783" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#151515"><tspan x="2260" dy="0">4.0</tspan></text>
+<text x="2260" y="863" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#151515"><tspan x="2260" dy="0">Approve Request</tspan></text>
+<rect x="1530" y="745" width="250" height="190" fill="white" stroke="#151515" stroke-width="2.5"/>
+<text x="1655" y="827" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#151515"><tspan x="1655" dy="0">Authorized Signatory /</tspan><tspan x="1655" dy="26">School Admin</tspan></text>
+<path d="M2975,785 H2735 V875 H2975 M2790,785 V875" fill="white" stroke="#151515" stroke-width="2.5"/>
+<text x="2762" y="830" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#151515"><tspan x="2762" dy="0">D2</tspan></text>
+<text x="2882.5" y="830" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#151515"><tspan x="2882.5" dy="0">Supply Requests</tspan></text>
+<rect x="635" y="1240" width="270" height="160" rx="18" fill="white" stroke="#151515" stroke-width="2.5"/><path d="M635,1283 H905" stroke="#151515" stroke-width="2"/>
+<text x="770" y="1263" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#151515"><tspan x="770" dy="0">5.0</tspan></text>
+<text x="770" y="1343" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#151515"><tspan x="770" dy="0">Validate Request</tspan></text>
+<rect x="40" y="1210" width="250" height="150" fill="white" stroke="#151515" stroke-width="2.5"/>
+<text x="165" y="1285" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#151515"><tspan x="165" dy="0">SMO In-Charge</tspan></text>
+<rect x="40" y="1435" width="250" height="65" fill="white" stroke="#151515" stroke-width="2.5"/>
+<text x="165" y="1467.5" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#151515"><tspan x="165" dy="0">Requestor</tspan></text>
+<path d="M1485,1265 H1245 V1355 H1485 M1300,1265 V1355" fill="white" stroke="#151515" stroke-width="2.5"/>
+<text x="1272" y="1310" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#151515"><tspan x="1272" dy="0">D2</tspan></text>
+<text x="1392.5" y="1310" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#151515"><tspan x="1392.5" dy="0">Supply Requests</tspan></text>
+<rect x="2125" y="1240" width="270" height="160" rx="18" fill="white" stroke="#151515" stroke-width="2.5"/><path d="M2125,1283 H2395" stroke="#151515" stroke-width="2"/>
+<text x="2260" y="1263" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#151515"><tspan x="2260" dy="0">6.0</tspan></text>
+<text x="2260" y="1343" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#151515"><tspan x="2260" dy="0">Manage Supply</tspan></text>
+<rect x="1530" y="1210" width="250" height="150" fill="white" stroke="#151515" stroke-width="2.5"/>
+<text x="1655" y="1285" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#151515"><tspan x="1655" dy="0">SMO In-Charge</tspan></text>
+<rect x="1530" y="1435" width="250" height="65" fill="white" stroke="#151515" stroke-width="2.5"/>
+<text x="1655" y="1467.5" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#151515"><tspan x="1655" dy="0">Requestor</tspan></text>
+<path d="M2975,1165 H2735 V1255 H2975 M2790,1165 V1255" fill="white" stroke="#151515" stroke-width="2.5"/>
+<text x="2762" y="1210" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#151515"><tspan x="2762" dy="0">D2</tspan></text>
+<text x="2882.5" y="1210" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#151515"><tspan x="2882.5" dy="0">Supply Requests</tspan></text>
+<path d="M2975,1410 H2735 V1500 H2975 M2790,1410 V1500" fill="white" stroke="#151515" stroke-width="2.5"/>
+<text x="2762" y="1455" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#151515"><tspan x="2762" dy="0">D3</tspan></text>
+<text x="2882.5" y="1455" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#151515"><tspan x="2882.5" dy="0">Inventory</tspan></text>
+<rect x="635" y="1720" width="270" height="160" rx="18" fill="white" stroke="#151515" stroke-width="2.5"/><path d="M635,1763 H905" stroke="#151515" stroke-width="2"/>
+<text x="770" y="1743" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#151515"><tspan x="770" dy="0">7.0</tspan></text>
+<text x="770" y="1808.05" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#151515"><tspan x="770" dy="0">Track Request</tspan><tspan x="770" dy="29.900000000000002">Status</tspan></text>
+<rect x="40" y="1705" width="250" height="190" fill="white" stroke="#151515" stroke-width="2.5"/>
+<text x="165" y="1800" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#151515"><tspan x="165" dy="0">Requestor</tspan></text>
+<path d="M1485,1745 H1245 V1835 H1485 M1300,1745 V1835" fill="white" stroke="#151515" stroke-width="2.5"/>
+<text x="1272" y="1790" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#151515"><tspan x="1272" dy="0">D2</tspan></text>
+<text x="1392.5" y="1790" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#151515"><tspan x="1392.5" dy="0">Supply Requests</tspan></text>
+<rect x="2125" y="1720" width="270" height="160" rx="18" fill="white" stroke="#151515" stroke-width="2.5"/><path d="M2125,1763 H2395" stroke="#151515" stroke-width="2"/>
+<text x="2260" y="1743" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#151515"><tspan x="2260" dy="0">8.0</tspan></text>
+<text x="2260" y="1823" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#151515"><tspan x="2260" dy="0">Send Notification</tspan></text>
+<rect x="1530" y="1705" width="250" height="190" fill="white" stroke="#151515" stroke-width="2.5"/>
+<text x="1655" y="1761" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#151515"><tspan x="1655" dy="0">Notification Recipients</tspan><tspan x="1655" dy="26">SMO In-Charge /</tspan><tspan x="1655" dy="26">Requestor /</tspan><tspan x="1655" dy="26">Assigned Signatory</tspan></text>
+<path d="M2975,1645 H2735 V1735 H2975 M2790,1645 V1735" fill="white" stroke="#151515" stroke-width="2.5"/>
+<text x="2762" y="1690" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#151515"><tspan x="2762" dy="0">D1</tspan></text>
+<text x="2882.5" y="1690" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#151515"><tspan x="2882.5" dy="0">Accounts</tspan></text>
+<path d="M2975,1890 H2735 V1980 H2975 M2790,1890 V1980" fill="white" stroke="#151515" stroke-width="2.5"/>
+<text x="2762" y="1935" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#151515"><tspan x="2762" dy="0">D2</tspan></text>
+<text x="2882.5" y="1935" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#151515"><tspan x="2882.5" dy="0">Supply Requests</tspan></text>
+<path d="M50,2070 H2950" stroke="#777" stroke-width="1"/>
+<text x="1500" y="2107" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#151515"><tspan x="1500" dy="0">Repeated entities and stores represent the SAME roles and logical data stores; they are repeated for readability.</tspan></text>
+<text x="1500" y="2143" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#151515"><tspan x="1500" dy="0">Grouped role labels share the shown inputs / outputs. Notification recipients depend on the event and permissions.</tspan></text>
+<text x="1500" y="2178" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#151515"><tspan x="1500" dy="0">Process numbers identify functions, not execution order. Deadline policy: three working days; warning and overdue checks belong to process 8.0.</tspan></text>
+</svg>

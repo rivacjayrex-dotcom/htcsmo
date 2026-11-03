@@ -14,7 +14,7 @@
             : 'Pending Approvals',
         request()->routeIs('admin.users.pending') => 'Access Requests',
         request()->routeIs('admin.users.manage') => 'Manage Personnel',
-        request()->routeIs('admin.reports.builder', 'admin.reports.generate') => 'Comprehensive Report Center',
+        request()->routeIs('admin.reports.builder', 'admin.reports.generate') => 'Report Center',
         request()->routeIs('admin.reports.*') => 'Operational Analytics',
         request()->routeIs('admin.archive') => 'Institutional Archive',
         request()->routeIs('profile.edit') => 'Account Settings',

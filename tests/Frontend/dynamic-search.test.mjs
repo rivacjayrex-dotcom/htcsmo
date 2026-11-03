@@ -121,6 +121,17 @@ test('select and sort changes update immediately and reflect the query in URL hi
     assert.equal(b.result.attributes.has('aria-busy'), false);
 });
 
+test('notification links use the feed refresh without fetching and replacing the page shell', async () => {
+    const b = fixture();
+    const refreshes = [];
+    b.root.refreshNotifications = async (url, options) => refreshes.push({url, options});
+    b.event('click', b.link('/requests?category=approvals'));
+    await flush();
+    assert.equal(refreshes.length, 1);
+    assert.equal(refreshes[0].url.searchParams.get('category'), 'approvals');
+    assert.equal(b.calls.length, 0);
+});
+
 test('paired date ranges reject incomplete, invalid calendar, and reversed dates', () => {
     assert.equal(dateRangeError('', ''), '');
     for (const pair of [['2026-10-01', ''], ['', '2026-10-01'], ['2026-02-30', '2026-03-01'], ['2026-10-22', '2026-10-01']]) assert.notEqual(dateRangeError(...pair), '');
@@ -217,6 +228,23 @@ test('custom periods enable required paired dates and preset periods disable the
     period.value = 'this_month'; b.event('change', period); await flush();
     assert.equal(b.calls.length, 1); assert.equal(b.input('date_from').disabled, true);
     assert.equal(b.input('date_to').attributes.has('aria-invalid'), false);
+});
+
+test('choosing a semester sends its academic year and term and presets omit them', async () => {
+    const b = fixture();
+    const period = b.input('status'); period.name = 'period';
+    const year = b.input('order'); year.name = 'academic_year'; year.value = '2025';
+    const term = b.input('category'); term.name = 'term'; term.type = 'select'; term.value = 'first';
+    const fields = [year, term].map(select => ({hidden: true, querySelector: () => select}));
+    b.root.form.querySelectorAll = selector => selector === '[data-semester-field]' ? fields : [];
+    period.value = 'semester'; b.event('change', period); await flush();
+    assert.equal(fields[0].hidden, false); assert.equal(year.required, true);
+    assert.equal(new URL(b.calls[0].url).searchParams.get('academic_year'), '2025');
+    assert.equal(new URL(b.calls[0].url).searchParams.get('term'), 'first');
+    period.value = 'this_month'; b.event('change', period); await flush();
+    assert.equal(fields[0].hidden, true); assert.equal(year.disabled, true);
+    assert.equal(new URL(b.calls[1].url).searchParams.has('academic_year'), false);
+    assert.equal(new URL(b.calls[1].url).searchParams.has('term'), false);
 });
 
 test('a timed-out request leaves old results and an explicit retry message', async () => {

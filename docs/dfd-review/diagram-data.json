@@ -1,0 +1,890 @@
+{
+  "width": 3000,
+  "height": 2200,
+  "nodes": [
+    {
+      "id": "p1",
+      "type": "process",
+      "label": "Register Account",
+      "x": 635,
+      "y": 280,
+      "w": 270,
+      "h": 160,
+      "ref": "1.0"
+    },
+    {
+      "id": "e1r",
+      "type": "entity",
+      "label": "Requestor",
+      "x": 40,
+      "y": 265,
+      "w": 250,
+      "h": 190,
+      "ref": ""
+    },
+    {
+      "id": "s1D1",
+      "type": "store",
+      "label": "Accounts",
+      "x": 1245,
+      "y": 305,
+      "w": 240,
+      "h": 90,
+      "ref": "D1"
+    },
+    {
+      "id": "p2",
+      "type": "process",
+      "label": "Authenticate Account",
+      "x": 2125,
+      "y": 280,
+      "w": 270,
+      "h": 160,
+      "ref": "2.0"
+    },
+    {
+      "id": "e2u",
+      "type": "entity",
+      "label": "System Users\nRequestor / Signatory /\nSMO In-Charge",
+      "x": 1530,
+      "y": 265,
+      "w": 250,
+      "h": 190,
+      "ref": ""
+    },
+    {
+      "id": "s2D1",
+      "type": "store",
+      "label": "Accounts",
+      "x": 2735,
+      "y": 305,
+      "w": 240,
+      "h": 90,
+      "ref": "D1"
+    },
+    {
+      "id": "p3",
+      "type": "process",
+      "label": "Submit Supply\nRequest",
+      "x": 635,
+      "y": 760,
+      "w": 270,
+      "h": 160,
+      "ref": "3.0"
+    },
+    {
+      "id": "e3r",
+      "type": "entity",
+      "label": "Requestor /\nAuthorized Admin",
+      "x": 40,
+      "y": 745,
+      "w": 250,
+      "h": 190,
+      "ref": ""
+    },
+    {
+      "id": "s3D2",
+      "type": "store",
+      "label": "Supply Requests",
+      "x": 1245,
+      "y": 785,
+      "w": 240,
+      "h": 90,
+      "ref": "D2"
+    },
+    {
+      "id": "p4",
+      "type": "process",
+      "label": "Approve Request",
+      "x": 2125,
+      "y": 760,
+      "w": 270,
+      "h": 160,
+      "ref": "4.0"
+    },
+    {
+      "id": "e4a",
+      "type": "entity",
+      "label": "Authorized Signatory /\nSchool Admin",
+      "x": 1530,
+      "y": 745,
+      "w": 250,
+      "h": 190,
+      "ref": ""
+    },
+    {
+      "id": "s4D2",
+      "type": "store",
+      "label": "Supply Requests",
+      "x": 2735,
+      "y": 785,
+      "w": 240,
+      "h": 90,
+      "ref": "D2"
+    },
+    {
+      "id": "p5",
+      "type": "process",
+      "label": "Validate Request",
+      "x": 635,
+      "y": 1240,
+      "w": 270,
+      "h": 160,
+      "ref": "5.0"
+    },
+    {
+      "id": "e5s",
+      "type": "entity",
+      "label": "SMO In-Charge",
+      "x": 40,
+      "y": 1210,
+      "w": 250,
+      "h": 150,
+      "ref": ""
+    },
+    {
+      "id": "e5r",
+      "type": "entity",
+      "label": "Requestor",
+      "x": 40,
+      "y": 1435,
+      "w": 250,
+      "h": 65,
+      "ref": ""
+    },
+    {
+      "id": "s5D2",
+      "type": "store",
+      "label": "Supply Requests",
+      "x": 1245,
+      "y": 1265,
+      "w": 240,
+      "h": 90,
+      "ref": "D2"
+    },
+    {
+      "id": "p6",
+      "type": "process",
+      "label": "Manage Supply",
+      "x": 2125,
+      "y": 1240,
+      "w": 270,
+      "h": 160,
+      "ref": "6.0"
+    },
+    {
+      "id": "e6s",
+      "type": "entity",
+      "label": "SMO In-Charge",
+      "x": 1530,
+      "y": 1210,
+      "w": 250,
+      "h": 150,
+      "ref": ""
+    },
+    {
+      "id": "e6r",
+      "type": "entity",
+      "label": "Requestor",
+      "x": 1530,
+      "y": 1435,
+      "w": 250,
+      "h": 65,
+      "ref": ""
+    },
+    {
+      "id": "s6D2",
+      "type": "store",
+      "label": "Supply Requests",
+      "x": 2735,
+      "y": 1165,
+      "w": 240,
+      "h": 90,
+      "ref": "D2"
+    },
+    {
+      "id": "s6D3",
+      "type": "store",
+      "label": "Inventory",
+      "x": 2735,
+      "y": 1410,
+      "w": 240,
+      "h": 90,
+      "ref": "D3"
+    },
+    {
+      "id": "p7",
+      "type": "process",
+      "label": "Track Request\nStatus",
+      "x": 635,
+      "y": 1720,
+      "w": 270,
+      "h": 160,
+      "ref": "7.0"
+    },
+    {
+      "id": "e7r",
+      "type": "entity",
+      "label": "Requestor",
+      "x": 40,
+      "y": 1705,
+      "w": 250,
+      "h": 190,
+      "ref": ""
+    },
+    {
+      "id": "s7D2",
+      "type": "store",
+      "label": "Supply Requests",
+      "x": 1245,
+      "y": 1745,
+      "w": 240,
+      "h": 90,
+      "ref": "D2"
+    },
+    {
+      "id": "p8",
+      "type": "process",
+      "label": "Send Notification",
+      "x": 2125,
+      "y": 1720,
+      "w": 270,
+      "h": 160,
+      "ref": "8.0"
+    },
+    {
+      "id": "e8u",
+      "type": "entity",
+      "label": "Notification Recipients\nSMO In-Charge /\nRequestor /\nAssigned Signatory",
+      "x": 1530,
+      "y": 1705,
+      "w": 250,
+      "h": 190,
+      "ref": ""
+    },
+    {
+      "id": "s8D1",
+      "type": "store",
+      "label": "Accounts",
+      "x": 2735,
+      "y": 1645,
+      "w": 240,
+      "h": 90,
+      "ref": "D1"
+    },
+    {
+      "id": "s8D2",
+      "type": "store",
+      "label": "Supply Requests",
+      "x": 2735,
+      "y": 1890,
+      "w": 240,
+      "h": 90,
+      "ref": "D2"
+    }
+  ],
+  "flows": [
+    {
+      "from": "e1r",
+      "to": "p1",
+      "label": "Personal and\nregistration details",
+      "points": [
+        [
+          290,
+          322
+        ],
+        [
+          635,
+          322
+        ]
+      ],
+      "lx": 462.5,
+      "ly": 298
+    },
+    {
+      "from": "p1",
+      "to": "e1r",
+      "label": "Registration result",
+      "points": [
+        [
+          635,
+          402
+        ],
+        [
+          290,
+          402
+        ]
+      ],
+      "lx": 462.5,
+      "ly": 378
+    },
+    {
+      "from": "s1D1",
+      "to": "p1",
+      "label": "Existing account data",
+      "points": [
+        [
+          1245,
+          325
+        ],
+        [
+          905,
+          325
+        ]
+      ],
+      "lx": 1075,
+      "ly": 301
+    },
+    {
+      "from": "p1",
+      "to": "s1D1",
+      "label": "New account record",
+      "points": [
+        [
+          905,
+          375
+        ],
+        [
+          1245,
+          375
+        ]
+      ],
+      "lx": 1075,
+      "ly": 399
+    },
+    {
+      "from": "e2u",
+      "to": "p2",
+      "label": "Login credentials",
+      "points": [
+        [
+          1780,
+          322
+        ],
+        [
+          2125,
+          322
+        ]
+      ],
+      "lx": 1952.5,
+      "ly": 298
+    },
+    {
+      "from": "p2",
+      "to": "e2u",
+      "label": "Authentication result",
+      "points": [
+        [
+          2125,
+          402
+        ],
+        [
+          1780,
+          402
+        ]
+      ],
+      "lx": 1952.5,
+      "ly": 378
+    },
+    {
+      "from": "p2",
+      "to": "s2D1",
+      "label": "Account lookup criteria",
+      "points": [
+        [
+          2395,
+          325
+        ],
+        [
+          2735,
+          325
+        ]
+      ],
+      "lx": 2565,
+      "ly": 301
+    },
+    {
+      "from": "s2D1",
+      "to": "p2",
+      "label": "Credential, role and\naccount-status data",
+      "points": [
+        [
+          2735,
+          375
+        ],
+        [
+          2395,
+          375
+        ]
+      ],
+      "lx": 2565,
+      "ly": 399
+    },
+    {
+      "from": "e3r",
+      "to": "p3",
+      "label": "Supply request details",
+      "points": [
+        [
+          290,
+          802
+        ],
+        [
+          635,
+          802
+        ]
+      ],
+      "lx": 462.5,
+      "ly": 778
+    },
+    {
+      "from": "p3",
+      "to": "e3r",
+      "label": "Submission confirmation",
+      "points": [
+        [
+          635,
+          882
+        ],
+        [
+          290,
+          882
+        ]
+      ],
+      "lx": 462.5,
+      "ly": 858
+    },
+    {
+      "from": "p3",
+      "to": "s3D2",
+      "label": "New supply request record",
+      "points": [
+        [
+          905,
+          830
+        ],
+        [
+          1245,
+          830
+        ]
+      ],
+      "lx": 1075,
+      "ly": 854
+    },
+    {
+      "from": "e4a",
+      "to": "p4",
+      "label": "Approval decision\nand remarks",
+      "points": [
+        [
+          1780,
+          802
+        ],
+        [
+          2125,
+          802
+        ]
+      ],
+      "lx": 1952.5,
+      "ly": 778
+    },
+    {
+      "from": "p4",
+      "to": "e4a",
+      "label": "Pending requests and\nreview details",
+      "points": [
+        [
+          2125,
+          882
+        ],
+        [
+          1780,
+          882
+        ]
+      ],
+      "lx": 1952.5,
+      "ly": 858
+    },
+    {
+      "from": "s4D2",
+      "to": "p4",
+      "label": "Request details and\napproval history",
+      "points": [
+        [
+          2735,
+          805
+        ],
+        [
+          2395,
+          805
+        ]
+      ],
+      "lx": 2565,
+      "ly": 781
+    },
+    {
+      "from": "p4",
+      "to": "s4D2",
+      "label": "Approval decision and\ncurrent approval stage",
+      "points": [
+        [
+          2395,
+          855
+        ],
+        [
+          2735,
+          855
+        ]
+      ],
+      "lx": 2565,
+      "ly": 879
+    },
+    {
+      "from": "e5s",
+      "to": "p5",
+      "label": "Validation decision\nand remarks",
+      "points": [
+        [
+          290,
+          1270
+        ],
+        [
+          635,
+          1270
+        ]
+      ],
+      "lx": 462.5,
+      "ly": 1246
+    },
+    {
+      "from": "p5",
+      "to": "e5s",
+      "label": "Fully approved requests\nfor validation",
+      "points": [
+        [
+          635,
+          1340
+        ],
+        [
+          290,
+          1340
+        ]
+      ],
+      "lx": 462.5,
+      "ly": 1316
+    },
+    {
+      "from": "p5",
+      "to": "e5r",
+      "label": "Validation result",
+      "points": [
+        [
+          710,
+          1400
+        ],
+        [
+          710,
+          1467
+        ],
+        [
+          290,
+          1467
+        ]
+      ],
+      "lx": 500,
+      "ly": 1443
+    },
+    {
+      "from": "s5D2",
+      "to": "p5",
+      "label": "Fully approved\nrequest data",
+      "points": [
+        [
+          1245,
+          1285
+        ],
+        [
+          905,
+          1285
+        ]
+      ],
+      "lx": 1075,
+      "ly": 1261
+    },
+    {
+      "from": "p5",
+      "to": "s5D2",
+      "label": "Validation status\nand remarks",
+      "points": [
+        [
+          905,
+          1335
+        ],
+        [
+          1245,
+          1335
+        ]
+      ],
+      "lx": 1075,
+      "ly": 1359
+    },
+    {
+      "from": "e6s",
+      "to": "p6",
+      "label": "Fulfillment details and\nstock adjustments",
+      "points": [
+        [
+          1780,
+          1270
+        ],
+        [
+          2125,
+          1270
+        ]
+      ],
+      "lx": 1952.5,
+      "ly": 1246
+    },
+    {
+      "from": "p6",
+      "to": "e6s",
+      "label": "Processing confirmation",
+      "points": [
+        [
+          2125,
+          1340
+        ],
+        [
+          1780,
+          1340
+        ]
+      ],
+      "lx": 1952.5,
+      "ly": 1316
+    },
+    {
+      "from": "p6",
+      "to": "e6r",
+      "label": "Fulfillment / release update",
+      "points": [
+        [
+          2200,
+          1400
+        ],
+        [
+          2200,
+          1467
+        ],
+        [
+          1780,
+          1467
+        ]
+      ],
+      "lx": 1990,
+      "ly": 1443
+    },
+    {
+      "from": "s6D2",
+      "to": "p6",
+      "label": "Validated requests\nfor fulfillment",
+      "points": [
+        [
+          2735,
+          1185
+        ],
+        [
+          2395,
+          1265
+        ]
+      ],
+      "lx": 2565,
+      "ly": 1191
+    },
+    {
+      "from": "p6",
+      "to": "s6D2",
+      "label": "Processing / fulfillment\nstatus and release record",
+      "points": [
+        [
+          2395,
+          1305
+        ],
+        [
+          2735,
+          1235
+        ]
+      ],
+      "lx": 2565,
+      "ly": 1304
+    },
+    {
+      "from": "s6D3",
+      "to": "p6",
+      "label": "Current inventory data",
+      "points": [
+        [
+          2735,
+          1430
+        ],
+        [
+          2395,
+          1345
+        ]
+      ],
+      "lx": 2565,
+      "ly": 1353.5
+    },
+    {
+      "from": "p6",
+      "to": "s6D3",
+      "label": "Stock changes and\nissuance data",
+      "points": [
+        [
+          2395,
+          1385
+        ],
+        [
+          2735,
+          1480
+        ]
+      ],
+      "lx": 2565,
+      "ly": 1466.5
+    },
+    {
+      "from": "e7r",
+      "to": "p7",
+      "label": "Request ID and\nstatus lookup criteria",
+      "points": [
+        [
+          290,
+          1762
+        ],
+        [
+          635,
+          1762
+        ]
+      ],
+      "lx": 462.5,
+      "ly": 1738
+    },
+    {
+      "from": "p7",
+      "to": "e7r",
+      "label": "Current request status\nand progress details",
+      "points": [
+        [
+          635,
+          1842
+        ],
+        [
+          290,
+          1842
+        ]
+      ],
+      "lx": 462.5,
+      "ly": 1818
+    },
+    {
+      "from": "p7",
+      "to": "s7D2",
+      "label": "Request lookup criteria",
+      "points": [
+        [
+          905,
+          1765
+        ],
+        [
+          1245,
+          1765
+        ]
+      ],
+      "lx": 1075,
+      "ly": 1741
+    },
+    {
+      "from": "s7D2",
+      "to": "p7",
+      "label": "Request status and\nprogress records",
+      "points": [
+        [
+          1245,
+          1815
+        ],
+        [
+          905,
+          1815
+        ]
+      ],
+      "lx": 1075,
+      "ly": 1839
+    },
+    {
+      "from": "p8",
+      "to": "e8u",
+      "label": "Approval / status notification;\ndeadline warning or overdue alert",
+      "points": [
+        [
+          2125,
+          1800
+        ],
+        [
+          1780,
+          1800
+        ]
+      ],
+      "lx": 1952.5,
+      "ly": 1776
+    },
+    {
+      "from": "s8D1",
+      "to": "p8",
+      "label": "Recipient account and\ncontact data",
+      "points": [
+        [
+          2735,
+          1690
+        ],
+        [
+          2475,
+          1690
+        ],
+        [
+          2475,
+          1760
+        ],
+        [
+          2395,
+          1760
+        ]
+      ],
+      "lx": 2565,
+      "ly": 1666
+    },
+    {
+      "from": "s8D2",
+      "to": "p8",
+      "label": "Approval / request status,\nsubmission and due-date data",
+      "points": [
+        [
+          2735,
+          1935
+        ],
+        [
+          2475,
+          1935
+        ],
+        [
+          2475,
+          1840
+        ],
+        [
+          2395,
+          1840
+        ]
+      ],
+      "lx": 2565,
+      "ly": 1911
+    }
+  ]
+}

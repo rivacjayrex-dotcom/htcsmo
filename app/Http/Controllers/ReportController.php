@@ -38,6 +38,7 @@ class ReportController extends Controller
         'dept_spending',
         'users',
         'item_consumption',
+        'item_usage',
         'approval_audit',
         'inventory_movements',
         'user_activity',
@@ -80,7 +81,9 @@ class ReportController extends Controller
     {
         $request->validate([
             'report_type' => ['nullable', 'in:'.implode(',', self::REPORT_TYPES)],
-            'period' => ['nullable', 'in:current_semester,this_month,this_year,all,custom'],
+            'period' => ['nullable', 'in:current_semester,semester,this_month,this_year,all,custom'],
+            'academic_year' => ['nullable', 'required_if:period,semester', 'integer', 'between:2000,2100'],
+            'term' => ['nullable', 'required_if:period,semester', 'in:first,second,summer'],
             'date_from' => ['nullable', 'required_if:period,custom', 'date_format:Y-m-d'],
             'date_to' => ['nullable', 'required_if:period,custom', 'date_format:Y-m-d', 'after_or_equal:date_from'],
             'account_status' => ['nullable', 'in:pending,active,suspended'],
@@ -96,12 +99,25 @@ class ReportController extends Controller
             'page' => ['nullable', 'integer', 'min:1'],
             'export' => ['nullable', 'in:csv'],
             'download_pdf' => ['nullable', 'boolean'],
+            'print' => ['nullable', 'boolean'],
         ]);
 
         $report = $this->buildReport($request);
 
         if ($request->get('export') === 'csv') {
             return $this->downloadCsv($report);
+        }
+
+        if ($request->boolean('print')) {
+            if ($report['rows']->count() > self::PDF_ROW_LIMIT) {
+                $this->rejectOversizedPdf($request);
+            }
+            return view('admin.reports.print', [
+                ...$report,
+                'generatedBy' => $request->user()->name,
+                'generatedDate' => now()->format('M d, Y · g:i A'),
+                'appliedFilters' => $this->appliedFilterSummary($request),
+            ]);
         }
 
         if ($request->boolean('download_pdf')) {
@@ -146,6 +162,7 @@ class ReportController extends Controller
             'dept_spending' => $this->departmentSpendingReport($request, $dateFrom, $dateTo),
             'users' => $this->userReport($request, $dateFrom, $dateTo),
             'item_consumption' => $this->itemConsumptionReport($request, $dateFrom, $dateTo),
+            'item_usage' => $this->itemUsageReport($request, $dateFrom, $dateTo),
             'approval_audit' => $this->approvalAuditReport($request, $dateFrom, $dateTo),
             'inventory_movements' => $this->inventoryMovementReport($request, $dateFrom, $dateTo),
             'user_activity' => $this->userActivityReport($request, $dateFrom, $dateTo),
@@ -160,6 +177,8 @@ class ReportController extends Controller
             'reportType' => $reportType,
             'pdfRowLimit' => self::PDF_ROW_LIMIT,
             'periodLabel' => $periodLabel,
+            'reportDateFrom' => $dateFrom,
+            'reportDateTo' => $dateTo,
             'departmentOptions' => Department::orderBy('dept_code')->pluck('dept_code'),
             'basisLabel' => match ($reportType) {
                 'requisitions' => $request->input('date_basis') === 'fulfilled'
@@ -167,6 +186,7 @@ class ReportController extends Controller
                     : 'Period: submission date (submitted_at, falling back to creation date). Quantities and values are requested amounts, regardless of fulfillment.',
                 'dept_spending' => 'Period: completion date (closed_at); completed and legacy released requests only. Recorded request value, not audited accounting expenditure.',
                 'item_consumption' => 'Period: completion date (closed_at). Requested quantities and prices on fulfilled requests; these are not actual stock deductions. Use Inventory Movements for the release ledger.',
+                'item_usage' => 'Actual quantities issued from stock, grouped by item and unit. Dates follow stock releases; department follows the requesting account.',
                 'inventory' => 'Current snapshot: estimated on-hand value = current quantity × current catalog price. This is not historical movement value or audited expenditure.',
                 'inventory_movements' => 'Period: ledger transaction date. Signed quantity changes record additions and deductions; release deductions may precede request completion.',
                 default => null,
@@ -186,7 +206,7 @@ class ReportController extends Controller
             return $query->lazy(self::EXPORT_CHUNK_SIZE);
         }
 
-        if ($request->boolean('download_pdf')) {
+        if ($request->boolean('download_pdf') || $request->boolean('print')) {
             // Dompdf builds the entire document in memory. Count up to the
             // supported limit before loading models and their relationships.
             $probe = $query instanceof Builder ? (clone $query)->toBase() : clone $query;
@@ -212,14 +232,14 @@ class ReportController extends Controller
 
     private function rejectOversizedPdf(Request $request): never
     {
-        $message = 'PDF reports support up to '.self::PDF_ROW_LIMIT.' rows (including requisition line items). Narrow the filters or export CSV for all matching records.';
+        $message = ($request->boolean('print') ? 'Printed reports' : 'PDF reports').' support up to '.self::PDF_ROW_LIMIT.' rows (including requisition line items). Narrow the filters or export CSV for all matching records.';
 
         if ($request->ajax() || $request->expectsJson()) {
             throw new HttpResponseException(response()->json(['message' => $message], 422));
         }
 
         // Keep the selected filters on the server-rendered fallback as well.
-        throw new HttpResponseException(redirect()->route('admin.reports.builder', $request->except('download_pdf', 'export'))
+        throw new HttpResponseException(redirect()->route('admin.reports.builder', $request->except('download_pdf', 'print', 'export'))
             ->withErrors(['download_pdf' => $message]));
     }
 
@@ -534,6 +554,52 @@ class ReportController extends Controller
         );
     }
 
+    private function itemUsageReport(Request $request, ?Carbon $dateFrom, ?Carbon $dateTo): array
+    {
+        $query = DB::table('supply_inventory_logs as movements')
+            ->leftJoin('supplies', 'movements.supply_id', '=', 'supplies.id')
+            ->leftJoin('supply_units', 'supplies.supply_unit_id', '=', 'supply_units.id')
+            ->leftJoin('supply_categories', 'supplies.supply_category_id', '=', 'supply_categories.id')
+            ->leftJoin('requisitions', 'movements.requisition_id', '=', 'requisitions.id')
+            ->leftJoin('users as requestors', 'requisitions.user_id', '=', 'requestors.id')
+            ->leftJoin('departments', 'requestors.department_id', '=', 'departments.id')
+            ->where('movements.transaction_type', 'release_deduction')
+            ->where('movements.quantity_change', '<', 0)
+            ->select('movements.supply_id', 'supplies.item_name', 'supply_units.unit_name', 'supply_categories.category_name')
+            ->selectRaw('-SUM(movements.quantity_change) as issued_quantity, COUNT(DISTINCT movements.requisition_id) as request_count');
+
+        if ($request->filled('dept')) {
+            $request->dept === '__unassigned'
+                ? $query->whereNull('departments.id')
+                : $query->where('departments.dept_code', $request->dept);
+        }
+        if ($request->filled('supply_id')) {
+            $query->where('movements.supply_id', $request->integer('supply_id'));
+        }
+        if ($request->filled('category')) {
+            $query->where('supply_categories.category_name', $request->category);
+        }
+        $this->applyDateRange($query, 'movements.created_at', $dateFrom, $dateTo);
+        $records = $this->records($request, $query
+            ->groupBy('movements.supply_id', 'supplies.item_name', 'supply_units.unit_name', 'supply_categories.category_name')
+            ->orderByDesc('issued_quantity')->orderBy('movements.supply_id'));
+        $rows = $records->map(fn ($item) => [
+            'item' => $item->item_name ?? 'Deleted item #'.$item->supply_id,
+            'category' => $item->category_name ?? 'Uncategorized',
+            'quantity' => (int) $item->issued_quantity,
+            'unit' => $item->unit_name ?? 'Unspecified',
+            'requests' => (int) $item->request_count,
+        ]);
+
+        return $this->reportResult('Item Usage', $rows, [
+            $this->column('item', 'Item'),
+            $this->column('category', 'Category'),
+            $this->column('quantity', 'Quantity Issued', 'number'),
+            $this->column('unit', 'Unit'),
+            $this->column('requests', 'Requisitions', 'number'),
+        ], 'Item types issued', fn () => $rows->count(), 'number');
+    }
+
     private function approvalAuditReport(Request $request, ?Carbon $dateFrom, ?Carbon $dateTo): array
     {
         $query = ApprovalLog::with(['requisition.user.academicDepartment', 'digitalSignature']);
@@ -750,6 +816,12 @@ class ReportController extends Controller
                 'source' => 'Requested line items on completed and legacy released requests. These quantities are not stock deductions. Use the Inventory Movement Ledger for actual release_deduction transactions.',
                 'group' => ['category', 'Supply Category', 'cost', 'Recorded Line Value', 'money'],
             ],
+            'item_usage' => [
+                'purpose' => 'Shows actual quantities issued from stock by item and unit for the selected department and period.',
+                'basis' => 'Stock release date',
+                'source' => 'Negative release_deduction entries in the inventory ledger. Quantities describe supplies issued, rather than confirmed physical consumption.',
+                'group' => ['category', 'Supply Category', null, null, 'number'],
+            ],
             'approval_audit' => [
                 'purpose' => 'Presents the complete decision trail for requisitions, including acting role, remarks, signer identity, signing time, and verification reference.',
                 'basis' => 'Approval action date',
@@ -894,6 +966,10 @@ class ReportController extends Controller
                 ['label' => 'Requested Units on Fulfilled Requests', 'value' => $rows->sum('quantity'), 'type' => 'number'],
                 ['label' => 'Requisition Links', 'value' => $rows->sum('requests'), 'type' => 'number'],
             ],
+            'item_usage' => [
+                ['label' => 'Units of Measure', 'value' => $rows->pluck('unit')->unique()->count(), 'type' => 'number'],
+                ['label' => 'Requisition Links', 'value' => $rows->sum('requests'), 'type' => 'number'],
+            ],
             'approval_audit' => [
                 ['label' => 'Approval Actions', 'value' => $rows->count(), 'type' => 'number'],
                 ['label' => 'Digitally Signed', 'value' => $rows->where('verification', '!=', '-')->count(), 'type' => 'number'],
@@ -935,6 +1011,7 @@ class ReportController extends Controller
             'inventory' => 'Stock health is based on the current quantity compared with the configured minimum stock level.',
             'dept_spending' => 'Only completed and legacy released requisitions contribute, filtered by closed_at. Recorded request values are not audited expenditure.',
             'item_consumption' => 'These are requested quantities on fulfilled requests, filtered by closed_at. Actual stock deductions are recorded separately by ledger transaction date.',
+            'item_usage' => 'Quantities are actual stock releases. Keep units separate; issued supplies do not establish when the department physically consumed them.',
             'approval_audit' => 'Actions without a digital signature remain visible and are explicitly identified as unsigned.',
             'inventory_movements' => 'Review the signed quantity change together with the balance after each transaction.',
             'user_activity' => 'Handle this report according to institutional privacy and access-control policies.',
@@ -982,6 +1059,7 @@ class ReportController extends Controller
             'all' => [null, null, 'All Available Records'],
             'this_month' => [now()->startOfMonth(), now()->endOfMonth(), now()->format('F Y')],
             'this_year' => [now()->startOfYear(), now()->endOfYear(), 'Calendar Year '.now()->year],
+            'semester' => $this->semesterRange($request->integer('academic_year'), $request->input('term')),
             'custom' => [
                 $request->filled('date_from') ? Carbon::parse($request->date_from) : null,
                 $request->filled('date_to') ? Carbon::parse($request->date_to) : null,
@@ -994,6 +1072,15 @@ class ReportController extends Controller
     /**
      * @return array{0: Carbon, 1: Carbon, 2: string}
      */
+    private function semesterRange(int $academicYear, string $term): array
+    {
+        return match ($term) {
+            'second' => [Carbon::create($academicYear + 1, 1, 1)->startOfDay(), Carbon::create($academicYear + 1, 5, 31)->endOfDay(), 'Second Semester AY '.$academicYear.'-'.($academicYear + 1)],
+            'summer' => [Carbon::create($academicYear + 1, 6, 1)->startOfDay(), Carbon::create($academicYear + 1, 7, 31)->endOfDay(), 'Summer Term '.($academicYear + 1)],
+            default => [Carbon::create($academicYear, 8, 1)->startOfDay(), Carbon::create($academicYear, 12, 31)->endOfDay(), 'First Semester AY '.$academicYear.'-'.($academicYear + 1)],
+        };
+    }
+
     private function currentSemester(): array
     {
         $year = now()->year;

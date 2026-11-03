@@ -35,8 +35,11 @@ class ReportWorkspaceTest extends TestCase
             ->actingAs($smo)
             ->get(route('admin.reports.builder'))
             ->assertOk()
-            ->assertSee('Comprehensive Report Center')
-            ->assertSee('Requisition Transactions')
+            ->assertSee('Report Center')
+            ->assertSee('Report sheets')
+            ->assertSee('Dept. spending')
+            ->assertSee('Item usage')
+            ->assertSee('report-sheet-grid', false)
             ->assertSee('id="downloadPdfButton"', false)
             ->assertSee('id="pdfGenerationModal"', false)
             ->assertSee('Generating PDF report…')
@@ -65,6 +68,7 @@ class ReportWorkspaceTest extends TestCase
             'dept_spending',
             'users',
             'item_consumption',
+            'item_usage',
             'approval_audit',
             'inventory_movements',
             'user_activity',
@@ -73,7 +77,7 @@ class ReportWorkspaceTest extends TestCase
                 ->actingAs($smo)
                 ->get(route('admin.reports.builder', ['report_type' => $reportType]))
                 ->assertOk()
-                ->assertSee('matching records');
+                ->assertSee('report-sheet-grid', false);
         }
     }
 
@@ -87,6 +91,7 @@ class ReportWorkspaceTest extends TestCase
             'dept_spending',
             'users',
             'item_consumption',
+            'item_usage',
             'approval_audit',
             'inventory_movements',
             'user_activity',

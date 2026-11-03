@@ -1,6 +1,5 @@
 <style>
     [data-filter-results] { scroll-margin-top: 6rem; }
-    [data-filter-results][aria-busy="true"] { opacity: .65; }
     [data-filter-status] { flex-basis: 100%; margin: var(--space-8) 0; font-size: var(--text-secondary); color: #365a43; }
     [data-filter-status]:empty { margin: 0; }
     [data-filter-state="error"] > [data-filter-status], [data-filter-state="invalid"] > [data-filter-status] { color: #a12d36; }
