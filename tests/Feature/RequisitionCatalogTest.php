@@ -234,4 +234,23 @@ class RequisitionCatalogTest extends TestCase
 
         $this->assertDatabaseCount('requisitions', 1);
     }
+
+    public function test_an_over_limit_cart_is_accepted_after_switching_only_its_request_type_to_major(): void
+    {
+        $user = User::factory()->create();
+        $supply = Supply::create([
+            'item_name' => 'Tier Switch Paper', 'category' => 'Office Supplies', 'quantity' => 10,
+            'unit' => 'Ream(s)', 'unit_price' => 550, 'min_stock_level' => 1,
+            'size' => 'A4', 'supplier' => 'Supplier A', 'configurable_options' => ['Brand' => ['Hard Copy']],
+        ]);
+        $draft = [
+            'request_type' => 'minor', 'purpose' => 'Paper for classroom assessment materials.',
+            'items' => [['supply_id' => $supply->id, 'qty' => 2, 'options' => ['Brand' => 'Hard Copy']]],
+        ];
+        $this->actingAs($user)->post(route('requisitions.store'), $draft)->assertSessionHasErrors('items');
+        $this->assertDatabaseCount('requisitions', 0);
+        $this->post(route('requisitions.store'), [...$draft, 'request_type' => 'major'])->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('requisitions', ['request_type' => 'major', 'grand_total' => 1100, 'purpose' => $draft['purpose']]);
+        $this->assertDatabaseHas('requisition_items', ['supply_id' => $supply->id, 'quantity' => 2, 'size' => 'A4', 'supplier' => 'Supplier A', 'unit_price' => 550, 'subtotal' => 1100]);
+    }
 }

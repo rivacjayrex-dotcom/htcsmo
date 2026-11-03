@@ -38,6 +38,6 @@
             </table>
         </div>
         <button type="button" class="btn btn-outline-success btn-sm" :disabled="combinations.length >= 100" @click="addCombination()">Add combination</button>
-        <small class="text-muted d-block mt-2">Use Copy to keep the same brand and supplier, then change the size, quality or price. Each combination appears separately in Manage Stock for future edits.</small>
+        <small class="text-muted d-block mt-2">Use Copy to keep the same brand and supplier, then change the size, quality or price. Variants stay grouped under one product in Manage Stock; use Edit to update them together.</small>
     </fieldset>
 </section>

@@ -63,7 +63,7 @@
                     </td>
                     <td class="pe-4 text-end" data-label="Actions">
                         <div class="inventory-row-actions d-inline-flex gap-2">
-                            <a href="{{ $first['edit_url'] }}" :href="activeVariant.edit_url" class="btn inventory-action" :title="'Edit ' + activeVariant.name" :aria-label="'Edit ' + activeVariant.name"><i data-lucide="pencil"></i></a>
+                            <a href="{{ $group['edit_url'] }}" class="btn inventory-action" title="Edit all {{ $group['name'] }} variants" aria-label="Edit all {{ $group['name'] }} variants"><i data-lucide="pencil"></i></a>
                             <button type="button" class="btn inventory-action danger" @click="confirmDelete(activeVariant.delete_url, activeVariant.name)" :title="'Delete ' + activeVariant.name" :aria-label="'Delete ' + activeVariant.name"><i data-lucide="trash-2"></i></button>
                         </div>
                     </td>

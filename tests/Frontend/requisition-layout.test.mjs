@@ -21,6 +21,7 @@ function cart({ saved, blocked = false, confirm = async () => false } = {}) {
         clearTimeout() {},
         setTimeout() { return 1; },
         matchMedia() { return { matches: false }; },
+        requestAnimationFrame(callback) { callback(); },
         async htcConfirm(options) { decisions.push(options); return confirm(options); },
         bootstrap: { Modal: { getOrCreateInstance(element) {
             assert.equal(element, modal);
@@ -345,4 +346,131 @@ test('a submission in progress cannot be closed or discarded', async () => {
     assert.equal(event.defaultPrevented, true);
     assert.equal(fixture.decisions.length, 0);
     assert.equal(fixture.hides, 0);
+});
+
+function submission(engine, valid = true) {
+    const form = { isConnected: true, dataset: {}, reportValidity: () => valid, requestSubmit() { this.submissions = (this.submissions || 0) + 1; } };
+    const event = { currentTarget: form, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } };
+    engine.refreshIcons = () => {};
+    return { form, event };
+}
+
+function overLimitDraft(engine) {
+    engine.tier = 'minor';
+    engine.view = 'catalog';
+    engine.cart = [
+        { id: 11, key: '11:brand', qty: 2, price: 450, unit: 'Ream(s)', size: 'A4', supplier: 'Supplier A', options: { Brand: 'Hard Copy' } },
+        { id: 12, key: '12:brand', qty: 1, price: 200, unit: 'Ream(s)', size: 'Legal', supplier: 'Supplier B', options: { Brand: 'Double A' } },
+    ];
+    engine.purpose = 'For classroom assessment materials.';
+    engine.search = 'paper';
+    engine.category = 'Office Supplies';
+}
+
+test('an over-limit Minor submission asks to switch and preserves the complete cart when accepted', async () => {
+    const fixture = cart({ confirm: async () => true });
+    const { engine } = fixture;
+    overLimitDraft(engine);
+    const cartReference = engine.cart;
+    const before = JSON.stringify(engine.cart);
+    const { form, event } = submission(engine);
+    assert.equal(engine.canSubmit, true);
+    assert.notEqual(engine.submitLabel, 'Minor limit exceeded');
+    await engine.handleRequisitionSubmit(event);
+    assert.equal(event.defaultPrevented, true);
+    assert.equal(fixture.decisions.length, 1);
+    assert.match(fixture.decisions[0].message, /1,100\.00/);
+    assert.equal(fixture.decisions[0].accept, 'Yes, switch to Major');
+    assert.equal(engine.tier, 'major');
+    assert.equal(engine.cart, cartReference);
+    assert.equal(JSON.stringify(engine.cart), before);
+    assert.equal(engine.grandTotal, 1100);
+    assert.equal(engine.purpose, 'For classroom assessment materials.');
+    assert.equal(engine.search, 'paper');
+    assert.equal(engine.category, 'Office Supplies');
+    assert.equal(engine.confirmationOpen, true);
+    assert.equal(engine.pendingForm, form);
+    assert.equal(form.submissions, undefined, 'Changing tiers must not submit the request automatically.');
+    engine.confirmRequisitionSubmit();
+    engine.confirmRequisitionSubmit();
+    assert.equal(form.submissions, 1, 'Final review submits once.');
+});
+
+test('declining the Major switch keeps Minor and all draft details without opening final submission', async () => {
+    const fixture = cart();
+    const { engine } = fixture;
+    overLimitDraft(engine);
+    const reference = engine.cart;
+    const { form, event } = submission(engine);
+    await engine.handleRequisitionSubmit(event);
+    assert.equal(engine.tier, 'minor');
+    assert.equal(engine.cart, reference);
+    assert.equal(engine.purpose, 'For classroom assessment materials.');
+    assert.equal(engine.confirmationOpen, false);
+    assert.equal(engine.pendingForm, null);
+    assert.equal(engine.majorSwitchPending, false);
+    assert.equal(form.submissions, undefined);
+    assert.equal(engine.canSubmit, true, 'The user can submit again after editing or accepting a later switch.');
+});
+
+test('exactly PHP 1000 stays Minor, including prices whose floating-point sum exceeds 1000', async () => {
+    const fixture = cart({ confirm: async () => true });
+    const { engine } = fixture;
+    overLimitDraft(engine);
+    engine.cart = [{ id: 1, qty: 3, price: 333.30 }, { id: 2, qty: 1, price: 0.10 }];
+    const { event } = submission(engine);
+    assert.equal(engine.grandTotal, 1000);
+    await engine.handleRequisitionSubmit(event);
+    assert.equal(fixture.decisions.length, 0);
+    assert.equal(engine.tier, 'minor');
+    assert.equal(engine.confirmationOpen, true);
+});
+
+test('PHP 1000.01 asks to change tier, while an existing Major draft goes directly to final review', async () => {
+    const fixture = cart({ confirm: async () => true });
+    const { engine } = fixture;
+    overLimitDraft(engine);
+    engine.cart = [{ id: 1, qty: 1, price: 1000.01 }];
+    await engine.handleRequisitionSubmit(submission(engine).event);
+    assert.equal(fixture.decisions.length, 1);
+    assert.equal(engine.tier, 'major');
+    engine.cancelRequisitionConfirmation();
+    await engine.handleRequisitionSubmit(submission(engine).event);
+    assert.equal(fixture.decisions.length, 1);
+    assert.equal(engine.confirmationOpen, true);
+});
+
+test('repeated submit clicks share one pending tier decision and a reset draft cannot be switched', async () => {
+    let resolve;
+    const fixture = cart({ confirm: () => new Promise(callback => { resolve = callback; }) });
+    const { engine } = fixture;
+    overLimitDraft(engine);
+    const { event } = submission(engine);
+    const first = engine.handleRequisitionSubmit(event);
+    await engine.handleRequisitionSubmit(event);
+    assert.equal(engine.majorSwitchPending, true);
+    assert.equal(fixture.decisions.length, 1);
+    const closeEvent = fixture.closeEvent();
+    await engine.confirmRequisitionClose(closeEvent);
+    assert.equal(closeEvent.defaultPrevented, true);
+    assert.equal(fixture.decisions.length, 1);
+    engine.resetModal();
+    resolve(true);
+    await first;
+    assert.equal(engine.tier, null);
+    assert.equal(engine.cart.length, 0);
+    assert.equal(engine.confirmationOpen, false);
+    assert.equal(engine.majorSwitchPending, false);
+});
+
+test('invalid forms and missing reasons never open a tier decision', async () => {
+    const fixture = cart({ confirm: async () => true });
+    const { engine } = fixture;
+    overLimitDraft(engine);
+    await engine.handleRequisitionSubmit(submission(engine, false).event);
+    engine.purpose = '';
+    await engine.handleRequisitionSubmit(submission(engine).event);
+    assert.equal(fixture.decisions.length, 0);
+    assert.equal(engine.tier, 'minor');
+    assert.equal(engine.confirmationOpen, false);
 });

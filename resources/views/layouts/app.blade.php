@@ -679,6 +679,7 @@
                 lastAddedKey: null,
                 purpose: previousRequest.purpose || '',
                 confirmationOpen: false,
+                majorSwitchPending: false,
                 submissionConfirmed: false,
                 submitting: false,
                 pendingForm: null,
@@ -793,6 +794,7 @@
                 },
                 openProduct(item) {
                     this.selectedItem = item;
+                    this.cartOpen = false;
                     this.selectedOptions = Object.fromEntries(Object.entries(item.options || {})
                         .filter(([, choices]) => choices.length === 1)
                         .map(([label, choices]) => [label, choices[0]]));
@@ -851,13 +853,31 @@
                 },
                 formatMoney(value) { return Number(value || 0).toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2}); },
                 refreshIcons() { setTimeout(() => window.lucide?.createIcons(), 30); },
-                handleRequisitionSubmit(event) {
+                async handleRequisitionSubmit(event) {
                     if (this.submissionConfirmed) return;
 
                     event.preventDefault();
-                    if (!this.canSubmit || !event.currentTarget.reportValidity()) return;
+                    const form = event.currentTarget;
+                    if (!this.canSubmit || this.majorSwitchPending || this.confirmationOpen || !form.reportValidity()) return;
 
-                    this.pendingForm = event.currentTarget;
+                    if (this.minorLimitExceeded) {
+                        const draftCart = this.cart;
+                        this.majorSwitchPending = true;
+                        try {
+                            const accepted = await window.htcConfirm({
+                                title: 'Switch to Major requisition?',
+                                message: `Your selected items total ₱${this.formatMoney(this.grandTotal)}, which exceeds the ₱1,000 Minor limit. Would you like to change to Major? Your items, quantities and reason will stay the same.`,
+                                accept: 'Yes, switch to Major',
+                                cancel: 'Keep Minor',
+                            });
+                            if (!accepted || this.cart !== draftCart || !this.canSubmit || !form.isConnected || window.htcSession?.expired) return;
+                            if (this.minorLimitExceeded) this.tier = 'major';
+                        } finally {
+                            this.majorSwitchPending = false;
+                        }
+                    }
+
+                    this.pendingForm = form;
                     this.confirmationOpen = true;
                     this.$nextTick(() => {
                         this.refreshIcons();
@@ -879,7 +899,7 @@
                     this.$nextTick(() => window.requestAnimationFrame(() => this.pendingForm?.requestSubmit()));
                 },
                 async confirmRequisitionClose(event) {
-                    if (this.submitting || this.submissionConfirmed) {
+                    if (this.submitting || this.submissionConfirmed || this.majorSwitchPending) {
                         event.preventDefault();
                         return;
                     }
@@ -915,6 +935,7 @@
                     this.selectedItem = null;
                     this.purpose = '';
                     this.confirmationOpen = false;
+                    this.majorSwitchPending = false;
                     this.submissionConfirmed = false;
                     this.submitting = false;
                     this.pendingForm = null;
@@ -957,14 +978,14 @@
                     return Object.fromEntries(Object.entries(this.selectedItem?.options || {}).filter(([name]) => !(name in (this.selectedItem?.attributes || {}))));
                 },
                 get canAddProduct() { return this.allOptionsSelected && Number.isInteger(this.productQty) && this.productQty >= 1 && this.productQty <= this.remainingStock(this.selectedItem); },
-                get grandTotal() { return this.cart.reduce((sum, item) => sum + (item.qty * item.price), 0); },
+                get grandTotal() { return this.cart.reduce((cents, item) => cents + Number(item.qty) * Math.round(Number(item.price) * 100), 0) / 100; },
                 get cartQuantity() { return this.cart.reduce((sum, item) => sum + item.qty, 0); },
                 get purposeIsValid() { return this.purpose.trim().length >= 10; },
-                get canSubmit() { return this.cart.length > 0 && this.purposeIsValid && !(this.tier === 'minor' && this.grandTotal > 1000); },
+                get minorLimitExceeded() { return this.tier === 'minor' && this.grandTotal > 1000; },
+                get canSubmit() { return ['minor', 'major'].includes(this.tier) && this.cart.length > 0 && this.purposeIsValid; },
                 get submitLabel() {
                     if (!this.cart.length) return 'Add at least one item';
                     if (!this.purposeIsValid) return 'Add a reason to continue';
-                    if (this.tier === 'minor' && this.grandTotal > 1000) return 'Minor limit exceeded';
                     return 'Submit requisition →';
                 }
             };

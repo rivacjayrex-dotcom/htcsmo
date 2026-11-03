@@ -41,6 +41,8 @@ Route::middleware(['auth', 'role:smo'])->group(function () {
     Route::get('/inventory/forecast/report', [SupplyController::class, 'forecastReport'])->name('inventory.forecast.report');
     Route::get('/inventory/create', [SupplyController::class, 'create'])->name('inventory.create');
     Route::post('/inventory', [SupplyController::class, 'store'])->name('inventory.store');
+    Route::get('/inventory/{id}/product/edit', [SupplyController::class, 'editProduct'])->whereNumber('id')->name('inventory.products.edit');
+    Route::patch('/inventory/{id}/product', [SupplyController::class, 'updateProduct'])->whereNumber('id')->name('inventory.products.update');
 
     // --- ADDED THESE INVENTORY ROUTES ---
     Route::get('/inventory/{id}/edit', [SupplyController::class, 'edit'])->name('inventory.edit');

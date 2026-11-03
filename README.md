@@ -26,6 +26,7 @@ The project is intended to support transparent electronic records and approval w
 
 - Multi-item supply requisitions with automatic totals
 - Minor and major request workflows based on the PHP 1,000 threshold
+- Minor carts over PHP 1,000 offer a confirmation to switch to Major, preserving every item, quantity, selected option and the request reason before final review
 - Role-based approval queues for seven institutional roles
 - Request tracking numbers and a visual progress tracker
 - Approve, reject, and office-clarification decisions
@@ -41,11 +42,11 @@ The project is intended to support transparent electronic records and approval w
 
 ### Sizes and suppliers
 
-Manage Stock groups records with the same item name and category into one product row. Use its variant dropdown to view a combination's stock, price and details; Edit and Delete apply to that selected variant. A product checkbox selects all its matching variants, and bulk selection counts individual variants. Search and stock filters show the matching combinations within each product.
+Manage Stock groups records with the same item name and category into one product row. Use its variant dropdown to view a combination's stock, price and details. **Edit** opens one form for the whole product, including variants hidden by catalog filters. Change the shared name and category, edit every variant's price and stock in the table, and use **Details** for attributes and descriptions. **Save all changes** saves the complete product together. Use **Add variant** or **Copy** to register another combination; copied rows start with zero stock. Existing descriptions are preserved unless you edit them or select **Use one description for all variants**. If stock or product membership changes while the form is open, reload before saving. **Delete** still applies to the dropdown's selected variant. A product checkbox selects all its matching variants, and bulk selection counts individual variants. Search and stock filters show the matching combinations within each product.
 
 In **Manage Stock → Register new item**, use the same item name for related stock and enter one size and one supplier per record. For example, register `Bond Paper / A4 / Supplier A` and `Bond Paper / Letter / Supplier B` with their own quantities and unit prices. Supplier means the supplying company; Brand remains the product brand.
 
-For prices that also vary by brand, color, style or quality, enable **Different prices for different selections**. Name up to five attribute columns (Brand is included), then enter one combination per row, with its size, supplier, unit price, stock and restock threshold. Use **Copy** to add a similar row, or **Add combination** for another selection. All rows share the item name, category, description and unit. Enter one value in each cell; for example, `HTC / Black / Standard / Large / Supplier A` at PHP 450 and `HTC / Vintage / Premium / Large / Supplier A` at PHP 650. Each resulting stock record can be edited separately in Manage Stock.
+For prices that also vary by brand, color, style or quality, enable **Different prices for different selections**. Name up to five attribute columns (Brand is included), then enter one combination per row, with its size, supplier, unit price, stock and restock threshold. Use **Copy** to add a similar row, or **Add combination** for another selection. All rows share the item name, category, description and unit. Enter one value in each cell; for example, `HTC / Black / Standard / Large / Supplier A` at PHP 450 and `HTC / Vintage / Premium / Large / Supplier A` at PHP 650. Use the product Edit button in Manage Stock to update all combinations together.
 
 The cart identifies each stock record by its supply ID. Its selection buttons only offer recorded combinations and update the displayed price and available stock. Selecting a different style preserves the current size when that combination exists; otherwise it selects an available size. Submitted requests retain the selected attributes, size, supplier and price, and release deducts only the linked stock. Duplicate combinations are rejected regardless of attribute column order; update the existing record to restock it.
 

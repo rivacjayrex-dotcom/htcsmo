@@ -2,15 +2,18 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\UpdateInventoryProductRequest;
 use App\Models\RequisitionItem;
 use App\Models\Supply;
 use App\Models\SupplyCategory;
 use App\Services\InventoryAlertService;
 use App\Services\InventoryForecastService;
+use App\Services\InventoryProductService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -80,6 +83,7 @@ class SupplyController extends Controller
             ->map(fn ($group) => [
                 'name' => $group->first()->item_name,
                 'category' => $group->first()->category,
+                'edit_url' => route('inventory.products.edit', $group->first()->id),
                 'variants' => $group->map(fn (Supply $supply) => $this->inventoryVariant($supply))->values()->all(),
             ])->values();
 
@@ -204,6 +208,33 @@ class SupplyController extends Controller
         $item = Supply::findOrFail($id);
 
         return view('inventory.edit', compact('item'));
+    }
+
+    public function editProduct(int $id, InventoryProductService $products)
+    {
+        $product = Supply::findOrFail($id);
+        $variants = $products->query($product)->get();
+        $rows = $products->editRows($variants);
+        $categories = SupplyCategory::orderBy('category_name')->pluck('category_name');
+
+        return view('inventory.edit-product', compact('product', 'variants', 'rows', 'categories'));
+    }
+
+    public function updateProduct(UpdateInventoryProductRequest $request, int $id, InventoryProductService $products, InventoryAlertService $alerts)
+    {
+        $result = $products->update($request->user(), Supply::findOrFail($id), $request->validated());
+        $warning = false;
+        foreach ($result['variants'] as $supply) {
+            try {
+                $state = $result['before'][$supply->id];
+                $alerts->notifyIfThresholdCrossed($supply, $state['wasLow'], $state['wasOut']);
+            } catch (\Throwable $exception) {
+                $warning = true;
+                Log::error('Product saved but inventory alert failed.', ['supply_id' => $supply->id, 'exception' => $exception]);
+            }
+        }
+
+        return redirect()->route('inventory.index')->with('success', 'Product and all '.$result['variants']->count().' variants saved.'.($warning ? ' Some stock alerts could not be sent.' : ''));
     }
 
     /**

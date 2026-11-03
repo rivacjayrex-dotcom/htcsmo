@@ -119,7 +119,7 @@
                                         <div class="option-group"><label x-text="'Choose ' + label"></label><div><template x-for="choice in choices" :key="choice"><button type="button" :class="selectedOptions[label] === choice ? 'active' : ''" @click="selectedOptions[label] = choice" x-text="choice"></button></template></div></div>
                                     </template>
                                     <div class="d-flex align-items-end gap-3 mt-4">
-                                        <div><label class="mini-label d-block" x-text="'Quantity (' + (selectedItem?.unit || 'pc') + ')'">Quantity</label><div class="quantity-picker"><button type="button" @click="productQty = Math.max(1, productQty - 1)">−</button><input type="number" min="1" :max="remainingStock(selectedItem)" x-model.number="productQty"><button type="button" :disabled="productQty >= remainingStock(selectedItem)" @click="productQty = Math.min(remainingStock(selectedItem), productQty + 1)">+</button></div></div>
+                                        <div><label class="mini-label d-block" x-text="'Quantity (' + (selectedItem?.unit || 'pc') + ')'">Quantity</label><div class="quantity-picker"><button type="button" @click="productQty = Math.max(1, productQty - 1)">−</button><input type="number" min="1" :max="remainingStock(selectedItem)" :disabled="view !== 'product' || cartOpen || !selectedItem" x-model.number="productQty"><button type="button" :disabled="productQty >= remainingStock(selectedItem)" @click="productQty = Math.min(remainingStock(selectedItem), productQty + 1)">+</button></div></div>
                                         <button type="button" class="btn btn-htc flex-grow-1 py-3 fw-bold rounded-3" :disabled="!canAddProduct" @click="addConfiguredItem()"><i data-lucide="shopping-cart"></i> Add to cart</button>
                                     </div>
                                     <small x-show="!allOptionsSelected" class="text-warning d-block mt-2"><i data-lucide="info" style="width:13px"></i> Select every required option before adding this item.</small>
@@ -157,7 +157,7 @@
                         </div>
                         <div class="cart-summary">
                             <div><span>Request tier</span><b x-text="tierLabel"></b></div><div><span>Estimated total</span><strong x-text="'₱' + formatMoney(grandTotal)"></strong></div>
-                            <p x-cloak x-show="tier === 'minor' && grandTotal > 1000" class="text-danger mb-2">Minor requests are limited to ₱1,000. Remove items or switch tiers.</p>
+                            <p x-cloak x-show="minorLimitExceeded" class="text-danger mb-2">This total exceeds the ₱1,000 Minor limit. Submit to review switching to Major while keeping your cart.</p>
                             <button type="button" x-cloak x-show="cart.length && !purposeIsValid" class="btn btn-htc w-100 fw-bold rounded-3 cart-submit" @click="completeReason()" :disabled="submitting">Continue: add a reason</button>
                             <button type="submit" x-show="!cart.length || purposeIsValid" class="btn btn-htc w-100 fw-bold rounded-3 cart-submit" :disabled="!canSubmit || submitting" x-text="submitLabel"></button>
                         </div>

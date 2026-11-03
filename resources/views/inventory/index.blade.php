@@ -153,7 +153,7 @@
             <div class="catalog-controls">
                 <div>
                     <h5>Stock catalog</h5>
-                    <p>One row per product. Choose a variant to view its stock, price and actions.</p>
+                    <p>One row per product. Choose a variant to view its stock and price. Edit opens all variants.</p>
                 </div>
                 <form id="inventoryFilters" class="inventory-filters" method="GET" action="{{ route('inventory.index') }}#inventory-results" data-dynamic-search data-filter-target="#inventory-results">
                     <input type="hidden" name="forecast_period" value="{{ $forecast['period'] }}">
