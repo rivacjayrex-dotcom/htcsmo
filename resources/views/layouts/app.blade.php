@@ -118,7 +118,14 @@
                     <div class="page-title">{{ $header ?? 'System Dashboard' }}</div>
                 </div>
 
-                <div class="header-actions">
+                <div class="header-actions" x-data="notificationCenter()">
+                    <a href="{{ route('notifications') }}" id="headerNotifications" class="header-notifications"
+                        :class="{'is-arriving': animating}" title="View notifications"
+                        aria-label="Notifications, {{ $initialUnreadCount }} unread">
+                        <i data-lucide="bell" aria-hidden="true"></i>
+                        <span id="headerNotificationUnreadCount" class="header-notification-count" aria-hidden="true" @if($initialUnreadCount < 1) hidden @endif>{{ $initialUnreadCount > 99 ? '99+' : $initialUnreadCount }}</span>
+                    </a>
+                    <span class="visually-hidden" role="status" aria-live="polite" aria-atomic="true" x-text="animating ? headline : ''"></span>
                     @php
                         $position = match(Auth::user()->role) {
                             'employee' => 'Faculty / Staff',
@@ -157,6 +164,12 @@
                                 <a class="dropdown-item rounded-3 small d-flex align-items-center" href="{{ route('profile.edit') }}">
                                     <i data-lucide="settings" class="me-2 text-muted" style="width:14px"></i> Account Setting
                                 </a>
+                            </li>
+                            <li>
+                                <button type="button" class="dropdown-item rounded-3 small d-flex align-items-center" @click.stop="toggleSound()" :aria-pressed="soundEnabled">
+                                    <i data-lucide="volume-2" class="me-2 text-muted" style="width:14px" aria-hidden="true"></i>
+                                    <span x-text="soundEnabled ? 'Notification sound: on' : 'Notification sound: off'">Notification sound</span>
+                                </button>
                             </li>
                             <li><hr class="dropdown-divider opacity-50"></li>
                             <li>
@@ -392,30 +405,6 @@
 
     @include('layouts.partials.requisition-modal')
 
-    <!-- One compact summary keeps unread activity easy to scan. -->
-    <div x-data="notificationCenter()" x-show="show" x-transition.opacity.duration.250ms class="notification-toast-wrap" aria-label="Notifications" x-cloak>
-        <article class="notification-toast" role="status" aria-live="polite" aria-atomic="true">
-            <div class="notification-toast-body">
-                <div class="notification-toast-heading">
-                    <span class="notification-toast-icon"><i data-lucide="bell-ring"></i></span>
-                    <span class="notification-toast-label">Notifications</span>
-                    <button type="button" class="notification-toast-control" @click="toggleSound()" :title="soundEnabled ? 'Mute notification sounds' : 'Enable notification sounds'" :aria-label="soundEnabled ? 'Mute notification sounds' : 'Enable notification sounds'" :aria-pressed="soundEnabled">
-                        <template x-if="soundEnabled"><i data-lucide="volume-2"></i></template>
-                        <template x-if="!soundEnabled"><i data-lucide="volume-x"></i></template>
-                    </button>
-                    <button type="button" class="notification-toast-control" @click="dismiss()" title="Dismiss popup; notifications stay unread" aria-label="Dismiss notification summary"><i data-lucide="x"></i></button>
-                </div>
-                <h2 class="notification-toast-title" :aria-label="headline">You have <strong x-text="unreadCount"></strong><br><span x-text="unreadCount === 1 ? 'notification awaiting' : 'notifications awaiting'"></span></h2>
-                <a href="{{ route('notifications') }}" class="notification-toast-open">View notifications <i data-lucide="arrow-up-right"></i></a>
-            </div>
-            <div class="notification-toast-breakdown">
-                <template x-for="group in summaryGroups" :key="group.key">
-                    <span class="notification-toast-chip" :class="{'is-attention': group.key === 'needs_attention'}"><strong x-text="'+' + group.count"></strong> <span x-text="group.label"></span></span>
-                </template>
-            </div>
-        </article>
-    </div>
-
     <!-- Live updates stay silent unless recovery is needed. -->
     <div id="liveUpdateStatus" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
     <div id="liveRefreshNotice" class="live-refresh-notice" role="status" aria-live="polite" hidden>
@@ -495,16 +484,15 @@
         })();
 
         function notificationCenter() {
-            // Only displayed popups advance this cursor. The former key also
-            // included notifications skipped during page loads and refreshes.
+            // Keep the existing cursor so seen notifications do not animate again after navigation.
             const storageKey = 'htc-presented-notification-{{ Auth::id() }}';
             const soundKey = 'htc-notification-sound';
             const accountId = {{ (int) Auth::id() }};
             const pageNotificationBaseline = {{ (int) ($layoutLatestNotificationId ?? 0) }};
-            const runtimeCacheKey = `htc-runtime-state:${accountId}`;
+            const unreadSyncKey = `htc-notification-unread-sync-${accountId}`;
             const tabId = window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
             const channel = 'BroadcastChannel' in window ? new BroadcastChannel(`htc-notifications-${accountId}`) : null;
-            let summaryTimer = null;
+            let animationTimer = null;
             let latestState = null;
             let audioContext = null;
             let lastSoundAt = -Infinity;
@@ -512,43 +500,36 @@
                 try { return localStorage.getItem(key); } catch (error) { return null; }
             };
             const savePreference = (key, value) => {
-                try { localStorage.setItem(key, value); } catch (error) { /* Popups also work without browser storage. */ }
+                try { localStorage.setItem(key, value); } catch (error) { /* Notifications also work without browser storage. */ }
             };
 
             return {
-                show: false,
-                unreadCount: 0,
+                animating: false,
+                unreadCount: {{ (int) $initialUnreadCount }},
                 summary: {new_requisitions: 0, needs_attention: 0, updates: 0},
                 get headline() { return `You have ${this.unreadCount} ${this.unreadCount === 1 ? 'notification' : 'notifications'} awaiting`; },
-                get summaryGroups() {
-                    return [
-                        {key: 'new_requisitions', label: this.summary.new_requisitions === 1 ? 'new requisition' : 'new requisitions'},
-                        {key: 'needs_attention', label: this.summary.needs_attention === 1 ? 'needs attention' : 'need attention'},
-                        {key: 'updates', label: this.summary.updates === 1 ? 'other update' : 'other updates'},
-                    ].map(group => ({...group, count: this.summary[group.key]})).filter(group => group.count > 0);
-                },
                 soundEnabled: readPreference(soundKey) !== 'off',
                 lastId: Math.min(Math.max(0, Number(readPreference(storageKey)) || 0), pageNotificationBaseline),
                 pendingSound: null,
 
                 init() {
-                    try {
-                        const cachedRuntimeState = JSON.parse(sessionStorage.getItem(runtimeCacheKey) || 'null');
-                        if (cachedRuntimeState) this.updateBadge(Number(cachedRuntimeState.unread_count || 0));
-                    } catch (error) {
-                        // The next runtime poll will populate the badge.
-                    }
                     const unlock = async () => {
-                        if (await this.unlockAudio() && this.pendingSound && this.show) this.playSound(this.pendingSound);
+                        if (await this.unlockAudio() && this.pendingSound && this.animating) this.playSound(this.pendingSound);
                     };
                     document.addEventListener('pointerdown', unlock);
                     document.addEventListener('keydown', unlock);
                     document.addEventListener('htc:runtime-state', event => this.consumeRuntimeState(event.detail));
+                    document.addEventListener('htc:notification-unread-count', event => {
+                        if (Number(event.detail?.account_id) === accountId) this.updateBadge(event.detail.unread_count);
+                    });
                     channel?.addEventListener('message', event => {
                         if (event.data?.type === 'consumed') this.advanceCursor(Number(event.data.id || 0));
                     });
                     window.addEventListener('storage', event => {
                         if (event.key === storageKey) this.lastId = Math.max(this.lastId, Number(event.newValue || 0));
+                        if (event.key === unreadSyncKey && event.newValue) {
+                            try { this.updateBadge(JSON.parse(event.newValue).count); } catch (_) { /* Ignore malformed state. */ }
+                        }
                     });
                     document.addEventListener('visibilitychange', () => {
                         if (!document.hidden && latestState) this.consumeRuntimeState(latestState);
@@ -559,8 +540,7 @@
                 consumeRuntimeState(data) {
                     if (!data || Number(data.account_id) !== accountId) return;
                     latestState = data;
-                    this.unreadCount = Math.max(0, Number(data.unread_count) || 0);
-                    this.updateBadge(this.unreadCount);
+                    this.updateBadge(data.unread_count);
                     const summary = data.notification_summary || {};
                     this.summary = {
                         new_requisitions: Number(summary.new_requisitions) || 0,
@@ -568,21 +548,20 @@
                         updates: Number(summary.updates) || 0,
                     };
                     if (!data.notification_summary) this.summary.updates = this.unreadCount;
-                    if (!this.unreadCount) { this.dismiss(); return; }
+                    if (!this.unreadCount) return;
                     if (document.hidden) return;
                     const notifications = Array.isArray(data.notifications)
                         ? data.notifications
                         : (data.notification ? [data.notification] : []);
                     const hasNew = notifications.some(notification => Number(notification.id) > this.lastId);
-                    // Every unread item is represented by the aggregate, including
-                    // items beyond the ten-record detail payload.
+                    // The number includes unread items beyond the detail payload.
                     const summaryId = Math.max(Number(data.latest_id) || 0, ...notifications.map(item => Number(item.id) || 0));
-                    if (!hasNew || !this.claimToast(summaryId)) return;
-                    this.show = true;
+                    if (!hasNew || !this.claimAnimation(summaryId)) return;
+                    // Arrivals in the same burst share one short animation.
+                    this.animating = true;
                     this.advanceCursor(summaryId);
-                    this.notifyActivity();
-                    window.clearTimeout(summaryTimer);
-                    summaryTimer = window.setTimeout(() => this.dismiss(), 9000);
+                    window.clearTimeout(animationTimer);
+                    animationTimer = window.setTimeout(() => this.stopAnimation(), 1200);
                     this.playSound(this.summary.needs_attention > 0 ? 'warning' : 'info');
                     this.$nextTick(() => window.lucide?.createIcons());
                 },
@@ -592,8 +571,8 @@
                     savePreference(storageKey, String(id));
                     channel?.postMessage({type: 'consumed', id});
                 },
-                claimToast(id) {
-                    const key = `htc-notification-toast-${accountId}-${id}`;
+                claimAnimation(id) {
+                    const key = `htc-notification-animation-${accountId}-${id}`;
                     try {
                         const existing = JSON.parse(localStorage.getItem(key) || 'null');
                         if (existing && Date.now() - Number(existing.at || 0) < 30000 && existing.tab !== tabId) return false;
@@ -603,22 +582,23 @@
                         return true;
                     }
                 },
-                notifyActivity() {
-                    document.dispatchEvent(new CustomEvent('htc:notification-activity', {
-                        detail: {active: this.show},
-                    }));
-                },
-                dismiss() {
-                    this.show = false;
+                stopAnimation() {
+                    this.animating = false;
                     this.pendingSound = null;
-                    window.clearTimeout(summaryTimer);
-                    this.notifyActivity();
+                    window.clearTimeout(animationTimer);
                 },
                 updateBadge(count) {
-                    const badge = document.getElementById('notificationUnreadCount');
-                    if (!badge) return;
-                    badge.hidden = count < 1;
-                    badge.textContent = count > 99 ? '99+' : String(count);
+                    this.unreadCount = Math.max(0, Number(count) || 0);
+                    // Returning to a tab must not restore a count from before a read action.
+                    if (latestState) latestState = {...latestState, unread_count: this.unreadCount};
+                    for (const id of ['notificationUnreadCount', 'headerNotificationUnreadCount']) {
+                        const badge = document.getElementById(id);
+                        if (!badge) continue;
+                        badge.hidden = this.unreadCount < 1;
+                        badge.textContent = this.unreadCount > 99 ? '99+' : String(this.unreadCount);
+                    }
+                    document.getElementById('headerNotifications')?.setAttribute('aria-label', `Notifications, ${this.unreadCount} unread`);
+                    if (!this.unreadCount) this.stopAnimation();
                 },
                 toggleSound() {
                     this.soundEnabled = !this.soundEnabled;

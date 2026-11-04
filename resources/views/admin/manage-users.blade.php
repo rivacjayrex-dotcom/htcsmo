@@ -52,7 +52,10 @@
             </div>
 
             @if(Auth::user()->role === 'smo')
+                <div class="personnel-department-actions">
+                <button type="button" class="btn btn-light border personnel-add-department" data-bs-toggle="modal" data-bs-target="#manageDepartmentsModal" aria-haspopup="dialog" aria-controls="manageDepartmentsModal"><i data-lucide="building-2" aria-hidden="true"></i> Manage departments</button>
                 <button type="button" class="btn btn-htc personnel-add-department" data-bs-toggle="modal" data-bs-target="#addDepartmentModal" aria-haspopup="dialog" aria-controls="addDepartmentModal"><i data-lucide="plus" aria-hidden="true"></i> Add department</button>
+                </div>
             @endif
         </div>
 
@@ -234,6 +237,7 @@
         </section>
         @if(Auth::user()->role === 'smo')
             @include('admin.partials.add-department')
+            @include('admin.partials.manage-departments')
             <div class="modal fade" id="personnelDetailsModal" tabindex="-1" aria-hidden="true" aria-labelledby="personnelDetailsTitle">
                 <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
                     <div class="modal-content border-0 shadow-lg rounded-4">

@@ -1341,163 +1341,83 @@ body {
     display: none !important;
 }
 
-.notification-toast-wrap {
-    position: fixed;
-    right: 22px;
-    bottom: 22px;
-    z-index: 10050;
-    width: min(360px, calc(100vw - 28px));
-    max-height: calc(100dvh - 32px);
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    padding: 4px;
-}
-
-.notification-toast {
-    overflow: hidden;
-    border: 1px solid #dce7e0;
-    border-radius: 18px;
-    background: #fff;
-    box-shadow: 0 12px 36px rgba(20, 48, 31, .18);
-    animation: notificationToastEnter .25s ease-out;
-}
-
-.notification-toast-body {
-    padding: 18px 20px 16px;
-}
-
-.notification-toast-heading {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.notification-toast-icon {
-    width: 32px;
-    height: 32px;
-    flex: 0 0 32px;
-    display: grid;
+.header-notifications {
+    position: relative;
+    display: inline-grid;
     place-items: center;
-    border-radius: 10px;
-    color: #276947;
-    background: #e6f4eb;
-}
-
-.notification-toast-icon svg {
-    width: 17px;
-    height: 17px;
-}
-
-.notification-toast-label {
-    flex: 1;
-    color: #63766a;
-    font-size: 12px;
-    font-weight: 700;
-}
-
-.notification-toast-control {
-    display: grid;
-    place-items: center;
-    flex: 0 0 30px;
-    width: 30px;
-    height: 30px;
-    border: 0;
-    border-radius: 8px;
-    background: transparent;
-    color: #718078;
-}
-
-.notification-toast-control:hover {
-    background: #edf4ef;
-    color: #205d3c;
-}
-
-.notification-toast-control svg {
-    width: 16px;
-    height: 16px;
-}
-
-.notification-toast-title {
-    margin: 16px 0 14px;
-    color: #203d2c;
-    font-size: 21px;
-    font-weight: 600;
-    line-height: 1.45;
-    letter-spacing: -.5px;
-}
-
-.notification-toast-title strong {
-    display: inline-block;
-    margin-left: 3px;
-    color: #247343;
-    font-size: 36px;
-    font-weight: 800;
-    line-height: 1;
-}
-
-.notification-toast .notification-toast-open {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    color: #256c43;
-    font-size: 12px;
-    font-weight: 750;
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
+    border: 1px solid rgba(255, 255, 255, .24);
+    border-radius: 12px;
+    color: #fff;
+    background: rgba(255, 255, 255, .1);
     text-decoration: none;
-    min-height: 28px;
 }
 
-.notification-toast-open:hover {
-    text-decoration: underline;
+.header-notifications:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, .2);
 }
 
-.notification-toast-open svg {
-    width: 15px;
-    height: 15px;
-}
-
-.notification-toast-breakdown {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    padding: 12px 20px;
-    border-top: 1px solid #e6ede8;
-    background: #f6f9f7;
-}
-
-.notification-toast-chip {
-    display: inline-flex;
-    align-items: baseline;
-    gap: 4px;
-    padding: 5px 8px;
-    border-radius: 7px;
-    background: #e7f2eb;
-    color: #2b6542;
-    font-size: 11px;
-    line-height: 1.4;
-}
-
-.notification-toast-chip strong {
-    font-weight: 800;
-}
-
-.notification-toast-chip.is-attention {
-    background: #fff0d6;
-    color: #87570c;
-}
-
-.notification-toast-control:focus-visible,
-.notification-toast-open:focus-visible {
-    outline: 2px solid #247343;
+.header-notifications:focus-visible {
+    outline: 2px solid #fff;
     outline-offset: 3px;
 }
 
-@keyframes notificationToastEnter {
-    from { opacity: 0; transform: translateY(12px); }
-    to { opacity: 1; transform: translateY(0); }
+.header-notifications > svg {
+    width: 20px;
+    height: 20px;
+    transform-origin: 50% 15%;
+}
+
+.header-notification-count {
+    position: absolute;
+    top: -5px;
+    right: -7px;
+    display: grid;
+    place-items: center;
+    min-width: 21px;
+    height: 21px;
+    padding: 0 5px;
+    border: 2px solid #14532d;
+    border-radius: 999px;
+    background: #fbbf24;
+    color: #233a29;
+    font-size: var(--text-caption);
+    font-weight: 800;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+}
+
+.header-notification-count[hidden] {
+    display: none;
+}
+
+.header-notifications.is-arriving > svg {
+    animation: notificationBellRing 1.2s ease-in-out;
+}
+
+.header-notifications.is-arriving .header-notification-count {
+    animation: notificationCountPop .55s ease-out;
+}
+
+@keyframes notificationBellRing {
+    0%, 60%, 100% { transform: rotate(0); }
+    10%, 30% { transform: rotate(16deg); }
+    20%, 40% { transform: rotate(-16deg); }
+    50% { transform: rotate(8deg); }
+}
+
+@keyframes notificationCountPop {
+    0%, 100% { transform: scale(1); }
+    45% { transform: scale(1.25); }
+    70% { transform: scale(.95); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .notification-toast { animation: none; }
+    .header-notifications.is-arriving > svg,
+    .header-notifications.is-arriving .header-notification-count { animation: none; }
 }
 
 .cart-summary > div {
@@ -1645,7 +1565,6 @@ body {
     .main-content-inner nav.d-flex.justify-items-center .page-link { width: 100%; min-height: 40px; }
     .modal-dialog { width: calc(100% - 1rem); margin: var(--space-8); }
     .modal-content { max-height: calc(100dvh - 1rem); }
-    .notification-toast-wrap { right: 10px; bottom: 10px; width: min(340px, calc(100vw - 20px)); }
     .live-refresh-notice { top: 68px; right: 10px; left: 10px; max-width: none; }
 }
 

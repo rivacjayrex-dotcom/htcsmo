@@ -30,7 +30,7 @@ function browser() {
             feed = {scrollTop: 0}; tabs = {scrollLeft: 0};
         }},
     });
-    vm.runInNewContext(source, {document, window});
+    vm.runInNewContext(source, {document, window, CustomEvent});
     return {
         document, window, refreshes, unread, markAll,
         get feed() { return feed; }, get tabs() { return tabs; },
@@ -126,7 +126,7 @@ function feedBrowser() {
         fetch: (url, options) => new Promise(resolve => requests.push({url, options, resolve})),
         htcFilters: {refresh: (root, url, options) => root.refreshNotifications(url, options)},
     });
-    vm.runInNewContext(source, {document, window, URL, AbortController});
+    vm.runInNewContext(source, {document, window, URL, AbortController, CustomEvent});
     return {
         center, document, window, feed, nav, title, tabs, requests, pushes, errors,
         refresh: (category, options) => center.refreshNotifications(`https://supply.test/notifications?category=${category}`, options),

@@ -20,4 +20,9 @@ class Department extends Model
     {
         return $this->hasMany(User::class);
     }
+
+    public function managementVersion(): string
+    {
+        return hash('sha256', implode("\0", [$this->dept_code, $this->dept_name, $this->updated_at?->format('Y-m-d H:i:s.u')]));
+    }
 }

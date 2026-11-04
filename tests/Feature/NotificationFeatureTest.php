@@ -107,7 +107,9 @@ class NotificationFeatureTest extends TestCase
 
         $this->actingAs($owner)->get(route('notifications'))->assertOk()
             ->assertSee('Mark as read')
-            ->assertSee('Dismiss notification summary');
+            ->assertSee('id="headerNotificationUnreadCount"', false)
+            ->assertSee('Notifications, 1 unread')
+            ->assertDontSee('notification-toast-wrap', false);
         $this->assertFalse($notification->fresh()->is_read);
 
         $this->actingAs($other)->patch(route('notifications.read', $notification))->assertForbidden();

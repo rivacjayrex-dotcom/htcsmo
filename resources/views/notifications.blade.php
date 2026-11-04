@@ -160,6 +160,9 @@
                     sidebarBadge.hidden = normalized < 1;
                     sidebarBadge.textContent = normalized > 99 ? '99+' : String(normalized);
                 }
+                document.dispatchEvent(new CustomEvent('htc:notification-unread-count', {
+                    detail: {account_id: Number(center.dataset.notificationAccount), unread_count: normalized},
+                }));
                 const markAllForm = center.querySelector('[data-mark-all-read-form]');
                 if (markAllForm) markAllForm.hidden = normalized < 1;
                 if (broadcast) {

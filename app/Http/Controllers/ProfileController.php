@@ -242,7 +242,7 @@ class ProfileController extends Controller
         $users = $query->orderByRaw('CASE WHEN department_id IS NULL THEN 1 ELSE 0 END')
             ->orderBy(Department::select('dept_code')->whereColumn('departments.id', 'users.department_id'))
             ->orderBy('name')->orderBy('id')->paginate(20)->withQueryString();
-        $departments = Department::orderBy('dept_name')->get();
+        $departments = Department::query()->when($manager->role === 'smo', fn ($query) => $query->withCount('users'))->orderBy('dept_name')->get();
         $manageableUserIds = $users
             ->filter(fn (User $user) => $this->canManageTarget($manager, $user))
             ->pluck('id')

@@ -11,12 +11,12 @@
                 <p class="text-muted small">New departments are available during registration and personnel assignment.</p>
                 <div class="mb-3">
                     <label class="form-label" for="newDepartmentCode">Department code</label>
-                    <input id="newDepartmentCode" name="dept_code" value="{{ old('dept_code') }}" class="form-control @error('dept_code', 'departmentForm') is-invalid @enderror" placeholder="e.g. CETE" maxlength="20" pattern="[A-Za-z][A-Za-z0-9-]*" required>
+                    <input id="newDepartmentCode" name="dept_code" value="{{ $errors->getBag('departmentForm')->any() ? old('dept_code') : '' }}" class="form-control @error('dept_code', 'departmentForm') is-invalid @enderror" placeholder="e.g. CETE" maxlength="20" pattern="[A-Za-z][A-Za-z0-9\-]*" required>
                     @error('dept_code', 'departmentForm')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
                 <div>
                     <label class="form-label" for="newDepartmentName">Department name</label>
-                    <input id="newDepartmentName" name="dept_name" value="{{ old('dept_name') }}" class="form-control @error('dept_name', 'departmentForm') is-invalid @enderror" placeholder="Full department or office name" maxlength="255" required>
+                    <input id="newDepartmentName" name="dept_name" value="{{ $errors->getBag('departmentForm')->any() ? old('dept_name') : '' }}" class="form-control @error('dept_name', 'departmentForm') is-invalid @enderror" placeholder="Full department or office name" maxlength="255" required>
                     @error('dept_name', 'departmentForm')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
             </div>

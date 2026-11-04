@@ -19,7 +19,7 @@
 
     <div class="analytics-page" data-filter-workspace="analytics">
         <header class="analytics-header">
-            <div><span class="analytics-eyebrow">Supply management</span><h1>Operational Analytics</h1><p>A clear view of request fulfillment and supply usage.</p></div>
+            <div>><h1>Operational Analytics</h1><p>A clear view of request fulfillment and supply usage.</p></div>
             <a class="analytics-button is-primary" data-filter-region="report-action" href="{{ $reportLink(['report_type' => 'requisitions', 'date_basis' => 'fulfilled']) }}"><i data-lucide="file-chart-column" aria-hidden="true"></i> Open Report Center <i data-lucide="arrow-up-right" aria-hidden="true"></i></a>
         </header>
 

@@ -53,6 +53,8 @@ Route::middleware(['auth', 'role:smo'])->group(function () {
 
     // USER ACCESS MANAGEMENT
     Route::post('/admin/departments', [DepartmentController::class, 'store'])->name('admin.departments.store');
+    Route::patch('/admin/departments/{department}', [DepartmentController::class, 'update'])->whereNumber('department')->name('admin.departments.update');
+    Route::delete('/admin/departments/{department}', [DepartmentController::class, 'destroy'])->whereNumber('department')->name('admin.departments.destroy');
     Route::get('/admin/users/pending', [ProfileController::class, 'pendingUsers'])->name('admin.users.pending');
     Route::post('/admin/users/{id}/approve', [ProfileController::class, 'approveUser'])->whereNumber('id')->name('admin.users.approve');
 });
