@@ -1,21 +1,21 @@
 @php
     $selectedTab = in_array(request('tab'), ['recent', 'deadlines', 'inventory'], true) ? request('tab') : 'recent';
     $tabs = [
-        'recent' => ['label' => 'Recent requisitions', 'icon' => 'files', 'count' => $stats['total'], 'description' => 'Latest requests across all stages', 'hint' => 'View requisitions'],
-        'deadlines' => ['label' => 'Deadline requisitions', 'icon' => 'alarm-clock', 'count' => $stats['urgent'], 'description' => 'Near-deadline and overdue requests', 'hint' => 'Review deadlines'],
-        'inventory' => ['label' => 'Inventory warnings', 'icon' => 'package-minus', 'count' => $stats['low_stock'], 'description' => 'Items at or below minimum stock', 'hint' => 'Check inventory'],
+        'recent' => ['label' => 'Recent requisitions', 'compact_label' => 'Requisitions', 'icon' => 'files', 'count' => $stats['total'], 'description' => 'Latest requests across all stages'],
+        'deadlines' => ['label' => 'Deadline requisitions', 'compact_label' => 'Deadlines', 'icon' => 'alarm-clock', 'count' => $stats['urgent'], 'description' => 'Near-deadline and overdue requests'],
+        'inventory' => ['label' => 'Inventory warnings', 'compact_label' => 'Inventory', 'icon' => 'package-minus', 'count' => $stats['low_stock'], 'description' => 'Items at or below minimum stock'],
     ];
 @endphp
 <div class="smo-workspace-scroll">
 <div class="smo-workspace" data-smo-dashboard>
     @include('dashboard.partials.hero')
+    <div class="smo-tab-workbook">
     <nav class="smo-card-tabs" role="tablist" aria-label="SMO dashboard sections">
         @foreach($tabs as $key => $tab)
-            <a href="{{ route('dashboard', ['tab' => $key]) }}" id="smo-tab-{{ $key }}" class="smo-card-tab {{ $key }}" role="tab" data-smo-tab="{{ $key }}" data-no-loader aria-selected="{{ $selectedTab === $key ? 'true' : 'false' }}" aria-controls="smo-panel-{{ $key }}" tabindex="{{ $selectedTab === $key ? '0' : '-1' }}">
-                <span class="smo-tab-top"><span class="smo-tab-icon"><i data-lucide="{{ $tab['icon'] }}" aria-hidden="true"></i></span><strong>{{ number_format($tab['count']) }}</strong></span>
-                <span class="smo-tab-label">{{ $tab['label'] }}</span>
-                <span class="smo-tab-description">{{ $tab['description'] }}</span>
-                <span class="smo-tab-hint">{{ $tab['hint'] }}<i data-lucide="arrow-right" aria-hidden="true"></i></span>
+            <a href="{{ route('dashboard', ['tab' => $key]) }}" id="smo-tab-{{ $key }}" class="smo-card-tab {{ $key }}" role="tab" data-smo-tab="{{ $key }}" data-no-loader title="{{ $tab['description'] }}" aria-label="{{ $tab['label'] }}: {{ number_format($tab['count']) }}" aria-selected="{{ $selectedTab === $key ? 'true' : 'false' }}" aria-controls="smo-panel-{{ $key }}" tabindex="{{ $selectedTab === $key ? '0' : '-1' }}">
+                <span class="smo-tab-icon"><i data-lucide="{{ $tab['icon'] }}" aria-hidden="true"></i></span>
+                <span class="smo-tab-label">{{ $tab['compact_label'] }}</span>
+                <strong class="smo-tab-count">{{ number_format($tab['count']) }}</strong>
             </a>
         @endforeach
     </nav>
@@ -141,6 +141,7 @@
                 @endif
             </article>
         </section>
+    </div>
     </div>
     <aside class="dashboard-panel activity-panel" aria-labelledby="smoActivityHeading" id="smo-activity">
         <div class="panel-heading compact">

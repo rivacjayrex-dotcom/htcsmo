@@ -55,7 +55,7 @@ class OperationalAnalyticsService
             ->leftJoin('users', 'requisitions.user_id', '=', 'users.id')
             ->leftJoin('departments', 'users.department_id', '=', 'departments.id')
             ->selectRaw("COALESCE(departments.dept_code, 'Unassigned') as department, COUNT(*) as requests, SUM(requisitions.grand_total) as value")
-            ->groupBy('departments.dept_code')->orderByDesc('value')->orderBy('department')->get();
+            ->groupBy('departments.dept_code')->orderByDesc('requests')->orderBy('department')->get();
 
         $topItems = DB::table('supply_inventory_logs as movements')
             ->leftJoin('supplies', 'movements.supply_id', '=', 'supplies.id')

@@ -17,7 +17,9 @@ export function filterUrl(form, base, FormDataClass = FormData) {
 
 export function dateRangeError(from, to, required = false) {
     if (!from && !to && !required) return '';
-    if (!from || !to) return 'Choose both a start date and an end date, or clear both dates.';
+    if (!from || !to) return required
+        ? 'Choose both a start date and an end date for the custom period.'
+        : 'Choose both a start date and an end date, or clear both dates.';
     const validDate = value => /^\d{4}-\d{2}-\d{2}$/.test(value)
         && !Number.isNaN(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
     if (!validDate(from) || !validDate(to)) return 'Enter valid start and end dates.';

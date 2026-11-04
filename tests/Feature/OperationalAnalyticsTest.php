@@ -36,8 +36,8 @@ class OperationalAnalyticsTest extends TestCase
         $old->update(['remarks' => 'Edited in October, but completed in July']);
 
         $response = $this->actingAs($smo)->get(route('admin.reports.index'))->assertOk()
-            ->assertSee('First Semester AY 2026-2027')->assertSee('₱176.00')
-            ->assertSee('Monthly figures and request links');
+            ->assertSee('First Semester AY 2026-2027')->assertSee('Departments served')
+            ->assertSee('Monthly figures')->assertDontSee('₱176.00');
         $this->assertEquals(2, $response->viewData('periodTotals')->requests);
         $this->assertEquals(176, $response->viewData('periodTotals')->value);
         $this->assertEquals(88, $response->viewData('periodTotals')->average);
@@ -220,7 +220,7 @@ class OperationalAnalyticsTest extends TestCase
             $response = $this->get(route('admin.reports.index'))->assertOk()
                 ->assertSee('No fulfilled requests in this period')
                 ->assertSee('No stock release deductions recorded')
-                ->assertSee('₱0.00')
+                ->assertSee('No fulfillment recorded yet')
                 ->assertDontSee('chart.js');
             $queries = collect(DB::getQueryLog())->pluck('query');
         } finally {
@@ -228,6 +228,32 @@ class OperationalAnalyticsTest extends TestCase
         }
         $this->assertCount(5, $response->viewData('months'));
         $this->assertFalse($queries->contains(fn ($sql) => preg_match('/select \* from ["`]?requisitions/i', $sql) === 1));
+    }
+
+    public function test_redesigned_analytics_uses_request_counts_and_clickable_rows_without_money_panels(): void
+    {
+        $smo = User::factory()->create(['role' => 'smo']);
+        $cete = User::factory()->create(['department' => 'CETE']);
+        $cas = User::factory()->create(['department' => 'CAS']);
+        $this->requisition($cete, 'completed', '2026-10-01 12:00:00', 10);
+        $this->requisition($cete, 'completed', '2026-10-02 12:00:00', 10);
+        $this->requisition($cas, 'completed', '2026-10-03 12:00:00', 10000);
+        $filters = ['period' => 'custom', 'date_from' => '2026-10-01', 'date_to' => '2026-10-31'];
+        $response = $this->actingAs($smo)->get(route('admin.reports.index', $filters))->assertOk()
+            ->assertDontSee("Today's priorities")->assertDontSee('Recorded released value')
+            ->assertDontSee('Average fulfilled value')->assertDontSee('Estimated on-hand inventory value');
+        $this->assertSame(['CETE', 'CAS'], $response->viewData('departments')->pluck('department')->all());
+        $document = new \DOMDocument;
+        @$document->loadHTML('<?xml encoding="UTF-8">'.$response->getContent());
+        $xpath = new \DOMXPath($document);
+        $page = $xpath->query('//div[contains(concat(" ", normalize-space(@class), " "), " analytics-page ")]')->item(0);
+        $this->assertStringNotContainsString('₱', $page->textContent);
+        $departmentRows = $xpath->query('.//section[@id="analytics-departments"]//a[contains(concat(" ", normalize-space(@class), " "), " analytics-row ")]', $page);
+        $this->assertSame(2, $departmentRows->length);
+        $destination = $departmentRows->item(0)->getAttribute('href');
+        $this->assertSame(route('admin.reports.builder', [...$filters, 'report_type' => 'requisitions', 'date_basis' => 'fulfilled', 'dept' => 'CETE']), $destination);
+        $this->get($destination)->assertOk()->assertViewHas('rows', fn ($rows) => $rows->count() === 2 && $rows->every(fn ($row) => $row['department'] === 'CETE'));
+        $this->assertSame(0, $xpath->query('.//a//a', $page)->length);
     }
 
     private function requisition(User $owner, string $status, ?string $closed, float $value): Requisition

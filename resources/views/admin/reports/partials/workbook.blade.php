@@ -92,6 +92,7 @@
             <a href="{{ route('admin.reports.builder', ['report_type' => $reportType]) }}#report-preview" data-filter-link class="report-reset" title="Reset filters"><i data-lucide="rotate-ccw" aria-hidden="true"></i><span>Reset</span></a>
             <x-filter-submit />
         </div>
+        @if($reportType !== 'inventory')<small id="report-date-error" class="report-date-feedback" data-filter-date-error></small>@endif
         @if(request('period') !== 'semester' && $reportType !== 'inventory')<noscript><div class="report-fallback"><label>Academic year <input type="number" name="academic_year" value="{{ request('academic_year', $currentAcademicYear) }}" min="2000" max="2100"></label><label>Semester <select name="term"><option value="first">First semester</option><option value="second">Second semester</option><option value="summer">Summer</option></select></label></div></noscript>@endif
     </form>
 

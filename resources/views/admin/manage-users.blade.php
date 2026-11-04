@@ -9,10 +9,10 @@
         'smo' => 'SMO In-Charge',
     ];
     $personnelCategories = [
-        'all' => ['label' => 'All Personnel', 'description' => 'Everyone within your management scope', 'icon' => 'users'],
-        'admins' => ['label' => 'Administrators', 'description' => 'SMO and institutional administrators', 'icon' => 'shield-check'],
-        'heads' => ['label' => 'Deans & Heads', 'description' => 'Department heads and academic deans', 'icon' => 'landmark'],
-        'staff' => ['label' => 'Faculty & Staff', 'description' => 'Faculty and staff grouped by department', 'icon' => 'graduation-cap'],
+        'all' => ['label' => 'All Personnel', 'description' => 'Everyone within your management scope'],
+        'admins' => ['label' => 'Administrators', 'description' => 'SMO and institutional administrators'],
+        'heads' => ['label' => 'Deans & Heads', 'description' => 'Department heads and academic deans'],
+        'staff' => ['label' => 'Faculty & Staff', 'description' => 'Faculty and staff grouped by department'],
     ];
     $activeCategory = $category ?? 'all';
 @endphp
@@ -39,10 +39,10 @@
             this.editModal.show();
         }
     }">
-        <div class="personnel-toolbar d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
+        <div class="personnel-toolbar">
             <div>
-                <h4 class="fw-black text-dark mb-1"><b>{{ $scopeLabel }} Personnel</b></h4>
-                <p class="text-muted small mb-0">
+                <h4 class="personnel-title">{{ $scopeLabel }} Personnel</h4>
+                <p class="personnel-description">
                     @if(Auth::user()->role === 'dept_head')
                         Manage faculty and staff accounts assigned to your department.
                     @else
@@ -51,63 +51,57 @@
                 </p>
             </div>
 
-            <div class="d-flex flex-wrap align-items-center gap-2 personnel-toolbar-actions">
-            <form id="personnelFilters" action="{{ route('admin.users.manage') }}#personnel-results" method="GET" class="personnel-search d-flex flex-wrap align-items-center gap-2" data-dynamic-search>
+            @if(Auth::user()->role === 'smo')
+                <button type="button" class="btn btn-htc personnel-add-department" data-bs-toggle="modal" data-bs-target="#addDepartmentModal" aria-haspopup="dialog" aria-controls="addDepartmentModal"><i data-lucide="plus" aria-hidden="true"></i> Add department</button>
+            @endif
+        </div>
+
+        <div class="personnel-summary" data-filter-region="summary">
+            <div class="personnel-stat">
+                <div><span class="personnel-stat__label">Visible Personnel</span><strong class="personnel-stat__value">{{ $stats['total'] }}</strong></div>
+                <span class="personnel-stat__icon"><i data-lucide="users" aria-hidden="true"></i></span>
+            </div>
+            <div class="personnel-stat personnel-stat--approved">
+                <div><span class="personnel-stat__label">Approved Accounts</span><strong class="personnel-stat__value">{{ $stats['active'] }}</strong></div>
+                <span class="personnel-stat__icon"><i data-lucide="user-round-check" aria-hidden="true"></i></span>
+            </div>
+            <div class="personnel-stat personnel-stat--suspended">
+                <div><span class="personnel-stat__label">Suspended Accounts</span><strong class="personnel-stat__value">{{ $stats['suspended'] }}</strong></div>
+                <span class="personnel-stat__icon"><i data-lucide="user-round-minus" aria-hidden="true"></i></span>
+            </div>
+        </div>
+
+        <form id="personnelFilters" action="{{ route('admin.users.manage') }}#personnel-results" method="GET" class="personnel-search" data-dynamic-search>
                 @if($category)
                     <input type="hidden" name="category" value="{{ $category }}">
                 @endif
-                <div class="input-group input-group-sm">
-                    <span class="input-group-text bg-white border-end-0 rounded-start-pill text-muted" aria-hidden="true">
-                        <i data-lucide="search" style="width: 14px;"></i>
-                    </span>
-                    <input type="search" name="search" value="{{ request('search') }}"
-                        class="form-control border-start-0 rounded-end-pill bg-white shadow-none"
-                        maxlength="100" placeholder="Search name, ID, or email" aria-label="Search personnel" style="min-width: 230px;">
+                <div class="personnel-search__field">
+                    <label for="personnel-search" class="personnel-filter-label">Search personnel</label>
+                    <div class="personnel-search__input">
+                        <i data-lucide="search" aria-hidden="true"></i>
+                        <input id="personnel-search" type="search" name="search" value="{{ request('search') }}"
+                            class="form-control" maxlength="100" placeholder="Search name, ID, or email" aria-label="Search personnel">
+                    </div>
                 </div>
                 @if(Auth::user()->role !== 'dept_head')
-                    <select name="department" class="form-select form-select-sm personnel-department-filter" aria-label="Filter personnel by department">
+                <div class="personnel-search__department">
+                    <label for="personnel-department" class="personnel-filter-label">Department</label>
+                    <select id="personnel-department" name="department" class="form-select personnel-department-filter" aria-label="Filter personnel by department">
                         <option value="">All departments</option>
                         @foreach($departments as $department)
                             <option value="{{ $department->dept_code }}" @selected(request('department') === $department->dept_code)>{{ $department->dept_code }} — {{ $department->dept_name }}</option>
                         @endforeach
                     </select>
+                </div>
                 @endif
-                <a href="{{ route('admin.users.manage') }}#personnel-results" data-filter-link class="btn btn-sm btn-link text-danger text-decoration-none">Clear filters</a>
+                <a href="{{ route('admin.users.manage') }}#personnel-results" data-filter-link class="btn personnel-clear-filters"><i data-lucide="rotate-ccw" aria-hidden="true"></i> Clear filters</a>
                 <x-filter-submit />
-            </form>
-            @if(Auth::user()->role === 'smo')
-                <button type="button" class="btn btn-sm btn-htc" data-bs-toggle="modal" data-bs-target="#addDepartmentModal" aria-haspopup="dialog" aria-controls="addDepartmentModal">Add department</button>
-            @endif
-            </div>
-        </div>
-
-
-
-        <div class="row g-3 mb-4" data-filter-region="summary">
-            <div class="col-md-4">
-                <div class="card border-0 shadow-sm rounded-4 p-3 h-100">
-                    <small class="text-muted fw-bold text-uppercase" style="font-size: var(--text-caption);">Visible Personnel</small>
-                    <h3 class="fw-black mb-0 mt-2">{{ $stats['total'] }}</h3>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card border-0 shadow-sm rounded-4 p-3 h-100 border-start border-success border-4">
-                    <small class="text-muted fw-bold text-uppercase" style="font-size: var(--text-caption);">Approved Accounts</small>
-                    <h3 class="fw-black text-success mb-0 mt-2">{{ $stats['active'] }}</h3>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card border-0 shadow-sm rounded-4 p-3 h-100 border-start border-warning border-4">
-                    <small class="text-muted fw-bold text-uppercase" style="font-size: var(--text-caption);">Suspended Accounts</small>
-                    <h3 class="fw-black text-warning mb-0 mt-2">{{ $stats['suspended'] }}</h3>
-                </div>
-            </div>
-        </div>
+        </form>
 
         <section id="personnel-results" data-filter-results data-filter-region="results" data-result-count="{{ $users->total() }}" tabindex="-1" aria-label="Matching personnel">
-        <nav class="personnel-categories mb-4" aria-label="Personnel categories" data-filter-links>
+        <div class="personnel-registry">
+        <nav class="personnel-categories" aria-label="Personnel categories" data-filter-links>
             @foreach($personnelCategories as $categoryKey => $categoryDetails)
-                @if($categoryKey === 'all' || ($categoryCounts[$categoryKey] ?? 0) > 0 || $activeCategory === $categoryKey)
                     @php
                         $categoryUrl = route('admin.users.manage', array_filter([
                             'category' => $categoryKey === 'all' ? null : $categoryKey,
@@ -118,23 +112,18 @@
                     <a href="{{ $categoryUrl }}#personnel-results"
                         class="personnel-category {{ $activeCategory === $categoryKey ? 'active' : '' }}"
                         @if($activeCategory === $categoryKey) aria-current="page" @endif>
-                        <span class="personnel-category__icon"><i data-lucide="{{ $categoryDetails['icon'] }}"></i></span>
-                        <span class="personnel-category__copy">
-                            <strong>{{ $categoryDetails['label'] }}</strong>
-                            <small>{{ $categoryDetails['description'] }}</small>
-                        </span>
+                        <span class="personnel-category__label">{{ $categoryDetails['label'] }}</span>
                         <span class="personnel-category__count">{{ $categoryCounts[$categoryKey] ?? 0 }}</span>
                     </a>
-                @endif
             @endforeach
         </nav>
 
-        <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
-            <div class="card-header bg-white border-0 p-4 pb-2">
+        <div class="personnel-registry__body">
+            <div class="personnel-registry__header">
                 <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
                     <div>
-                        <h6 class="fw-bold text-dark mb-0">{{ $personnelCategories[$activeCategory]['label'] }}</h6>
-                        <small class="text-muted">{{ $personnelCategories[$activeCategory]['description'] }}. Actions remain limited by your role and department.</small>
+                        <h6 class="fw-bold text-dark mb-2">{{ $personnelCategories[$activeCategory]['label'] }}</h6>
+                        <p class="personnel-description">{{ $personnelCategories[$activeCategory]['description'] }}.</p>
                     </div>
                     @if($activeCategory !== 'all')
                         <a href="{{ route('admin.users.manage', array_filter(request()->only('search', 'department'))) }}#personnel-results" data-filter-link class="btn btn-sm btn-light border rounded-pill px-3">
@@ -142,6 +131,7 @@
                         </a>
                     @endif
                 </div>
+                <p class="personnel-result-count">{{ number_format($users->total()) }} {{ $users->total() === 1 ? 'person' : 'people' }} found @if($users->hasPages())<span aria-hidden="true">&middot;</span> Showing {{ $users->firstItem() }}&ndash;{{ $users->lastItem() }}@endif</p>
             </div>
 
             <div class="table-responsive">
@@ -164,8 +154,10 @@
                             @endif
                             <tr>
                                 <td class="ps-4" data-label="Personnel">
-                                    <div class="fw-bold text-dark">{{ $user->name }}</div>
-                                    <small class="text-muted">{{ $user->school_id }} • {{ $user->email }}</small>
+                                    <div class="personnel-identity">
+                                        <div class="fw-bold text-dark">{{ $user->name }}</div>
+                                        <small class="text-muted">{{ $user->school_id }} <span aria-hidden="true">&middot;</span> {{ $user->email }}</small>
+                                    </div>
                                 </td>
                                 <td data-label="Department">
                                     <span class="badge bg-light text-dark border rounded-pill px-3">
@@ -183,6 +175,7 @@
                                     @endif
                                 </td>
                                 <td class="text-end pe-4" data-label="Action">
+                                    <div class="personnel-row-actions">
                                     @if(Auth::user()->role === 'smo')
                                         <button type="button" class="btn btn-sm btn-light border rounded-pill px-3 fw-bold personnel-details-button"
                                             aria-haspopup="dialog" aria-controls="personnelDetailsModal" aria-label="View details for {{ $user->name }}"
@@ -203,7 +196,8 @@
                                         </button>
                                     @endif
                                     @if(in_array($user->id, $manageableUserIds, true))
-                                        <button type="button" class="btn btn-sm btn-light border rounded-pill px-3 fw-bold"
+                                        <button type="button" class="btn btn-sm btn-light border rounded-pill px-3 fw-bold personnel-manage-button"
+                                            aria-haspopup="dialog" aria-controls="editPersonnelModal" aria-label="Manage {{ $user->name }}"
                                             @click="openEdit({{ json_encode([
                                                 'id' => $user->id,
                                                 'name' => $user->name,
@@ -217,6 +211,7 @@
                                     @else
                                         <span class="small text-muted">View only</span>
                                     @endif
+                                    </div>
                                 </td>
                             </tr>
                         @empty
@@ -235,7 +230,7 @@
                 <div class="card-footer bg-white border-0 p-3" data-filter-pagination>{{ $users->fragment('personnel-results')->links() }}</div>
             @endif
         </div>
-
+        </div>
         </section>
         @if(Auth::user()->role === 'smo')
             @include('admin.partials.add-department')
@@ -344,40 +339,90 @@
         .mini-label { font-size: var(--text-secondary); font-weight: 800; text-transform: uppercase; color: #64748b; letter-spacing: var(--tracking-label); }
         .btn-htc { background-color: var(--htc-green); color: white; border: none; }
         .btn-htc:hover { background-color: #0d2e16; color: white; }
-        .personnel-categories { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-12); }
-        .personnel-category { min-width: 0; display: flex; align-items: center; gap: var(--space-12); padding: var(--space-16); border: 1px solid #dfe8e2; border-radius: 15px; color: #526258; background: #fff; text-decoration: none; box-shadow: 0 5px 16px rgba(20, 62, 37, .045); transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease; }
-        .personnel-category:hover { border-color: #91b9a0; color: #214a31; transform: translateY(-1px); box-shadow: 0 8px 20px rgba(20, 62, 37, .08); }
-        .personnel-category.active { border-color: #27764b; color: #174d2e; background: #edf8f1; box-shadow: inset 0 0 0 1px #27764b; }
-        .personnel-category__icon { width: 38px; height: 38px; flex: 0 0 38px; display: grid; place-items: center; border-radius: 11px; color: #27764b; background: #e8f3ec; }
-        .personnel-category.active .personnel-category__icon { color: #fff; background: #27764b; }
-        .personnel-category__icon svg { width: 18px; height: 18px; }
-        .personnel-category__copy { min-width: 0; flex: 1; }
-        .personnel-category__copy strong, .personnel-category__copy small { display: block; }
-        .personnel-category__copy strong { font-size: var(--text-secondary); }
-        .personnel-category__copy small { margin-top: .12rem; overflow: hidden; color: #7b8980; font-size: var(--text-caption); line-height: var(--line-heading); text-overflow: ellipsis; white-space: nowrap; }
-        .personnel-category__count { min-width: 28px; padding: var(--space-4) var(--space-8); border-radius: 999px; color: #53675a; background: #eef2ef; font-size: var(--text-secondary); font-weight: 800; text-align: center; }
-        .personnel-category.active .personnel-category__count { color: #19603a; background: #d7ecdf; }
+        .personnel-page { display: flex; flex-direction: column; gap: var(--space-24); }
+        .personnel-toolbar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-24); }
+        .personnel-title { margin: 0 0 var(--space-8); color: #183c29; font-size: var(--text-heading-md); font-weight: 800; }
+        .personnel-description { margin: 0; color: #65746b; font-size: var(--text-secondary); line-height: var(--line-body); }
+        .personnel-add-department { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-8); flex-shrink: 0; min-height: 44px; border-radius: 10px; font-weight: 700; }
+        .personnel-add-department svg, .personnel-clear-filters svg { width: 16px; height: 16px; flex-shrink: 0; }
+        .personnel-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-16); }
+        .personnel-stat { display: flex; align-items: center; justify-content: space-between; gap: var(--space-12); min-width: 0; padding: var(--space-24); border: 1px solid #dfe8e2; border-radius: 14px; background: #fff; }
+        .personnel-stat__label { display: block; color: #65746b; font-size: var(--text-secondary); font-weight: 600; }
+        .personnel-stat__value { display: block; margin-top: var(--space-8); color: #183c29; font-size: var(--text-heading-md); font-weight: 800; line-height: var(--line-heading); font-variant-numeric: tabular-nums; }
+        .personnel-stat__icon { display: grid; place-items: center; flex: 0 0 44px; height: 44px; border-radius: 12px; color: #52735f; background: #f0f5f2; }
+        .personnel-stat__icon svg { width: 22px; height: 22px; }
+        .personnel-stat--approved .personnel-stat__value { color: #1b7148; }
+        .personnel-stat--approved .personnel-stat__icon { color: #1b7148; background: #eaf5ee; }
+        .personnel-stat--suspended .personnel-stat__value { color: #94620a; }
+        .personnel-stat--suspended .personnel-stat__icon { color: #94620a; background: #fff6e5; }
+        .personnel-search { display: flex; align-items: flex-end; flex-wrap: wrap; gap: var(--space-16); padding: var(--space-24); border: 1px solid #dfe8e2; border-radius: 14px; background: #f7faf8; }
+        .personnel-filter-label { display: block; margin-bottom: var(--space-8); color: #40584a; font-size: var(--text-secondary); font-weight: 650; }
+        .personnel-search__field { flex: 1 1 280px; min-width: 0; }
+        .personnel-search__input { position: relative; }
+        .personnel-search__input > svg { position: absolute; top: 50%; left: var(--space-12); width: 18px; height: 18px; transform: translateY(-50%); color: #7b8980; pointer-events: none; }
+        .personnel-search .form-control { padding-left: 40px; }
+        .personnel-search .form-control, .personnel-search .form-select { min-height: 44px; border-color: #d4e1d8; border-radius: 9px; background-color: #fff; font-size: var(--text-secondary); }
+        .personnel-search .form-control:focus, .personnel-search .form-select:focus { border-color: #27764b; box-shadow: 0 0 0 3px rgb(39 118 75 / 12%); }
+        .personnel-search__department { flex: 0 1 320px; min-width: 0; }
+        .personnel-clear-filters { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-8); min-height: 44px; border: 1px solid #d4e1d8; border-radius: 9px; color: #52685a; background: #fff; font-weight: 600; }
+        .personnel-clear-filters:hover { color: #185b3b; background: #eaf3ed; border-color: #a8c4b1; }
+        .personnel-registry { container-type: inline-size; border: 1px solid #dfe8e2; border-radius: 14px; background: #fff; box-shadow: 0 5px 18px rgb(20 62 37 / 3%); }
+        .personnel-categories { display: flex; flex-wrap: wrap; gap: var(--space-4); padding: var(--space-8) var(--space-16) 0; border-bottom: 1px solid #dfe8e2; }
+        .personnel-category { position: relative; display: flex; align-items: center; justify-content: center; flex: 1 1 175px; gap: var(--space-12); min-height: 60px; padding: var(--space-12); border-bottom: 3px solid transparent; border-radius: 8px 8px 0 0; color: #65746b; text-decoration: none; transition: color .18s ease, background-color .18s ease; }
+        .personnel-category:hover { color: #185b3b; background: #f4f8f5; }
+        .personnel-category.active { border-bottom-color: #27764b; color: #185b3b; background: #f0f7f2; }
+        .personnel-category:focus-visible, .personnel-clear-filters:focus-visible { outline: 3px solid #27764b; outline-offset: -3px; }
+        .personnel-category__label { font-size: var(--text-secondary); font-weight: 700; }
+        .personnel-category__count { min-width: 28px; padding: var(--space-4) var(--space-8); border-radius: 7px; color: #596e60; background: #eef2ef; font-size: var(--text-caption); font-weight: 800; text-align: center; font-variant-numeric: tabular-nums; }
+        .personnel-category.active .personnel-category__count { color: #19603a; background: #dceee2; }
+        .personnel-registry__header { padding: var(--space-24); }
+        .personnel-registry__header h6 { font-size: var(--text-heading-sm); }
+        .personnel-result-count { margin: var(--space-16) 0 0; color: #65746b; font-size: var(--text-caption); }
+        .personnel-result-count > span { margin: 0 var(--space-8); }
+        .personnel-page .personnel-table { --bs-table-hover-bg: #f7faf8; }
+        .personnel-page .personnel-table thead th { padding: var(--space-16); border-top: 1px solid #e5ede8; border-bottom-color: #e5ede8; background: #f7faf8; color: #65746b; font-size: var(--text-caption); font-weight: 700; white-space: nowrap; }
+        .personnel-page .personnel-table tbody td { padding: var(--space-24) var(--space-16); border-color: #eaf0ec; }
+        .personnel-table tbody tr:last-child td { border-bottom: 0; }
+        .personnel-identity { display: grid; gap: var(--space-8); min-width: 0; }
+        .personnel-identity > small { overflow-wrap: anywhere; }
+        .personnel-table .badge { padding-top: var(--space-8); padding-bottom: var(--space-8); }
+        .personnel-row-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-8); }
+        .personnel-row-actions .btn { min-height: 36px; white-space: nowrap; font-size: var(--text-caption); }
+        .personnel-row-actions .personnel-manage-button { border-color: #cee0d4 !important; color: #185b3b; background: #edf6f0; }
+        .personnel-registry .card-footer { border-radius: 0 0 14px 14px; }
         .personnel-empty-icon { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 12px; color: #678071; background: #edf3ef; }
         .personnel-empty-icon svg { width: 20px; height: 20px; }
-        .personnel-details-button { margin:var(--space-4); }
-        .personnel-department-filter { width:auto; max-width:300px; }
         .personnel-table .personnel-department-heading th { padding:var(--space-12) var(--space-24); background:#edf5ef; color:#235538; font-size:var(--text-secondary); overflow-wrap:anywhere; }
-        @media (max-width: 1199.98px) {
-            .personnel-categories { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        @container (max-width: 760px) {
+            .personnel-categories { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: var(--space-8); gap: var(--space-8); }
+            .personnel-category { justify-content: space-between; min-height: 48px; border: 1px solid transparent; border-radius: 8px; }
+            .personnel-category.active { border-color: #95bca2; box-shadow: inset 3px 0 #27764b; }
         }
         @media (max-width: 767.98px) {
-            .personnel-toolbar { align-items: stretch !important; flex-direction: column; }
-            .personnel-search { width: 100%; }
-            .personnel-toolbar-actions { width:100%; }
-            .personnel-department-filter { width:100%; max-width:none; min-height:42px; }
+            .personnel-page { gap: var(--space-24); }
+            .personnel-toolbar { align-items: flex-start; flex-direction: column; gap: var(--space-16); }
+            .personnel-summary { gap: var(--space-8); }
+            .personnel-stat { align-items: flex-start; padding: var(--space-16); }
+            .personnel-stat__icon { display: none; }
+            .personnel-stat__label { font-size: var(--text-caption); }
+            .personnel-search { gap: var(--space-16); padding: var(--space-16); }
+            .personnel-search__field { flex-basis: 100%; }
+            .personnel-search__department { flex: 1 1 220px; }
+            .personnel-registry__header { padding: var(--space-24) var(--space-16); }
+            .personnel-table tbody td[data-label="Personnel"] { display: block; text-align: left !important; }
+            .personnel-table tbody td[data-label="Personnel"]::before { display: none; }
+            .personnel-table tbody td[data-label="Personnel"] > * { text-align: left; }
+            .personnel-row-actions { width: 100%; }
+            .personnel-row-actions .btn { min-height: 44px; }
             .personnel-table .personnel-department-heading { border:0; border-radius:8px; box-shadow:none; }
             .personnel-table .personnel-department-heading th { display:block; width:100%; padding:var(--space-12); }
-            .personnel-search .input-group { flex: 1; }
-            .personnel-search input { min-width: 0 !important; min-height: 42px; font-size: var(--text-body); }
-            .personnel-page > .row.g-3 { --bs-gutter-y: var(--space-12); }
-            .personnel-page > .card > .card-header { padding: var(--space-16) !important; }
-            .personnel-categories { display: flex; gap: var(--space-8); margin-right: calc(-1 * var(--space-12)); padding-right: var(--space-12); overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: thin; }
-            .personnel-category { min-width: 230px; scroll-snap-align: start; }
+            .personnel-search .form-control, .personnel-search .form-select { font-size: var(--text-body); }
+        }
+        @media (max-width: 399.98px) {
+            .personnel-summary { grid-template-columns: 1fr; }
+            .personnel-stat > div { display: flex; align-items: center; justify-content: space-between; gap: var(--space-12); width: 100%; }
+            .personnel-stat__value { margin: 0; }
+            .personnel-category { gap: var(--space-8); padding: var(--space-8); }
         }
         @media (max-width: 575.98px) {
             #editPersonnelModal .modal-dialog { width: 100%; max-width: none; height: 100%; min-height: 100%; margin: 0; }

@@ -29,6 +29,7 @@
     .report-filter-bar { display:flex; flex-wrap:wrap; align-items:flex-end; gap:var(--space-12); padding:var(--space-16) var(--space-24); background:#fbfcfb; border-bottom:1px solid #dce6df; }
     .report-filter { flex:1 1 155px; max-width:240px; min-width:0; }
     .report-filter.is-short { flex-basis:115px; max-width:145px; }
+    .report-control-panel > .report-date-feedback { margin:0; padding:var(--space-8) var(--space-24); background:#fbfcfb; border-bottom:1px solid #dce6df; }
     .report-filter > label { display:block; margin-bottom:var(--space-4); color:#6b7b70; font-size:var(--text-caption); font-weight:750; }
     #reportForm :is(.form-select,.form-control) { min-height:40px; padding-block:var(--space-8); border:1px solid #d6e1d9; border-radius:6px; background-color:#fff; font-size:var(--text-secondary); color:#294333; }
     #reportForm :is(.form-select,.form-control):focus { border-color:#549770; box-shadow:0 0 0 3px #28774b14; }

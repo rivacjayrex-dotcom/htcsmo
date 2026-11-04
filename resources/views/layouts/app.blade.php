@@ -836,7 +836,6 @@
                     this.lastAddedKey = key;
                     this.cartOpen = false;
                     this.view = 'catalog';
-                    window.htcFeedback?.show({tone: 'success', message: `${this.selectedItem.name} was added to your requisition.`});
                     this.refreshIcons();
                     this.$nextTick(() => {
                         if (!window.matchMedia('(min-width: 992px)').matches) return;

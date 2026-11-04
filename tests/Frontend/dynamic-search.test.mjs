@@ -136,7 +136,31 @@ test('paired date ranges reject incomplete, invalid calendar, and reversed dates
     assert.equal(dateRangeError('', ''), '');
     for (const pair of [['2026-10-01', ''], ['', '2026-10-01'], ['2026-02-30', '2026-03-01'], ['2026-10-22', '2026-10-01']]) assert.notEqual(dateRangeError(...pair), '');
     assert.equal(dateRangeError('2026-10-01', '2026-10-01'), '');
-    assert.notEqual(dateRangeError('', '', true), '');
+    for (const pair of [['', ''], ['2026-10-01', ''], ['', '2026-10-01']]) {
+        assert.equal(dateRangeError(...pair, true), 'Choose both a start date and an end date for the custom period.');
+    }
+});
+
+test('report date errors reuse the feedback below the filter row and clear when corrected', async () => {
+    const b = fixture();
+    const feedback = b.doc.createElement('small');
+    feedback.id = 'report-date-error';
+    b.root.form.append(feedback);
+    b.root.form.querySelector = selector => selector === '[data-filter-date-error]' ? feedback : null;
+    b.input('date_from').required = true;
+    b.event('change', b.input('date_from'));
+    assert.equal(b.calls.length, 0);
+    assert.equal(b.root.form.children.length, 1);
+    assert.equal(feedback.textContent, 'Choose both a start date and an end date for the custom period.');
+    for (const name of ['date_from', 'date_to']) {
+        assert.equal(b.input(name).attributes.get('aria-describedby'), feedback.id);
+        b.input(name).value = '2026-10-01';
+    }
+    b.event('change', b.input('date_to'));
+    await flush();
+    assert.equal(feedback.textContent, '');
+    assert.equal(b.calls.length, 1);
+    assert.equal(b.input('date_to').attributes.has('aria-invalid'), false);
 });
 
 test('dates wait for a complete valid range and explain why results have not changed', async () => {
