@@ -1341,83 +1341,85 @@ body {
     display: none !important;
 }
 
-.header-notifications {
-    position: relative;
-    display: inline-grid;
-    place-items: center;
-    flex: 0 0 44px;
-    width: 44px;
-    height: 44px;
-    border: 1px solid rgba(255, 255, 255, .24);
-    border-radius: 12px;
-    color: #fff;
-    background: rgba(255, 255, 255, .1);
+.notification-sidebar-message {
+    position: fixed;
+    top: var(--notification-message-top, 180px);
+    left: calc(var(--sidebar-width) + 12px);
+    z-index: 1020;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    max-width: calc(100vw - var(--sidebar-width) - 28px);
+    padding: 10px 10px 10px 16px;
+    border: 1px solid #bbd9c6;
+    border-radius: 14px;
+    background: #f0fdf4;
+    color: #14532d;
+    box-shadow: 0 8px 24px rgba(15, 56, 36, .16);
+    transform-origin: left center;
+    transition: left var(--sidebar-motion, .34s ease);
+}
+
+.notification-sidebar-message::before {
+    content: '';
+    position: absolute;
+    left: -6px;
+    top: calc(50% - 6px);
+    width: 11px;
+    height: 11px;
+    border-left: 1px solid #bbd9c6;
+    border-bottom: 1px solid #bbd9c6;
+    background: #f0fdf4;
+    transform: rotate(45deg);
+}
+
+.notification-sidebar-message-link {
+    color: inherit;
+    font-size: var(--text-secondary);
+    font-weight: 700;
+    line-height: 1.5;
     text-decoration: none;
 }
 
-.header-notifications:hover {
-    color: #fff;
-    background: rgba(255, 255, 255, .2);
-}
-
-.header-notifications:focus-visible {
-    outline: 2px solid #fff;
-    outline-offset: 3px;
-}
-
-.header-notifications > svg {
-    width: 20px;
-    height: 20px;
-    transform-origin: 50% 15%;
-}
-
-.header-notification-count {
-    position: absolute;
-    top: -5px;
-    right: -7px;
+.notification-sidebar-message-link:hover { color: #166534; text-decoration: underline; }
+.notification-sidebar-message-close {
     display: grid;
     place-items: center;
-    min-width: 21px;
-    height: 21px;
-    padding: 0 5px;
-    border: 2px solid #14532d;
-    border-radius: 999px;
-    background: #fbbf24;
-    color: #233a29;
-    font-size: var(--text-caption);
-    font-weight: 800;
-    line-height: 1;
-    font-variant-numeric: tabular-nums;
+    flex: 0 0 30px;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: #437454;
+}
+.notification-sidebar-message-close:hover { background: #dcefe3; }
+.notification-sidebar-message-close svg { width: 15px; height: 15px; }
+.notification-sidebar-message :focus-visible { outline: 2px solid #247343; outline-offset: 3px; }
+.notification-sidebar-message.is-arriving { animation: notificationMessageWiggle .6s ease-in-out 2; }
+
+@keyframes notificationMessageWiggle {
+    0%, 100% { transform: rotate(0); }
+    20%, 60% { transform: rotate(-2deg); }
+    40%, 80% { transform: rotate(2deg); }
 }
 
-.header-notification-count[hidden] {
-    display: none;
-}
-
-.header-notifications.is-arriving > svg {
-    animation: notificationBellRing 1.2s ease-in-out;
-}
-
-.header-notifications.is-arriving .header-notification-count {
-    animation: notificationCountPop .55s ease-out;
-}
-
-@keyframes notificationBellRing {
-    0%, 60%, 100% { transform: rotate(0); }
-    10%, 30% { transform: rotate(16deg); }
-    20%, 40% { transform: rotate(-16deg); }
-    50% { transform: rotate(8deg); }
-}
-
-@keyframes notificationCountPop {
-    0%, 100% { transform: scale(1); }
-    45% { transform: scale(1.25); }
-    70% { transform: scale(.95); }
+@media (max-width: 991.98px) {
+    .notification-sidebar-message {
+        top: 74px;
+        right: auto;
+        left: 12px;
+        max-width: calc(100vw - 24px);
+        transform-origin: left top;
+    }
+    .notification-sidebar-message::before { left: 12px; right: auto; top: -6px; transform: rotate(135deg); }
+    body.sidebar-open .notification-sidebar-message { display: none !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .header-notifications.is-arriving > svg,
-    .header-notifications.is-arriving .header-notification-count { animation: none; }
+    .notification-sidebar-message.is-arriving { animation: none; }
+    .notification-sidebar-message { transition: none; }
 }
 
 .cart-summary > div {

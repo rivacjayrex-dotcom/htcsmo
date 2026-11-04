@@ -23,7 +23,7 @@
 <body data-runtime-scope="{{ $workspaceScope }}" data-runtime-version="{{ $workspaceVersion }}">
     @include('layouts.partials.session-recovery')
     @include('layouts.partials.feedback-messages')
-    <div class="d-flex">
+    <div class="d-flex" x-data="notificationCenter()">
         <button type="button" class="sidebar-backdrop" id="sidebarBackdrop" aria-label="Close navigation"></button>
         <!-- SIDEBAR -->
         <aside class="sidebar" id="appSidebar" aria-label="Primary navigation">
@@ -46,13 +46,13 @@
                 <a href="{{ route('dashboard') }}" title="Home" aria-label="Home" class="nav-link-custom {{ request()->routeIs('dashboard') ? 'active' : '' }}">
                     <i data-lucide="layout-dashboard" aria-hidden="true"></i><span class="sidebar-link-label">Home</span>
                 </a>
-                <a href="{{ route('notifications') }}" title="Notifications" aria-label="Notifications" class="nav-link-custom {{ request()->routeIs('notifications') ? 'active' : '' }}">
-                    <i data-lucide="bell"></i>
+                @php
+                    $initialUnreadCount = $unreadCount ?? $layoutUnreadCount ?? 0;
+                @endphp
+                <a href="{{ route('notifications') }}" id="sidebarNotifications" title="Notifications" aria-label="Notifications, {{ $initialUnreadCount }} unread" class="nav-link-custom {{ request()->routeIs('notifications') ? 'active' : '' }}">
+                    <i data-lucide="bell" aria-hidden="true"></i>
                     <span class="sidebar-link-label">Notifications</span>
-                    @php
-                        $initialUnreadCount = $unreadCount ?? $layoutUnreadCount ?? 0;
-                    @endphp
-                    <span id="notificationUnreadCount" class="sidebar-count" @if($initialUnreadCount < 1) hidden @endif>{{ $initialUnreadCount > 99 ? '99+' : $initialUnreadCount }}</span>
+                    <span id="notificationUnreadCount" class="sidebar-count" aria-hidden="true" @if($initialUnreadCount < 1) hidden @endif>{{ $initialUnreadCount > 99 ? '99+' : $initialUnreadCount }}</span>
                 </a>
 
                 <div class="nav-section-label">Requisitions</div>
@@ -108,6 +108,15 @@
             </div>
         </aside>
 
+        <div id="notificationSidebarMessage" class="notification-sidebar-message"
+            x-show="reminderVisible" :style="{'--notification-message-top': reminderTop + 'px'}"
+            :class="{'is-arriving': animating}" role="status" aria-live="polite" aria-atomic="true" x-cloak>
+            <a href="{{ route('notifications') }}" class="notification-sidebar-message-link" x-text="headline">You have {{ $initialUnreadCount }} {{ $initialUnreadCount === 1 ? 'Notification' : 'Notifications' }}!</a>
+            <button type="button" class="notification-sidebar-message-close" @click="dismissReminder()" aria-label="Dismiss notification message">
+                <i data-lucide="x" aria-hidden="true"></i>
+            </button>
+        </div>
+
         <!-- MAIN CONTENT AREA -->
         <main class="main-content">
             <header class="top-bar">
@@ -118,14 +127,7 @@
                     <div class="page-title">{{ $header ?? 'System Dashboard' }}</div>
                 </div>
 
-                <div class="header-actions" x-data="notificationCenter()">
-                    <a href="{{ route('notifications') }}" id="headerNotifications" class="header-notifications"
-                        :class="{'is-arriving': animating}" title="View notifications"
-                        aria-label="Notifications, {{ $initialUnreadCount }} unread">
-                        <i data-lucide="bell" aria-hidden="true"></i>
-                        <span id="headerNotificationUnreadCount" class="header-notification-count" aria-hidden="true" @if($initialUnreadCount < 1) hidden @endif>{{ $initialUnreadCount > 99 ? '99+' : $initialUnreadCount }}</span>
-                    </a>
-                    <span class="visually-hidden" role="status" aria-live="polite" aria-atomic="true" x-text="animating ? headline : ''"></span>
+                <div class="header-actions">
                     @php
                         $position = match(Auth::user()->role) {
                             'employee' => 'Faculty / Staff',
@@ -493,6 +495,7 @@
             const tabId = window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
             const channel = 'BroadcastChannel' in window ? new BroadcastChannel(`htc-notifications-${accountId}`) : null;
             let animationTimer = null;
+            let reminderTimer = null;
             let latestState = null;
             let audioContext = null;
             let lastSoundAt = -Infinity;
@@ -505,9 +508,11 @@
 
             return {
                 animating: false,
+                reminderVisible: false,
+                reminderTop: 180,
                 unreadCount: {{ (int) $initialUnreadCount }},
                 summary: {new_requisitions: 0, needs_attention: 0, updates: 0},
-                get headline() { return `You have ${this.unreadCount} ${this.unreadCount === 1 ? 'notification' : 'notifications'} awaiting`; },
+                get headline() { return `You have ${this.unreadCount} ${this.unreadCount === 1 ? 'Notification' : 'Notifications'}!`; },
                 soundEnabled: readPreference(soundKey) !== 'off',
                 lastId: Math.min(Math.max(0, Number(readPreference(storageKey)) || 0), pageNotificationBaseline),
                 pendingSound: null,
@@ -518,6 +523,9 @@
                     };
                     document.addEventListener('pointerdown', unlock);
                     document.addEventListener('keydown', unlock);
+                    window.addEventListener('resize', () => this.positionReminder());
+                    document.addEventListener('scroll', () => this.positionReminder(), true);
+                    document.getElementById('appSidebar')?.addEventListener('transitionend', () => this.positionReminder());
                     document.addEventListener('htc:runtime-state', event => this.consumeRuntimeState(event.detail));
                     document.addEventListener('htc:notification-unread-count', event => {
                         if (Number(event.detail?.account_id) === accountId) this.updateBadge(event.detail.unread_count);
@@ -559,11 +567,28 @@
                     if (!hasNew || !this.claimAnimation(summaryId)) return;
                     // Arrivals in the same burst share one short animation.
                     this.animating = true;
+                    this.reminderVisible = true;
                     this.advanceCursor(summaryId);
                     window.clearTimeout(animationTimer);
                     animationTimer = window.setTimeout(() => this.stopAnimation(), 1200);
+                    window.clearTimeout(reminderTimer);
+                    reminderTimer = window.setTimeout(() => this.dismissReminder(), 6000);
                     this.playSound(this.summary.needs_attention > 0 ? 'warning' : 'info');
-                    this.$nextTick(() => window.lucide?.createIcons());
+                    this.$nextTick(() => {
+                        this.positionReminder();
+                        window.lucide?.createIcons();
+                    });
+                },
+                positionReminder() {
+                    if (!this.reminderVisible) return;
+                    const anchor = document.getElementById('sidebarNotifications');
+                    const bounds = anchor?.getBoundingClientRect?.();
+                    if (bounds) this.reminderTop = Math.max(84, Math.min(bounds.top + bounds.height / 2 - 26, window.innerHeight - 72));
+                },
+                dismissReminder() {
+                    this.reminderVisible = false;
+                    window.clearTimeout(reminderTimer);
+                    this.stopAnimation();
                 },
                 advanceCursor(id) {
                     if (id <= this.lastId) return;
@@ -591,14 +616,13 @@
                     this.unreadCount = Math.max(0, Number(count) || 0);
                     // Returning to a tab must not restore a count from before a read action.
                     if (latestState) latestState = {...latestState, unread_count: this.unreadCount};
-                    for (const id of ['notificationUnreadCount', 'headerNotificationUnreadCount']) {
-                        const badge = document.getElementById(id);
-                        if (!badge) continue;
+                    const badge = document.getElementById('notificationUnreadCount');
+                    if (badge) {
                         badge.hidden = this.unreadCount < 1;
                         badge.textContent = this.unreadCount > 99 ? '99+' : String(this.unreadCount);
                     }
-                    document.getElementById('headerNotifications')?.setAttribute('aria-label', `Notifications, ${this.unreadCount} unread`);
-                    if (!this.unreadCount) this.stopAnimation();
+                    document.getElementById('sidebarNotifications')?.setAttribute('aria-label', `Notifications, ${this.unreadCount} unread`);
+                    if (!this.unreadCount) this.dismissReminder();
                 },
                 toggleSound() {
                     this.soundEnabled = !this.soundEnabled;

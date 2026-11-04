@@ -50,7 +50,6 @@ function browser({
     };
     const timers = new Map();
     let nextTimer = 0;
-    const badge = {};
     const region = {
         dataset: { liveRegion: "workspace" },
         innerHTML: "original content",
@@ -63,7 +62,6 @@ function browser({
         body: { dataset: {} },
         documentElement: { getAttribute: () => null },
         getElementById: (id) => {
-            if (id === "notificationUnreadCount") return badge;
             if (!elements.has(id)) elements.set(id, Object.assign(new EventTarget(), {hidden: true, textContent: '', attributes: {}, setAttribute(name, value) { this.attributes[name] = value; }}));
             return elements.get(id);
         },
@@ -153,11 +151,13 @@ function browser({
     };
 }
 
-test("an unseen notification animates the top counter when the recipient opens a page", () => {
+test("an unseen notification shows the wiggle message beside the sidebar count", () => {
     const { center, payload } = browser();
     center.consumeRuntimeState(payload(42));
     assert.equal(center.animating, true);
     assert.equal(center.unreadCount, 1);
+    assert.equal(center.reminderVisible, true);
+    assert.equal(center.headline, 'You have 1 Notification!');
 });
 
 test("navigating before the next poll does not skip a new reminder", () => {
@@ -186,16 +186,16 @@ test("a hidden tab leaves the arrival animation for a visible tab", () => {
     assert.equal(center.animating, true);
 });
 
-test("finishing the animation keeps both counts unread and duplicate polls do not replay it", () => {
+test("finishing the wiggle keeps the message visible and duplicate polls do not replay it", () => {
     const { center, document, payload } = browser();
     center.consumeRuntimeState(payload(43, 44, 45, 46));
     center.stopAnimation();
     center.consumeRuntimeState(payload(43, 44, 45, 46));
     assert.equal(center.animating, false);
     assert.equal(center.unreadCount, 4);
+    assert.equal(center.reminderVisible, true);
     assert.equal(document.getElementById('notificationUnreadCount').textContent, '4');
-    assert.equal(document.getElementById('headerNotificationUnreadCount').textContent, '4');
-    assert.equal(document.getElementById('headerNotificationUnreadCount').hidden, false);
+    assert.equal(document.getElementById('notificationUnreadCount').hidden, false);
 });
 
 test("a later arrival updates the counter and resets the animation timeout", async () => {
@@ -213,7 +213,7 @@ test("the counter uses the full unread count beyond the detail payload", () => {
     const { center, payload } = browser();
     center.consumeRuntimeState({...payload(43, 44), latest_id: 62, unread_count: 20,
         notification_summary: {new_requisitions: 3, needs_attention: 17, updates: 0}});
-    assert.equal(center.headline, 'You have 20 notifications awaiting');
+    assert.equal(center.headline, 'You have 20 Notifications!');
     assert.equal(center.lastId, 62);
     assert.equal(center.unreadCount, 20);
     assert.equal(center.summary.needs_attention, 17);
@@ -224,7 +224,7 @@ test("reading items updates the counter and reading all stops the animation", ()
     center.consumeRuntimeState(payload(43, 44));
     center.consumeRuntimeState({...payload(44), notification_summary: {new_requisitions: 1, needs_attention: 0, updates: 0}});
     assert.equal(center.animating, true);
-    assert.equal(center.headline, 'You have 1 notification awaiting');
+    assert.equal(center.headline, 'You have 1 Notification!');
     assert.equal(center.summary.new_requisitions, 1);
     center.consumeRuntimeState(payload());
     assert.equal(center.animating, false);
@@ -262,17 +262,17 @@ test("notifications from another account are ignored", () => {
     assert.equal(center.animating, false);
 });
 
-test('both counters cap at 99+ while the accessible label keeps the full unread count', () => {
+test('the sidebar count caps at 99+ while the message and accessible label keep the full count', () => {
     const {center, document, payload} = browser();
     center.consumeRuntimeState({...payload(43), unread_count: 125});
-    for (const id of ['notificationUnreadCount', 'headerNotificationUnreadCount']) {
+    for (const id of ['notificationUnreadCount']) {
         assert.equal(document.getElementById(id).textContent, '99+');
         assert.equal(document.getElementById(id).hidden, false);
     }
-    assert.equal(document.getElementById('headerNotifications').attributes['aria-label'], 'Notifications, 125 unread');
+    assert.equal(document.getElementById('sidebarNotifications').attributes['aria-label'], 'Notifications, 125 unread');
 });
 
-test('reading notifications synchronizes the top counter immediately without waiting for a poll', () => {
+test('reading notifications synchronizes the sidebar count immediately without waiting for a poll', () => {
     const {center, document, payload} = browser();
     center.consumeRuntimeState(payload(43));
     document.dispatchEvent(new CustomEvent('htc:notification-unread-count', {
@@ -283,12 +283,12 @@ test('reading notifications synchronizes the top counter immediately without wai
         detail: {account_id: 7, unread_count: 0},
     }));
     assert.equal(center.animating, false);
-    assert.equal(document.getElementById('headerNotificationUnreadCount').hidden, true);
     assert.equal(document.getElementById('notificationUnreadCount').hidden, true);
-    assert.equal(document.getElementById('headerNotifications').attributes['aria-label'], 'Notifications, 0 unread');
+    assert.equal(center.reminderVisible, false);
+    assert.equal(document.getElementById('sidebarNotifications').attributes['aria-label'], 'Notifications, 0 unread');
 });
 
-test('a read action in another tab updates both counts without starting an arrival animation', () => {
+test('a read action in another tab updates the count without replaying the message', () => {
     const {center, document, window, payload} = browser();
     center.consumeRuntimeState(payload(43, 44));
     center.stopAnimation();
@@ -298,7 +298,7 @@ test('a read action in another tab updates both counts without starting an arriv
     window.dispatchEvent(event);
     assert.equal(center.animating, false);
     assert.equal(center.unreadCount, 1);
-    assert.equal(document.getElementById('headerNotificationUnreadCount').textContent, '1');
+    assert.equal(document.getElementById('notificationUnreadCount').textContent, '1');
     document.dispatchEvent(new Event('visibilitychange'));
     assert.equal(center.unreadCount, 1);
     assert.equal(center.animating, false);
@@ -367,7 +367,7 @@ test("background updates are silent and do not wait for the counter animation", 
     assert.equal(fixture.document.getElementById('liveUpdateStatus').textContent, 'Content updated.');
 });
 
-test('a new employee request refreshes the open notification center and animates its top counter', async () => {
+test('a new employee request refreshes the open notification center and animates its sidebar count', async () => {
     const fixture = browser({cursor: 42});
     const {document, window, context, center, runTimer} = fixture;
     const feed = {scrollTop: 180, innerHTML: 'Previous notifications'};
@@ -412,7 +412,7 @@ test('a new employee request refreshes the open notification center and animates
     await runTimer(3000);
     assert.equal(center.animating, true);
     assert.equal(center.summary.new_requisitions, 1);
-    assert.equal(document.getElementById('notificationUnreadCount').textContent, '1');
+    assert.equal(center.headline, 'You have 1 Notification!');
     assert.equal(unread.textContent, 1);
     assert.equal(markAll.hidden, false);
     assert.equal(feed.innerHTML, 'New Requisition Submitted');
@@ -926,4 +926,49 @@ test('pages without a safe live region do not show a routine refresh banner or r
     assert.ok(fixture.requests.every(url => url.startsWith('/api/')));
     assert.equal(fixture.document.getElementById('liveRefreshNotice').hidden, true);
     assert.equal(fixture.window.reloads, 0);
+});
+
+
+test('the sidebar message disappears after six seconds and keeps the sidebar count unread', async () => {
+    const {center, payload, document, runTimer} = browser();
+    center.consumeRuntimeState(payload(43, 44));
+    assert.equal(center.reminderVisible, true);
+    assert.equal(center.headline, 'You have 2 Notifications!');
+    await runTimer(1200);
+    assert.equal(center.animating, false);
+    assert.equal(center.reminderVisible, true);
+    await runTimer(6000);
+    assert.equal(center.reminderVisible, false);
+    assert.equal(document.getElementById('notificationUnreadCount').textContent, '2');
+    center.consumeRuntimeState(payload(43, 44));
+    assert.equal(center.reminderVisible, false);
+});
+
+test('dismissing the message keeps notifications unread and a later arrival shows it again', () => {
+    const {center, payload} = browser();
+    center.consumeRuntimeState(payload(43));
+    center.dismissReminder();
+    assert.equal(center.reminderVisible, false);
+    assert.equal(center.animating, false);
+    assert.equal(center.unreadCount, 1);
+    center.consumeRuntimeState(payload(43));
+    assert.equal(center.reminderVisible, false);
+    center.consumeRuntimeState(payload(43, 44));
+    assert.equal(center.reminderVisible, true);
+    assert.equal(center.headline, 'You have 2 Notifications!');
+});
+
+test('the bubble follows the sidebar item and clamps its position to the viewport', () => {
+    const {center, payload, document, window} = browser();
+    let top = 220;
+    document.getElementById('sidebarNotifications').getBoundingClientRect = () => ({top, height: 46});
+    window.innerHeight = 700;
+    center.consumeRuntimeState(payload(43));
+    assert.equal(center.reminderTop, 217);
+    top = -50;
+    document.dispatchEvent(new Event('scroll'));
+    assert.equal(center.reminderTop, 84);
+    top = 1000;
+    window.dispatchEvent(new Event('resize'));
+    assert.equal(center.reminderTop, 628);
 });

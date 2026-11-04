@@ -155,11 +155,6 @@
             const updateUnreadCount = (count, broadcast = false) => {
                 const normalized = Math.max(0, Number(count) || 0);
                 center.querySelectorAll('[data-unread-count]').forEach(element => element.textContent = normalized);
-                const sidebarBadge = document.getElementById('notificationUnreadCount');
-                if (sidebarBadge) {
-                    sidebarBadge.hidden = normalized < 1;
-                    sidebarBadge.textContent = normalized > 99 ? '99+' : String(normalized);
-                }
                 document.dispatchEvent(new CustomEvent('htc:notification-unread-count', {
                     detail: {account_id: Number(center.dataset.notificationAccount), unread_count: normalized},
                 }));
