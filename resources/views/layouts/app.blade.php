@@ -4,6 +4,11 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     @include('layouts.partials.initial-visibility')
+    <script>
+        try {
+            document.documentElement.classList.toggle('sidebar-collapsed', window.localStorage.getItem('htc.sidebar.collapsed') === 'true');
+        } catch (_) { /* Navigation also works when browser storage is unavailable. */ }
+    </script>
     @include('layouts.partials.browser-title')
     <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="any">
     <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('images/favicon-32x32.png') }}">
@@ -38,12 +43,12 @@
                 @endphp
 
                 <div class="nav-section-label">Overview</div>
-                <a href="{{ route('dashboard') }}" class="nav-link-custom {{ request()->routeIs('dashboard') ? 'active' : '' }}">
-                    <i data-lucide="layout-dashboard"></i> Home
+                <a href="{{ route('dashboard') }}" title="Home" aria-label="Home" class="nav-link-custom {{ request()->routeIs('dashboard') ? 'active' : '' }}">
+                    <i data-lucide="layout-dashboard" aria-hidden="true"></i><span class="sidebar-link-label">Home</span>
                 </a>
-                <a href="{{ route('notifications') }}" class="nav-link-custom {{ request()->routeIs('notifications') ? 'active' : '' }}">
+                <a href="{{ route('notifications') }}" title="Notifications" aria-label="Notifications" class="nav-link-custom {{ request()->routeIs('notifications') ? 'active' : '' }}">
                     <i data-lucide="bell"></i>
-                    <span>Notifications</span>
+                    <span class="sidebar-link-label">Notifications</span>
                     @php
                         $initialUnreadCount = $unreadCount ?? $layoutUnreadCount ?? 0;
                     @endphp
@@ -51,54 +56,54 @@
                 </a>
 
                 <div class="nav-section-label">Requisitions</div>
-                <a href="{{ route('requests.index') }}" class="nav-link-custom {{ request()->routeIs('requests.index') ? 'active' : '' }}">
-                    <i data-lucide="clipboard-list"></i> Active Requests
+                <a href="{{ route('requests.index') }}" title="Active Requests" aria-label="Active Requests" class="nav-link-custom {{ request()->routeIs('requests.index') ? 'active' : '' }}">
+                    <i data-lucide="clipboard-list" aria-hidden="true"></i><span class="sidebar-link-label">Active Requests</span>
                 </a>
-                <a href="{{ route('requests.archive') }}" class="nav-link-custom {{ request()->routeIs('requests.archive') ? 'active' : '' }}">
-                    <i data-lucide="archive"></i> Request Archive
+                <a href="{{ route('requests.archive') }}" title="Request Archive" aria-label="Request Archive" class="nav-link-custom {{ request()->routeIs('requests.archive') ? 'active' : '' }}">
+                    <i data-lucide="archive" aria-hidden="true"></i><span class="sidebar-link-label">Request Archive</span>
                 </a>
 
                 @if($isApprovalRole)
                     <div class="nav-section-label">Approval Workflow</div>
-                    <a href="{{ route('admin.approvals') }}" class="nav-link-custom {{ request()->routeIs('admin.approvals') ? 'active' : '' }}">
-                        <i data-lucide="clipboard-check"></i> Pending Approvals
+                    <a href="{{ route('admin.approvals') }}" title="Pending Approvals" aria-label="Pending Approvals" class="nav-link-custom {{ request()->routeIs('admin.approvals') ? 'active' : '' }}">
+                        <i data-lucide="clipboard-check" aria-hidden="true"></i><span class="sidebar-link-label">Pending Approvals</span>
                     </a>
                 @endif
 
                 @if($sidebarRole === 'smo')
                     <div class="nav-section-label">Inventory & Fulfillment</div>
-                    <a href="{{ route('admin.approvals') }}" class="nav-link-custom {{ request()->routeIs('admin.approvals') ? 'active' : '' }}">
-                        <i data-lucide="package-check"></i> Fulfillment Queue
+                    <a href="{{ route('admin.approvals') }}" title="Fulfillment Queue" aria-label="Fulfillment Queue" class="nav-link-custom {{ request()->routeIs('admin.approvals') ? 'active' : '' }}">
+                        <i data-lucide="package-check" aria-hidden="true"></i><span class="sidebar-link-label">Fulfillment Queue</span>
                     </a>
-                    <a href="{{ route('inventory.index') }}" class="nav-link-custom {{ request()->routeIs('inventory.*') ? 'active' : '' }}">
-                        <i data-lucide="boxes"></i> Manage Inventory
+                    <a href="{{ route('inventory.index') }}" title="Manage Inventory" aria-label="Manage Inventory" class="nav-link-custom {{ request()->routeIs('inventory.*') ? 'active' : '' }}">
+                        <i data-lucide="boxes" aria-hidden="true"></i><span class="sidebar-link-label">Manage Inventory</span>
                     </a>
 
                     <div class="nav-section-label">Insights</div>
-                    <a href="{{ route('admin.reports.index') }}" class="nav-link-custom {{ request()->routeIs('admin.reports.index', 'admin.reports.analytics') ? 'active' : '' }}">
-                        <i data-lucide="chart-no-axes-combined"></i> Operational Analytics
+                    <a href="{{ route('admin.reports.index') }}" title="Operational Analytics" aria-label="Operational Analytics" class="nav-link-custom {{ request()->routeIs('admin.reports.index', 'admin.reports.analytics') ? 'active' : '' }}">
+                        <i data-lucide="chart-no-axes-combined" aria-hidden="true"></i><span class="sidebar-link-label">Operational Analytics</span>
                     </a>
-                    <a href="{{ route('admin.reports.builder') }}" class="nav-link-custom {{ request()->routeIs('admin.reports.builder', 'admin.reports.generate') ? 'active' : '' }}">
-                        <i data-lucide="file-chart-column"></i> Report Center
+                    <a href="{{ route('admin.reports.builder') }}" title="Report Center" aria-label="Report Center" class="nav-link-custom {{ request()->routeIs('admin.reports.builder', 'admin.reports.generate') ? 'active' : '' }}">
+                        <i data-lucide="file-chart-column" aria-hidden="true"></i><span class="sidebar-link-label">Report Center</span>
                     </a>
                 @endif
 
                 @if($canManagePersonnel)
                     <div class="nav-section-label">Administration</div>
                     @if($sidebarRole === 'smo')
-                        <a href="{{ route('admin.users.pending') }}" class="nav-link-custom {{ request()->routeIs('admin.users.pending') ? 'active' : '' }}">
-                            <i data-lucide="user-round-check"></i> Access Requests
+                        <a href="{{ route('admin.users.pending') }}" title="Access Requests" aria-label="Access Requests" class="nav-link-custom {{ request()->routeIs('admin.users.pending') ? 'active' : '' }}">
+                            <i data-lucide="user-round-check" aria-hidden="true"></i><span class="sidebar-link-label">Access Requests</span>
                         </a>
                     @endif
-                    <a href="{{ route('admin.users.manage') }}" class="nav-link-custom {{ request()->routeIs('admin.users.manage') ? 'active' : '' }}">
-                        <i data-lucide="users-round"></i> Manage Personnel
+                    <a href="{{ route('admin.users.manage') }}" title="Manage Personnel" aria-label="Manage Personnel" class="nav-link-custom {{ request()->routeIs('admin.users.manage') ? 'active' : '' }}">
+                        <i data-lucide="users-round" aria-hidden="true"></i><span class="sidebar-link-label">Manage Personnel</span>
                     </a>
                 @endif
             </div>
 
             <div class="sidebar-footer">
-                <button type="button" class="btn btn-new-request w-100 shadow-sm" data-bs-toggle="modal" data-bs-target="#globalRequestModal">
-                    + NEW REQUISITION
+                <button type="button" class="btn btn-new-request w-100 shadow-sm" title="New requisition" aria-label="New requisition" data-bs-toggle="modal" data-bs-target="#globalRequestModal">
+                    <i data-lucide="plus" aria-hidden="true"></i><span class="sidebar-link-label">NEW REQUISITION</span>
                 </button>
             </div>
         </aside>
@@ -106,7 +111,7 @@
         <!-- MAIN CONTENT AREA -->
         <main class="main-content">
             <header class="top-bar">
-                <button type="button" class="mobile-menu-button" id="sidebarToggle" aria-controls="appSidebar" aria-expanded="false" aria-label="Open navigation">
+                <button type="button" class="mobile-menu-button" id="sidebarToggle" aria-controls="appSidebar" aria-expanded="true" aria-label="Collapse navigation" title="Collapse navigation">
                     <i data-lucide="menu"></i>
                 </button>
                 <div class="page-context">
@@ -450,13 +455,27 @@
                     document.body.style.removeProperty('--sidebar-scroll-top');
                     window.scrollTo(0, sidebarScrollY);
                 }
-                toggle.setAttribute('aria-expanded', String(shouldOpen));
+                const collapsed = document.documentElement.classList.contains('sidebar-collapsed');
+                const label = mobileQuery.matches ? (shouldOpen ? 'Close navigation' : 'Open navigation') : (collapsed ? 'Expand navigation' : 'Collapse navigation');
+                toggle.setAttribute('aria-expanded', String(mobileQuery.matches ? shouldOpen : !collapsed));
+                toggle.setAttribute('aria-label', label);
+                toggle.setAttribute('title', label);
                 sidebar.setAttribute('aria-hidden', String(mobileQuery.matches && !shouldOpen));
+                sidebar.inert = mobileQuery.matches && !shouldOpen;
 
                 if (shouldOpen) closeButton?.focus();
             };
 
-            toggle.addEventListener('click', () => setSidebar(!sidebar.classList.contains('is-open')));
+            toggle.addEventListener('click', () => {
+                if (mobileQuery.matches) {
+                    setSidebar(!sidebar.classList.contains('is-open'));
+                    return;
+                }
+                const collapsed = !document.documentElement.classList.contains('sidebar-collapsed');
+                document.documentElement.classList.toggle('sidebar-collapsed', collapsed);
+                try { window.localStorage.setItem('htc.sidebar.collapsed', String(collapsed)); } catch (_) {}
+                setSidebar(false);
+            });
             closeButton?.addEventListener('click', () => {
                 setSidebar(false);
                 toggle.focus();

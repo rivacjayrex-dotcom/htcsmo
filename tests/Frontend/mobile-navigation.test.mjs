@@ -7,7 +7,7 @@ const layout = readFileSync(new URL('../../resources/views/layouts/app.blade.php
 const start = layout.indexOf('        (() => {', layout.indexOf('<!-- Scripts -->'));
 const source = layout.slice(start, layout.indexOf('        function notificationCenter()', start));
 
-function navigation(scrollY = 640) {
+function navigation(scrollY = 640, {mobile = true, collapsed = false, blockedStorage = false} = {}) {
     const element = () => {
         const classes = new Set();
         const properties = new Map();
@@ -32,12 +32,16 @@ function navigation(scrollY = 640) {
     const link = element();
     elements.appSidebar.querySelectorAll = () => [link];
     const body = element();
-    const document = { body, events: {}, getElementById: id => elements[id], addEventListener(name, callback) { this.events[name] = callback; } };
-    const media = { matches: true, addEventListener(name, callback) { this.change = callback; } };
+    const documentElement = element();
+    documentElement.classList.toggle('sidebar-collapsed', collapsed);
+    const document = { body, documentElement, events: {}, getElementById: id => elements[id], addEventListener(name, callback) { this.events[name] = callback; } };
+    const media = { matches: mobile, addEventListener(name, callback) { this.change = callback; } };
     const scrolls = [];
-    const window = { scrollY, matchMedia: () => media, scrollTo: (x, y) => scrolls.push([x, y]) };
+    const saved = new Map();
+    const window = { scrollY, matchMedia: () => media, scrollTo: (x, y) => scrolls.push([x, y]),
+        localStorage: {setItem(key, value) {if (blockedStorage) throw new Error('Storage blocked'); saved.set(key, value);}} };
     vm.runInNewContext(source, { document, window });
-    return { ...elements, body, document, media, scrolls, window, link };
+    return { ...elements, body, document, media, scrolls, window, link, saved };
 }
 
 test('opening mobile navigation locks the page at its scroll position and closing restores it', () => {
@@ -78,4 +82,49 @@ test('desktop navigation stays visible and does not lock page scrolling', () => 
     assert.equal(nav.body.classList.contains('sidebar-open'), false);
     assert.equal(nav.appSidebar.attributes['aria-hidden'], 'false');
     assert.deepEqual(nav.scrolls, []);
+});
+
+test('desktop toggle collapses to icons and expands again while saving the preference', () => {
+    const nav = navigation(640, {mobile: false});
+    assert.equal(nav.sidebarToggle.attributes['aria-expanded'], 'true');
+    nav.sidebarToggle.events.click();
+    assert.equal(nav.document.documentElement.classList.contains('sidebar-collapsed'), true);
+    assert.equal(nav.sidebarToggle.attributes['aria-expanded'], 'false');
+    assert.equal(nav.sidebarToggle.attributes['aria-label'], 'Expand navigation');
+    assert.equal(nav.saved.get('htc.sidebar.collapsed'), 'true');
+    assert.equal(nav.appSidebar.inert, false);
+    assert.equal(nav.sidebarBackdrop.classList.contains('is-open'), false);
+    nav.link.events.click();
+    assert.equal(nav.document.documentElement.classList.contains('sidebar-collapsed'), true);
+    nav.sidebarToggle.events.click();
+    assert.equal(nav.document.documentElement.classList.contains('sidebar-collapsed'), false);
+    assert.equal(nav.sidebarToggle.attributes['aria-label'], 'Collapse navigation');
+    assert.equal(nav.saved.get('htc.sidebar.collapsed'), 'false');
+    assert.deepEqual(nav.scrolls, []);
+});
+
+test('a saved collapsed preference survives mobile opening and a return to desktop', () => {
+    const nav = navigation(640, {mobile: false, collapsed: true});
+    assert.equal(nav.sidebarToggle.attributes['aria-expanded'], 'false');
+    nav.media.matches = true;
+    nav.media.change();
+    assert.equal(nav.appSidebar.inert, true);
+    nav.sidebarToggle.events.click();
+    assert.equal(nav.appSidebar.inert, false);
+    assert.equal(nav.sidebarToggle.attributes['aria-label'], 'Close navigation');
+    nav.media.matches = false;
+    nav.media.change();
+    assert.equal(nav.document.documentElement.classList.contains('sidebar-collapsed'), true);
+    assert.equal(nav.appSidebar.inert, false);
+    assert.equal(nav.sidebarToggle.attributes['aria-label'], 'Expand navigation');
+    assert.deepEqual(nav.scrolls, [[0, 640]]);
+    assert.equal(nav.saved.size, 0);
+});
+
+test('desktop collapse still works when browser storage is blocked', () => {
+    const nav = navigation(0, {mobile: false, blockedStorage: true});
+    nav.sidebarToggle.events.click();
+    assert.equal(nav.document.documentElement.classList.contains('sidebar-collapsed'), true);
+    nav.sidebarToggle.events.click();
+    assert.equal(nav.document.documentElement.classList.contains('sidebar-collapsed'), false);
 });
